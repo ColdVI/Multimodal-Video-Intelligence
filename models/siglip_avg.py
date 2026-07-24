@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from transformers import AutoModel, AutoProcessor
 
+from common import offline_mode_enabled
 from .base import VideoTextEmbedder, feature_tensor
 
 
@@ -17,8 +18,11 @@ class SiglipAvg(VideoTextEmbedder):
     def __init__(self, device: str = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         model_id = "google/siglip2-so400m-patch14-384"
-        self.proc = AutoProcessor.from_pretrained(model_id)
-        self.model = AutoModel.from_pretrained(model_id).to(self.device).eval()
+        local_files_only = offline_mode_enabled()
+        self.proc = AutoProcessor.from_pretrained(model_id, local_files_only=local_files_only)
+        self.model = AutoModel.from_pretrained(
+            model_id, local_files_only=local_files_only
+        ).to(self.device).eval()
 
     @torch.no_grad()
     def embed_video(self, frames: list) -> np.ndarray:

@@ -35,3 +35,13 @@ def configure_runtime_environment(runtime_dir=None):
 def load_config(path: str = "config.yaml") -> dict:
     with open(path) as f:
         return yaml.safe_load(f)
+
+
+def offline_mode_enabled() -> bool:
+    """Air-gapped kurulum bayragi. HF_HUB_OFFLINE=1 ortam degiskeni veya
+    config.yaml: offline_mode: true - ikisi de model adaptorlerinde
+    local_files_only=True'yu tetikler; ayarlanmazsa mevcut davranis (agdan
+    gerekirse indir) degismez."""
+    if os.environ.get("HF_HUB_OFFLINE") == "1":
+        return True
+    return bool(load_config().get("offline_mode", False))

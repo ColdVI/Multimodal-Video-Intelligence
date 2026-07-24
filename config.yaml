@@ -21,3 +21,8 @@ paths:
 clickhouse:
   host: localhost
   port: 8123
+
+# true iken tum HF from_pretrained cagrilari local_files_only=True ile
+# yuklenir (air-gapped kurulum). HF_HUB_OFFLINE=1 ortam degiskeni ayni
+# etkiyi config'e dokunmadan tetikler.
+offline_mode: false

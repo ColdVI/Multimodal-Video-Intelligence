@@ -22,8 +22,10 @@ skor biçiminde veren ölçülebilir bir hibrit retrieval sistemi kurmak.
 
 - Hugging Face `microsoft/xclip` modeli ile Ma vd. retrieval-özel AOSM
   X-CLIP farklıdır. İkisini sonuçlarda tek “X-CLIP” satırında birleştirmeyin.
-- SigLIP2 adapter'ı bilinen generic `AutoModel` tip sorunundan kaçınmak için
-  açıkça `Siglip2Model` kullanır.
+- SigLIP2 checkpoint'inin resmî config'i `model_type: siglip` kullanır ve
+  model kartı doğrudan `AutoModel` önerir. Adı SigLIP2 olsa da `Siglip2Model`'e
+  zorlamak patch embedding şekillerini bozar (gerçek çalıştırmada yakalandı);
+  adaptör bilinçli olarak `AutoModel` kullanır (`models/siglip_avg.py`).
 - `frames_to_intervals` kareyi nokta değil `[i/fps, (i+1)/fps)` aralığı olarak
   ele alır. `+1` düzeltmesi korunmalı; 25 kare/25 fps tam 1 saniyedir.
 - `gt_walking`, görüntü düzlemindeki track hareketini kullanır ve ego-motion

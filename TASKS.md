@@ -40,3 +40,18 @@ Güncel kanıt ve ölçümler: `STATUS.md`.
 
 ## Her fazin sonunda
 - [x] `make test` hala geciyor mu (46/46 regresyon kontrolu)
+
+---
+
+## Benchmark/ClickHouse/YOLO optimizasyon planı (docs/codex/05_...)
+
+Aşağıdaki fazlar yukarıdakinden ayrı, `docs/codex/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md`
+planına aittir. Numaralandırma o dosyayla birebir eşleşir (kendi Faz 0'ı var).
+
+### Faz 0 — Regresyon tabanı + doküman düzeltmeleri
+- [x] `pytest tests/ -v`: 50/50 geçti (46 taban + 4 yeni `offline_mode_enabled` testi)
+- [x] `py_compile`: 42/42 (40 taban + `scripts/package_weights.py` + `tests/test_common.py`)
+- [x] `docs/codex/02_FIKIRLER_VE_KARARLAR.md` SigLIP2 notu koda uyacak şekilde düzeltildi (`AutoModel`, `Siglip2Model` değil)
+- [x] `common.offline_mode_enabled()` + `config.yaml: offline_mode` + her iki adaptörde `local_files_only`
+- [x] `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` gerçek smoke: X-CLIP ve SigLIP2 lokal cache'ten yüklendi, ağ çağrısı yok
+- [x] `scripts/package_weights.py` gerçek çalıştırıldı: `weights/weights_manifest.json` (X-CLIP 783.7 MB, SigLIP2 4578.6 MB, yolo26x.pt 118.7 MB)

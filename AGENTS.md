@@ -27,6 +27,15 @@
 - SigLIP2 checkpoint'i `model_type: siglip` kullanır; resmî model kartındaki
   gibi `AutoModel` ile yüklenmelidir. `Siglip2Model`'e zorlamak gerçek
   çalıştırmada patch embedding şekil uyuşmazlığı verdi ve düzeltildi.
+- Offline mod (`common.offline_mode_enabled()`, `HF_HUB_OFFLINE=1` veya
+  `config.yaml: offline_mode: true`) her iki adaptörde `local_files_only=True`
+  tetikler. `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` ile gerçek çalıştırma:
+  X-CLIP yükleme 0.85 sn + embed_text 0.45 sn (512d), SigLIP2 yükleme 2.65 sn +
+  embed_text 4.89 sn (1152d) — ikisi de zaten lokal `.runtime/huggingface`
+  cache'inden yüklendi, ağ çağrısı yapılmadı.
+- `scripts/package_weights.py` gerçek çalıştırıldı: X-CLIP (783.7 MB),
+  SigLIP2 (4578.6 MB) ve `yolo26x.pt` (118.7 MB) `weights/weights_manifest.json`
+  içine model ID/revision/SHA-256/boyut ile paketlendi (`weights/` gitignore'da).
 
 ## Dogrulamadim (gercek ortam gerekiyor)
 
