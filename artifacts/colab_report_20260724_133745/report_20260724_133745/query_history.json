@@ -1,0 +1,49 @@
+[
+  {
+    "query": "otobüsü göster",
+    "model": "xclip_hf_zeroshot",
+    "use_filters": true,
+    "filters": [
+      [
+        "bus_count",
+        ">=",
+        1
+      ]
+    ],
+    "semantic": "otobüsü göster",
+    "top_k": 10,
+    "total_windows": 7,
+    "filtered_windows": 4,
+    "elapsed_ms": 507.72676399992633,
+    "results": [
+      {
+        "rank": 1,
+        "video_id": "uav0000361_02323_v",
+        "t_start": 0.0,
+        "t_end": 8.76,
+        "score": 0.1802656650543213,
+        "person_count": 8,
+        "car_count": 20,
+        "bus_count": 1,
+        "truck_count": 2,
+        "is_night": false,
+        "camera_motion": 1.647824466228485,
+        "brightness": 157.9719887138624
+      },
+      {
+        "rank": 2,
+        "video_id": "uav0000138_00000_v",
+        "t_start": 0.0,
+        "t_end": 8.52,
+        "score": 0.15924787521362305,
+        "person_count": 8,
+        "car_count": 32,
+        "bus_count": 3,
+        "truck_count": 0,
+        "is_night": false,
+        "camera_motion": 4.034698724746704,
+        "brightness": 132.66621385726359
+      }
+    ]
+  }
+]

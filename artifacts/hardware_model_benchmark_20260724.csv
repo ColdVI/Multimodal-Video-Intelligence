@@ -1,0 +1,17 @@
+scope,device,model,metric,value,unit,status,notes
+warm_query,Local CPU i5-13500,xclip_hf_zeroshot,mean_latency,24.600,ms,measured,6 unfiltered queries after warm-up
+warm_query,Tesla T4,xclip_hf_zeroshot,mean_latency,9.815,ms,measured,6 unfiltered queries after warm-up
+warm_query,Local CPU i5-13500,siglip2_frameavg,mean_latency,321.153,ms,measured,6 unfiltered queries after warm-up
+warm_query,Tesla T4,siglip2_frameavg,mean_latency,28.902,ms,measured,6 unfiltered queries after warm-up
+speedup,Tesla T4 vs CPU,xclip_hf_zeroshot,warm_query_speedup,2.51,x,derived,CPU latency divided by T4 latency
+speedup,Tesla T4 vs CPU,siglip2_frameavg,warm_query_speedup,11.11,x,derived,CPU latency divided by T4 latency
+model_compare,Local CPU,siglip2_vs_xclip,warm_query_slowdown,13.06,x,derived,SigLIP2 latency divided by X-CLIP latency
+model_compare,Tesla T4,siglip2_vs_xclip,warm_query_slowdown,2.94,x,derived,SigLIP2 latency divided by X-CLIP latency
+quality,Smoke-5,xclip_hf_zeroshot,filtered_mean_precision_at_10,1.000,ratio,measured,6 queries
+quality,Smoke-5,xclip_hf_zeroshot,filtered_mean_recall_at_10,0.889,ratio,measured,6 queries
+quality,Smoke-5,siglip2_frameavg,filtered_mean_precision_at_10,1.000,ratio,measured,6 queries
+quality,Smoke-5,siglip2_frameavg,filtered_mean_recall_at_10,0.889,ratio,measured,6 queries
+storage,Float32,xclip_hf_zeroshot,raw_vector_bytes,2048,bytes,derived,512 dimensions times 4 bytes
+storage,Float32,siglip2_frameavg,raw_vector_bytes,4608,bytes,derived,1152 dimensions times 4 bytes
+compatibility,GeForce GT 1030,both,cuda_benchmark,,not_available,blocked,Torch 2.13.0+cpu reports zero CUDA devices
+

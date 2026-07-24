@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-07-24T18:03:33.9524894+03:00",
+  "dataset": {
+    "name": "VisDrone2019-MOT Smoke-5",
+    "videos": 5,
+    "frames": 691,
+    "windows": 7,
+    "queries": 6,
+    "top_k": 10
+  },
+  "source_zip": {
+    "name": "report_20260724_133745.zip",
+    "bytes": 5200,
+    "sha256": "632F77B0C7DDA75E45571484F7F924C5A9530E5070297B0C75D1A3AE19104EF7"
+  },
+  "hardware": {
+    "local_cpu": "13th Gen Intel(R) Core(TM) i5-13500",
+    "local_logical_processors": 20,
+    "local_gpu": "NVIDIA GeForce GT 1030",
+    "local_gpu_memory_mib": 4096,
+    "local_gpu_compute_capability": "6.1",
+    "local_driver": "560.94",
+    "local_torch": "2.13.0+cpu",
+    "local_cuda_available": false,
+    "t4_gpu": "Tesla T4",
+    "t4_memory_gb": 14.56,
+    "t4_torch": "2.11.0+cu128",
+    "t4_cuda_available": true
+  },
+  "warm_query": [
+    {
+      "model": "xclip_hf_zeroshot",
+      "dimension": 512,
+      "cpu_mean_ms": 24.6,
+      "t4_mean_ms": 9.815,
+      "t4_speedup": 2.51
+    },
+    {
+      "model": "siglip2_frameavg",
+      "dimension": 1152,
+      "cpu_mean_ms": 321.153,
+      "t4_mean_ms": 28.902,
+      "t4_speedup": 11.11
+    }
+  ],
+  "quality": {
+    "warning": "Smoke-5 has fewer videos than top_k; the metrics cannot distinguish model ranking quality.",
+    "both_models_filtered_mean_precision_at_10": 1.0,
+    "both_models_filtered_mean_recall_at_10": 0.889,
+    "both_models_unfiltered_mean_precision_at_10": 0.633,
+    "both_models_unfiltered_mean_recall_at_10": 1.0
+  },
+  "gt1030": {
+    "status": "not_measured",
+    "reason": "The active PyTorch build is CPU-only and exposes zero CUDA devices. No theoretical timing was substituted."
+  },
+  "recommendation": "Use X-CLIP as the current primary model; batch and warm the T4 pipeline; retain SigLIP2 as an experimental baseline until a larger evaluation proves a quality gain."
+}
+

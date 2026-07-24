@@ -368,6 +368,20 @@ için yeterli değildir.
 
 ## 13. Sistemi efficient hale getirme planı
 
+24 Temmuz 2026'da ek donanım/model benchmark'ı üretildi. Aynı Smoke-5 üzerinde
+sıcak filtresiz query ortalamaları:
+
+| Model | Yerel CPU | Tesla T4 | T4 hızlanması |
+|---|---:|---:|---:|
+| X-CLIP | 24,600 ms | 9,815 ms | 2,51× |
+| SigLIP2 frameavg | 321,153 ms | 28,902 ms | 11,11× |
+
+Mevcut accuracy iki modeli ayıramadı. X-CLIP daha hızlı ve 512d vektörü
+SigLIP2'nin 1152d vektöründen 2,25× küçük olduğu için şimdilik ana model adayıdır.
+Yerel GT 1030 sistemde görünür fakat aktif Torch `+cpu` build olduğu için CUDA
+benchmark'ı ölçülemedi; tahminî değer yazılmadı. Tam rapor:
+`BENCHMARK_CPU_GT1030_T4.md`.
+
 Efficiency tek başına hız değildir. Karar metrikleri:
 
 ```text
@@ -548,4 +562,3 @@ powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 search-report
 - Veri/model ağırlığı veya secret commit etme.
 - Değişiklikten sonra testleri gerçekten çalıştır ve sonucu raporla.
 - Model kalite kararı için beş videoluk smoke metriğini kullanma.
-

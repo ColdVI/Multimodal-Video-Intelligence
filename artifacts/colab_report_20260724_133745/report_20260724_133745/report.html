@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Hybrid Video Search POC — Colab Evaluation</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;max-width:1180px;margin:38px auto;padding:0 24px;color:#172033;line-height:1.55}
+h1{margin-bottom:4px} .sub{color:#667085} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.card{border:1px solid #dde4ef;border-radius:14px;padding:16px;background:#fff} .warn{border-left:5px solid #f2a900;background:#fff9e8}
+table{border-collapse:collapse;width:100%;font-size:13px;display:block;overflow:auto} th,td{border-bottom:1px solid #e7ebf1;padding:9px;text-align:left;white-space:nowrap} th{background:#f3f6fb}
+code,pre{background:#f3f6fb;border-radius:8px;padding:12px;overflow:auto} .good{color:#067647}
+</style></head><body>
+<h1>Hybrid Video Search POC — Colab Evaluation</h1><div class="sub">Hazırlayan: Anil - rapor5 · 2026-07-24 13:37</div>
+<p>VisDrone-MOT üzerinde GPU destekli POC koşusu.</p>
+<h2>Koşu özeti</h2><div class="grid">
+<div class="card"><b>Backend</b><br>exact_in_memory_cosine</div>
+<div class="card"><b>Video</b><br>5</div>
+<div class="card"><b>Pencere</b><br>7</div>
+<div class="card"><b>Top-k</b><br>10</div></div>
+<h2>Rapor cümleleri</h2><ul><li>SigLIP2 frame-average (1152d), filtre kapali: ortalama P@k=0.633, R@k=1.000 (6 sorgu).</li><li>SigLIP2 frame-average (1152d), filtre acik: ortalama P@k=1.000, R@k=0.889 (6 sorgu).</li><li>Microsoft X-CLIP (512d), filtre kapali: ortalama P@k=0.633, R@k=1.000 (6 sorgu).</li><li>Microsoft X-CLIP (512d), filtre acik: ortalama P@k=1.000, R@k=0.889 (6 sorgu).</li><li>SigLIP2 frame-average (1152d) icin filtre etkisi: Δprecision=+0.367, Δrecall=-0.111.</li><li>Microsoft X-CLIP (512d) icin filtre etkisi: Δprecision=+0.367, Δrecall=-0.111.</li></ul>
+<h2>Metodolojik uyarılar</h2><div class="card warn">Yalnizca 6 sorgu var; sonuc kesifseldir, istatistiksel model zaferi olarak sunulamaz.</div><div class="card warn">top_k=10, video sayisi=5; adaylar doygunlasabilir ve model farklari metrikte gorunmeyebilir.</div><div class="card warn">Colab aramasi exact bellek-ici cosine kullanir; bu rapor ClickHouse gecikme benchmark&#x27;i degildir.</div><div class="card warn">Yurume ground truth&#x27;u piksel yer degistirmesinden turetilir; drone ego-motion yanlis pozitif uretebilir.</div>
+<h2>Toplu accuracy</h2><table><thead><tr><th>Model</th><th>Filtre</th><th>Sorgu</th><th>Ort. P@k</th><th>Ort. R@k</th><th>Hit</th><th>GT</th><th>Ort. ms</th></tr></thead><tbody><tr><td>siglip2_frameavg</td><td>False</td><td>6</td><td>0.633</td><td>1.000</td><td>19</td><td>19</td><td>28.902</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>6</td><td>1.000</td><td>0.889</td><td>17</td><td>19</td><td>44.315</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>6</td><td>0.633</td><td>1.000</td><td>19</td><td>19</td><td>9.815</td></tr><tr><td>xclip_hf_zeroshot</td><td>True</td><td>6</td><td>1.000</td><td>0.889</td><td>17</td><td>19</td><td>9.970</td></tr></tbody></table>
+<h2>Sorgu bazlı accuracy</h2><table><thead><tr><th>Model</th><th>Filtre</th><th>Sorgu</th><th>Kategori</th><th>P@k</th><th>R@k</th><th>Hit</th><th>GT</th></tr></thead><tbody><tr><td>xclip_hf_zeroshot</td><td>True</td><td>yürüyen adamı göster</td><td>hareket</td><td>1.000</td><td>1.000</td><td>5</td><td>5</td></tr><tr><td>xclip_hf_zeroshot</td><td>True</td><td>kamyonu göster</td><td>tekli</td><td>1.000</td><td>0.667</td><td>2</td><td>3</td></tr><tr><td>xclip_hf_zeroshot</td><td>True</td><td>arabaları göster</td><td>tekli</td><td>1.000</td><td>1.000</td><td>4</td><td>4</td></tr><tr><td>xclip_hf_zeroshot</td><td>True</td><td>kamyon ve yaya birlikte</td><td>bileşik</td><td>1.000</td><td>0.667</td><td>2</td><td>3</td></tr><tr><td>xclip_hf_zeroshot</td><td>True</td><td>otobüsü göster</td><td>tekli</td><td>1.000</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>xclip_hf_zeroshot</td><td>True</td><td>otobüs ve yürüyen adam</td><td>bileşik</td><td>1.000</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>yürüyen adamı göster</td><td>hareket</td><td>1.000</td><td>1.000</td><td>5</td><td>5</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>kamyonu göster</td><td>tekli</td><td>0.600</td><td>1.000</td><td>3</td><td>3</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>arabaları göster</td><td>tekli</td><td>0.800</td><td>1.000</td><td>4</td><td>4</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>kamyon ve yaya birlikte</td><td>bileşik</td><td>0.600</td><td>1.000</td><td>3</td><td>3</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>otobüsü göster</td><td>tekli</td><td>0.400</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>xclip_hf_zeroshot</td><td>False</td><td>otobüs ve yürüyen adam</td><td>bileşik</td><td>0.400</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>yürüyen adamı göster</td><td>hareket</td><td>1.000</td><td>1.000</td><td>5</td><td>5</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>kamyonu göster</td><td>tekli</td><td>1.000</td><td>0.667</td><td>2</td><td>3</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>arabaları göster</td><td>tekli</td><td>1.000</td><td>1.000</td><td>4</td><td>4</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>kamyon ve yaya birlikte</td><td>bileşik</td><td>1.000</td><td>0.667</td><td>2</td><td>3</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>otobüsü göster</td><td>tekli</td><td>1.000</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>siglip2_frameavg</td><td>True</td><td>otobüs ve yürüyen adam</td><td>bileşik</td><td>1.000</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>siglip2_frameavg</td><td>False</td><td>yürüyen adamı göster</td><td>hareket</td><td>1.000</td><td>1.000</td><td>5</td><td>5</td></tr><tr><td>siglip2_frameavg</td><td>False</td><td>kamyonu göster</td><td>tekli</td><td>0.600</td><td>1.000</td><td>3</td><td>3</td></tr><tr><td>siglip2_frameavg</td><td>False</td><td>arabaları göster</td><td>tekli</td><td>0.800</td><td>1.000</td><td>4</td><td>4</td></tr><tr><td>siglip2_frameavg</td><td>False</td><td>kamyon ve yaya birlikte</td><td>bileşik</td><td>0.600</td><td>1.000</td><td>3</td><td>3</td></tr><tr><td>siglip2_frameavg</td><td>False</td><td>otobüsü göster</td><td>tekli</td><td>0.400</td><td>1.000</td><td>2</td><td>2</td></tr><tr><td>siglip2_frameavg</td><td>False</td><td>otobüs ve yürüyen adam</td><td>bileşik</td><td>0.400</td><td>1.000</td><td>2</td><td>2</td></tr></tbody></table>
+<h2>İncelenen serbest sorgular</h2><p>1 sorgu çalıştırıldı. Ayrıntılar paketteki <code>query_history.json</code> dosyasındadır.</p>
+<h2>Tekrarlanabilirlik manifesti</h2><pre>{
+  &quot;created_at_utc&quot;: &quot;2026-07-24T13:33:16.480240+00:00&quot;,
+  &quot;backend&quot;: &quot;exact_in_memory_cosine&quot;,
+  &quot;dataset&quot;: &quot;VisDrone2019-MOT-train&quot;,
+  &quot;selected_videos&quot;: 5,
+  &quot;selected_sequence_ids&quot;: [
+    &quot;uav0000013_01073_v&quot;,
+    &quot;uav0000072_04488_v&quot;,
+    &quot;uav0000266_04830_v&quot;,
+    &quot;uav0000138_00000_v&quot;,
+    &quot;uav0000361_02323_v&quot;
+  ],
+  &quot;windows&quot;: 7,
+  &quot;models&quot;: [
+    &quot;xclip_hf_zeroshot&quot;,
+    &quot;siglip2_frameavg&quot;
+  ],
+  &quot;stage_seconds&quot;: {
+    &quot;Videolar hazirlaniyor&quot;: 221.239,
+    &quot;Pencereler olusturuluyor&quot;: 0.079,
+    &quot;YOLO filtre alanlari uretiliyor&quot;: 93.082,
+    &quot;Embedding: Microsoft X-CLIP (512d)&quot;: 506.965,
+    &quot;Embedding: SigLIP2 frame-average (1152d)&quot;: 554.812,
+    &quot;Ground truth uretiliyor&quot;: 0.458
+  },
+  &quot;total_seconds&quot;: 1376.635,
+  &quot;hardware&quot;: {
+    &quot;python&quot;: &quot;3.12.13&quot;,
+    &quot;platform&quot;: &quot;Linux-6.6.122+-x86_64-with-glibc2.35&quot;,
+    &quot;processor&quot;: &quot;x86_64&quot;,
+    &quot;cuda_available&quot;: true,
+    &quot;gpu&quot;: &quot;Tesla T4&quot;,
+    &quot;torch&quot;: &quot;2.11.0+cu128&quot;,
+    &quot;gpu_memory_gb&quot;: 14.56
+  }
+}</pre>
+</body></html>

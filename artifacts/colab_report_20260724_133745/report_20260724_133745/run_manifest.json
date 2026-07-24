@@ -1,0 +1,36 @@
+{
+  "created_at_utc": "2026-07-24T13:33:16.480240+00:00",
+  "backend": "exact_in_memory_cosine",
+  "dataset": "VisDrone2019-MOT-train",
+  "selected_videos": 5,
+  "selected_sequence_ids": [
+    "uav0000013_01073_v",
+    "uav0000072_04488_v",
+    "uav0000266_04830_v",
+    "uav0000138_00000_v",
+    "uav0000361_02323_v"
+  ],
+  "windows": 7,
+  "models": [
+    "xclip_hf_zeroshot",
+    "siglip2_frameavg"
+  ],
+  "stage_seconds": {
+    "Videolar hazirlaniyor": 221.239,
+    "Pencereler olusturuluyor": 0.079,
+    "YOLO filtre alanlari uretiliyor": 93.082,
+    "Embedding: Microsoft X-CLIP (512d)": 506.965,
+    "Embedding: SigLIP2 frame-average (1152d)": 554.812,
+    "Ground truth uretiliyor": 0.458
+  },
+  "total_seconds": 1376.635,
+  "hardware": {
+    "python": "3.12.13",
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "cuda_available": true,
+    "gpu": "Tesla T4",
+    "torch": "2.11.0+cu128",
+    "gpu_memory_gb": 14.56
+  }
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CPU · GT 1030 · T4 Benchmark</title>
+  <style>
+    :root{--navy:#102a56;--blue:#2458a6;--green:#087f5b;--orange:#d97706;--red:#b42318;--ink:#172033;--muted:#667085;--line:#dce4ef;--bg:#f5f7fb}
+    *{box-sizing:border-box} body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink);line-height:1.5}
+    main{max-width:1150px;margin:30px auto;padding:0 20px 50px}.hero{color:white;padding:28px;border-radius:20px;background:linear-gradient(120deg,var(--navy),var(--blue))}
+    h1{margin:0 0 6px;font-size:30px}.hero p{margin:0;opacity:.9}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+    .card,.panel{background:white;border:1px solid var(--line);border-radius:15px;padding:18px}.card b{font-size:25px;display:block}.card span{color:var(--muted);font-size:13px}
+    .good b{color:var(--green)}.warn b{color:var(--orange)}.blocked b{color:var(--red)}h2{margin:28px 0 10px}table{border-collapse:collapse;width:100%;font-size:14px}
+    th,td{text-align:left;padding:10px;border-bottom:1px solid #e8edf4}th{background:#f0f4fa}.barrow{display:grid;grid-template-columns:190px 1fr 90px;gap:12px;align-items:center;margin:12px 0}
+    .track{height:24px;background:#edf1f6;border-radius:7px;overflow:hidden}.bar{height:100%;border-radius:7px;background:var(--blue)}.sig{background:var(--orange)}
+    .callout{border-left:5px solid var(--orange)}.decision{border-left:5px solid var(--green)}code{background:#eef2f7;padding:2px 5px;border-radius:5px}.small{font-size:13px;color:var(--muted)}
+  </style>
+</head>
+<body><main>
+  <section class="hero"><h1>CPU · GT 1030 · Tesla T4</h1><p>VisDrone Smoke-5 · X-CLIP ve SigLIP2 efficiency benchmark · 24 Temmuz 2026</p></section>
+  <div class="grid">
+    <div class="card good"><b>2,51×</b><span>X-CLIP T4 query hızlanması</span></div>
+    <div class="card good"><b>11,11×</b><span>SigLIP2 T4 query hızlanması</span></div>
+    <div class="card"><b>X-CLIP</b><span>Mevcut efficiency lideri</span></div>
+    <div class="card blocked"><b>Ölçülmedi</b><span>GT 1030 · CPU-only Torch</span></div>
+  </div>
+
+  <h2>Sıcak query latency</h2>
+  <section class="panel">
+    <div class="barrow"><strong>CPU · X-CLIP</strong><div class="track"><div class="bar" style="width:7.7%"></div></div><b>24,60 ms</b></div>
+    <div class="barrow"><strong>T4 · X-CLIP</strong><div class="track"><div class="bar" style="width:3.1%"></div></div><b>9,82 ms</b></div>
+    <div class="barrow"><strong>CPU · SigLIP2</strong><div class="track"><div class="bar sig" style="width:100%"></div></div><b>321,15 ms</b></div>
+    <div class="barrow"><strong>T4 · SigLIP2</strong><div class="track"><div class="bar sig" style="width:9%"></div></div><b>28,90 ms</b></div>
+    <p class="small">Model yüklemesi sonrası altı filtresiz sorgunun ortalaması; exact in-memory cosine backend.</p>
+  </section>
+
+  <h2>Model karşılaştırması</h2>
+  <section class="panel"><table><thead><tr><th>Metrik</th><th>X-CLIP</th><th>SigLIP2 frameavg</th></tr></thead><tbody>
+    <tr><td>Embedding</td><td>512d</td><td>1152d</td></tr>
+    <tr><td>Ham Float32 vektör</td><td>2.048 byte</td><td>4.608 byte</td></tr>
+    <tr><td>CPU sıcak query</td><td>24,60 ms</td><td>321,15 ms</td></tr>
+    <tr><td>T4 sıcak query</td><td>9,82 ms</td><td>28,90 ms</td></tr>
+    <tr><td>Filtre açık P@10 / R@10</td><td>1,000 / 0,889</td><td>1,000 / 0,889</td></tr>
+    <tr><td>Karar</td><td><b>Ana model adayı</b></td><td>Deneysel baseline/reranker</td></tr>
+  </tbody></table></section>
+
+  <h2>GT 1030 durumu</h2>
+  <section class="panel callout"><p><code>nvidia-smi</code> kartı doğruladı: GT 1030, 4 GB, compute capability 6.1, driver 560.94.</p>
+    <p>Aktif ortam <code>Torch 2.13.0+cpu</code>; <code>cuda_available=false</code> ve CUDA device count 0. Bu nedenle GT 1030 için süre uydurulmadı. Ayrı CUDA ortamında gerçek uyumluluk ve 4 GB OOM testi gerekir.</p></section>
+
+  <h2>Cold pipeline uyarısı</h2>
+  <section class="panel callout"><p>T4 manifest toplamı 1.376,635 saniye görünse de model download/load, Colab disk hazırlığı ve subprocess cold-start aynı timer'a dahildir. Mevcut embedding scripti pencereleri batch yerine tek tek işler. Bu rakam GPU inference speedup'ı olarak CPU ile bölünemez; pipeline'ın henüz T4'ü verimli kullanmadığının kanıtıdır.</p></section>
+
+  <h2>Karar</h2>
+  <section class="panel decision"><ol><li>Şimdilik ana model X-CLIP.</li><li>T4'te model warm-up ve window batching uygula.</li><li>Load/download ile inference timer'ını ayır.</li><li>Daha büyük eval olmadan model accuracy zaferi ilan etme.</li><li>GT 1030'u ayrı CUDA uyumluluk deneyinde ölç.</li></ol></section>
+  <p class="small">Kaynak: report_20260724_133745.zip (SHA-256 632F77B0C7DDA75E45571484F7F924C5A9530E5070297B0C75D1A3AE19104EF7) ve aynı Smoke-5 üzerinde yeniden çalıştırılan yerel CPU query ölçümü.</p>
+</main></body></html>
+

@@ -48,6 +48,10 @@
 - 5-sekans ölçümü: frames 23.4 sn, YOLO 59.9 sn, X-CLIP 158.2 sn,
   SigLIP2 311.6 sn, iki-model eval 42.4 sn.
 - `.venv` boyutu: yaklaşık 1.83 GB (model cache'leri hariç).
+- Smoke-5 sıcak query benchmark'ında T4, X-CLIP'i yerel CPU'dan `2,51×`,
+  SigLIP2'yi `11,11×` hızlı çalıştırdı. GT 1030 sistemde görünmesine rağmen
+  aktif Torch CPU-only olduğu için CUDA benchmark'ı çalıştırılamadı. Ayrıntı:
+  `BENCHMARK_CPU_GT1030_T4.md`.
 
 ## Açık kalanlar
 

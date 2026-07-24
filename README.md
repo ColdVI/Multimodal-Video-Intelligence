@@ -14,6 +14,7 @@ kucuk olcekli, acik-veri dogrulamasi.
 - Guncel uygulanmis durum ve olcumler: `STATUS.md`
 - Terminal gerektirmeyen Colab dashboard: `COLAB_README.md`
 - Web sohbetine tek mesajlik eksiksiz devir baglami: `WEB_CHAT_HANDOFF.md`
+- CPU / GT 1030 / Tesla T4 ve model benchmark'i: `BENCHMARK_CPU_GT1030_T4.md`
 
 ## Colab GPU + gorsel Control Room
 

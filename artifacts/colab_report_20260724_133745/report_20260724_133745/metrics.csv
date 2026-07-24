@@ -1,0 +1,25 @@
+﻿model,filter,query,category,latency_ms,precision@k,recall@k,n_gt,n_pred,n_hits
+xclip_hf_zeroshot,True,yürüyen adamı göster,hareket,13.51,1.0,1.0,5,5,5
+xclip_hf_zeroshot,True,kamyonu göster,tekli,9.46,1.0,0.6666666666666666,3,2,2
+xclip_hf_zeroshot,True,arabaları göster,tekli,9.87,1.0,1.0,4,4,4
+xclip_hf_zeroshot,True,kamyon ve yaya birlikte,bileşik,8.75,1.0,0.6666666666666666,3,2,2
+xclip_hf_zeroshot,True,otobüsü göster,tekli,9.4,1.0,1.0,2,2,2
+xclip_hf_zeroshot,True,otobüs ve yürüyen adam,bileşik,8.83,1.0,1.0,2,2,2
+xclip_hf_zeroshot,False,yürüyen adamı göster,hareket,9.91,1.0,1.0,5,5,5
+xclip_hf_zeroshot,False,kamyonu göster,tekli,10.21,0.6,1.0,3,5,3
+xclip_hf_zeroshot,False,arabaları göster,tekli,9.52,0.8,1.0,4,5,4
+xclip_hf_zeroshot,False,kamyon ve yaya birlikte,bileşik,8.56,0.6,1.0,3,5,3
+xclip_hf_zeroshot,False,otobüsü göster,tekli,9.71,0.4,1.0,2,5,2
+xclip_hf_zeroshot,False,otobüs ve yürüyen adam,bileşik,10.98,0.4,1.0,2,5,2
+siglip2_frameavg,True,yürüyen adamı göster,hareket,90.51,1.0,1.0,5,5,5
+siglip2_frameavg,True,kamyonu göster,tekli,35.95,1.0,0.6666666666666666,3,2,2
+siglip2_frameavg,True,arabaları göster,tekli,36.57,1.0,1.0,4,4,4
+siglip2_frameavg,True,kamyon ve yaya birlikte,bileşik,36.0,1.0,0.6666666666666666,3,2,2
+siglip2_frameavg,True,otobüsü göster,tekli,35.86,1.0,1.0,2,2,2
+siglip2_frameavg,True,otobüs ve yürüyen adam,bileşik,31.0,1.0,1.0,2,2,2
+siglip2_frameavg,False,yürüyen adamı göster,hareket,29.44,1.0,1.0,5,5,5
+siglip2_frameavg,False,kamyonu göster,tekli,29.07,0.6,1.0,3,5,3
+siglip2_frameavg,False,arabaları göster,tekli,28.04,0.8,1.0,4,5,4
+siglip2_frameavg,False,kamyon ve yaya birlikte,bileşik,28.75,0.6,1.0,3,5,3
+siglip2_frameavg,False,otobüsü göster,tekli,28.28,0.4,1.0,2,5,2
+siglip2_frameavg,False,otobüs ve yürüyen adam,bileşik,29.83,0.4,1.0,2,5,2
