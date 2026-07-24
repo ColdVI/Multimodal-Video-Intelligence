@@ -1,0 +1,406 @@
+{
+  "generated_at_utc": "2026-07-24T13:21:56.296645+00:00",
+  "endpoint": "http://localhost:8123/",
+  "clickhouse_version": "26.7.1.1315",
+  "backend": "clickhouse",
+  "catalog_query_count": 7,
+  "total_rows_across_model_tables": 14,
+  "settings": {
+    "query_plan_try_use_vector_search": "1",
+    "vector_search_filter_strategy": "auto",
+    "vector_search_index_fetch_multiplier": "1",
+    "vector_search_with_rescoring": "0"
+  },
+  "vector_exact_and_hnsw_ranking_equal": true,
+  "vector_exact_and_hnsw_distances_equal": false,
+  "vector_exact_and_hnsw_max_distance_delta": 0.00010229999999999961,
+  "queries": [
+    {
+      "query_id": "table_inventory",
+      "title": "Tablo envanteri",
+      "kind": "inventory",
+      "description": "Model tablolarinin satir ve disk boyutlarini listeler.",
+      "filename": "01_table_inventory.sql",
+      "sql": "SELECT\n    name AS table_name,\n    total_rows,\n    total_bytes\nFROM system.tables\nWHERE database = 'default'\n  AND name LIKE 'clips_%'\nORDER BY name",
+      "rows": [
+        {
+          "table_name": "clips_siglip2_frameavg",
+          "total_rows": 7,
+          "total_bytes": 50630
+        },
+        {
+          "table_name": "clips_xclip_hf_zeroshot",
+          "total_rows": 7,
+          "total_bytes": 23601
+        }
+      ],
+      "row_count": 2,
+      "statistics": {
+        "elapsed": 0.00160492,
+        "rows_read": 2,
+        "bytes_read": 127
+      },
+      "client_elapsed_ms": 4.218,
+      "vector_index_in_plan": false,
+      "query_plan": ""
+    },
+    {
+      "query_id": "index_inventory",
+      "title": "Indeks envanteri",
+      "kind": "inventory",
+      "description": "Minmax ve HNSW vector_similarity indekslerini listeler.",
+      "filename": "02_index_inventory.sql",
+      "sql": "SELECT\n    table,\n    name AS index_name,\n    type_full,\n    granularity\nFROM system.data_skipping_indices\nWHERE database = 'default'\n  AND table LIKE 'clips_%'\nORDER BY table, index_name",
+      "rows": [
+        {
+          "table": "clips_siglip2_frameavg",
+          "index_name": "idx_bus",
+          "type_full": "minmax",
+          "granularity": 4
+        },
+        {
+          "table": "clips_siglip2_frameavg",
+          "index_name": "idx_person",
+          "type_full": "minmax",
+          "granularity": 4
+        },
+        {
+          "table": "clips_siglip2_frameavg",
+          "index_name": "idx_vec",
+          "type_full": "vector_similarity('hnsw', 'cosineDistance', 1152)",
+          "granularity": 100000000
+        },
+        {
+          "table": "clips_xclip_hf_zeroshot",
+          "index_name": "idx_bus",
+          "type_full": "minmax",
+          "granularity": 4
+        },
+        {
+          "table": "clips_xclip_hf_zeroshot",
+          "index_name": "idx_person",
+          "type_full": "minmax",
+          "granularity": 4
+        },
+        {
+          "table": "clips_xclip_hf_zeroshot",
+          "index_name": "idx_vec",
+          "type_full": "vector_similarity('hnsw', 'cosineDistance', 512)",
+          "granularity": 100000000
+        }
+      ],
+      "row_count": 6,
+      "statistics": {
+        "elapsed": 0.001604772,
+        "rows_read": 6,
+        "bytes_read": 586
+      },
+      "client_elapsed_ms": 22.899,
+      "vector_index_in_plan": false,
+      "query_plan": ""
+    },
+    {
+      "query_id": "exact_filter",
+      "title": "Exact yapilandirilmis filtre",
+      "kind": "exact_filter",
+      "description": "Embedding kullanmadan bus_count ve person_count kolonlarini deterministik filtreler.",
+      "filename": "03_exact_filter.sql",
+      "sql": "SELECT\n    video_id,\n    t_start,\n    t_end,\n    bus_count,\n    person_count,\n    length(embedding) AS embedding_dim\nFROM clips_xclip_hf_zeroshot\nWHERE bus_count >= 1\n  AND person_count >= 1\nORDER BY video_id, t_start\nLIMIT 10",
+      "rows": [
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 0,
+          "t_end": 8,
+          "bus_count": 3,
+          "person_count": 9,
+          "embedding_dim": 512
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 4,
+          "t_end": 8.52,
+          "bus_count": 2,
+          "person_count": 10,
+          "embedding_dim": 512
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 0,
+          "t_end": 8,
+          "bus_count": 1,
+          "person_count": 9,
+          "embedding_dim": 512
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 4,
+          "t_end": 8.76,
+          "bus_count": 1,
+          "person_count": 8,
+          "embedding_dim": 512
+        }
+      ],
+      "row_count": 4,
+      "statistics": {
+        "elapsed": 0.003920125,
+        "rows_read": 14,
+        "bytes_read": 14677
+      },
+      "client_elapsed_ms": 6.286,
+      "vector_index_in_plan": false,
+      "query_plan": "Output: video_id, t_start, t_end, bus_count, person_count, length(embedding)\n\nJoinLazyColumnsStep\n├──Limit (preliminary LIMIT)\n│  │  Limit 10\n│  │  Offset 0\n│  └──Sorting (Sorting for ORDER BY)\n│     │  Prefix sort description: video_id ASC, t_start ASC\n│     │  Result sort description: video_id ASC, t_start ASC\n│     │  Limit 10\n│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)\n│           Read type: InOrder\n│           Parts: 1 | Granules: 1\n│           Output: bus_count, person_count, _part_starting_offset, _part_offset, video_id, t_start\n│           Prewhere filter\n│           Prewhere filter column:  person_count >= 1 AND bus_count >= 1\n│           Indexes:\n│             PrimaryKey\n│               Condition: true\n│               Parts: 1/1\n│               Granules: 1/1\n│             Skip\n│               Name: idx_bus\n│               Description: minmax GRANULARITY 4\n│               Condition: (bus_count in [1, +Inf))\n│               Parts: 1/1\n│               Granules: 1/1\n│             Skip\n│               Name: idx_person\n│               Description: minmax GRANULARITY 4\n│               Condition: (person_count in [1, +Inf))\n│               Parts: 1/1\n│               Granules: 1/1\n│             Ranges: 1\n└──LazilyReadFromMergeTree\n      Lazily read columns: t_end, embedding\n"
+    },
+    {
+      "query_id": "similarity_exact_bruteforce",
+      "title": "Exact brute-force vector search",
+      "kind": "vector_exact",
+      "description": "HNSW optimizasyonunu kapatip tum adaylarin cosine distance degerini hesaplar.",
+      "filename": "04_similarity_exact_bruteforce.sql",
+      "sql": "WITH (\n    SELECT embedding\n    FROM clips_xclip_hf_zeroshot\n    ORDER BY video_id, t_start\n    LIMIT 1\n) AS query_vector\nSELECT\n    video_id,\n    t_start,\n    t_end,\n    cosineDistance(embedding, query_vector) AS distance,\n    1 - distance AS score\nFROM clips_xclip_hf_zeroshot\nORDER BY distance ASC\nLIMIT 10\nSETTINGS query_plan_try_use_vector_search = 0",
+      "rows": [
+        {
+          "video_id": "uav0000013_01073_v",
+          "t_start": 0,
+          "t_end": 2.32,
+          "distance": 0,
+          "score": 1
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 0,
+          "t_end": 8,
+          "distance": 0.2983995,
+          "score": 0.7016004920005798
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 4,
+          "t_end": 8.52,
+          "distance": 0.30216736,
+          "score": 0.6978326439857483
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 0,
+          "t_end": 8,
+          "distance": 0.33385628,
+          "score": 0.6661437153816223
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 4,
+          "t_end": 8.76,
+          "distance": 0.3369959,
+          "score": 0.6630041003227234
+        },
+        {
+          "video_id": "uav0000266_04830_v",
+          "t_start": 0,
+          "t_end": 4.64,
+          "distance": 0.34187567,
+          "score": 0.6581243276596069
+        },
+        {
+          "video_id": "uav0000072_04488_v",
+          "t_start": 0,
+          "t_end": 3.4,
+          "distance": 0.4294659,
+          "score": 0.5705341100692749
+        }
+      ],
+      "row_count": 7,
+      "statistics": {
+        "elapsed": 0.00422776,
+        "rows_read": 21,
+        "bytes_read": 29214
+      },
+      "client_elapsed_ms": 22.228,
+      "vector_index_in_plan": false,
+      "query_plan": "Output: video_id, t_start, t_end, cosineDistance(embedding, [query_vector omitted]), 1 − cosineDistance(embedding, [query_vector omitted])\n\nJoinLazyColumnsStep\n├──Limit (preliminary LIMIT)\n│  │  Limit 10\n│  │  Offset 0\n│  └──Sorting (Sorting for ORDER BY)\n│     │  Sort description: cosineDistance(embedding, [query_vector omitted]) ASC\n│     │  Limit 10\n│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)\n│           Read type: Default\n│           Parts: 1 | Granules: 1\n│           Output: _part_starting_offset, _part_offset, embedding\n│           Indexes:\n│             PrimaryKey\n│               Condition: true\n│               Parts: 1/1\n│               Granules: 1/1\n│             Ranges: 1\n└──LazilyReadFromMergeTree\n      Lazily read columns: video_id, t_start, t_end\n"
+    },
+    {
+      "query_id": "similarity_hnsw",
+      "title": "HNSW approximate similarity search",
+      "kind": "vector_ann",
+      "description": "ClickHouse query planner'in HNSW vector_similarity indeksini kullanmasina izin verir.",
+      "filename": "05_similarity_hnsw.sql",
+      "sql": "WITH (\n    SELECT embedding\n    FROM clips_xclip_hf_zeroshot\n    ORDER BY video_id, t_start\n    LIMIT 1\n) AS query_vector\nSELECT\n    video_id,\n    t_start,\n    t_end,\n    cosineDistance(embedding, query_vector) AS distance,\n    1 - distance AS score\nFROM clips_xclip_hf_zeroshot\nORDER BY distance ASC\nLIMIT 10\nSETTINGS query_plan_try_use_vector_search = 1",
+      "rows": [
+        {
+          "video_id": "uav0000013_01073_v",
+          "t_start": 0,
+          "t_end": 2.32,
+          "distance": 1.1920929e-07,
+          "score": 0.9999998807907104
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 0,
+          "t_end": 8,
+          "distance": 0.2984234,
+          "score": 0.7015765905380249
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 4,
+          "t_end": 8.52,
+          "distance": 0.3021884,
+          "score": 0.6978116035461426
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 0,
+          "t_end": 8,
+          "distance": 0.33391964,
+          "score": 0.6660803556442261
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 4,
+          "t_end": 8.76,
+          "distance": 0.33705515,
+          "score": 0.6629448533058167
+        },
+        {
+          "video_id": "uav0000266_04830_v",
+          "t_start": 0,
+          "t_end": 4.64,
+          "distance": 0.34187078,
+          "score": 0.6581292152404785
+        },
+        {
+          "video_id": "uav0000072_04488_v",
+          "t_start": 0,
+          "t_end": 3.4,
+          "distance": 0.4293636,
+          "score": 0.5706363916397095
+        }
+      ],
+      "row_count": 7,
+      "statistics": {
+        "elapsed": 0.00388088,
+        "rows_read": 21,
+        "bytes_read": 14995
+      },
+      "client_elapsed_ms": 27.519,
+      "vector_index_in_plan": true,
+      "query_plan": "Output: video_id, t_start, t_end, _distance, 1 − _distance\n\nJoinLazyColumnsStep\n├──Limit (preliminary LIMIT)\n│  │  Limit 10\n│  │  Offset 0\n│  └──Sorting (Sorting for ORDER BY)\n│     │  Sort description: _distance ASC\n│     │  Limit 10\n│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)\n│           Read type: Default\n│           Parts: 1 | Granules: 1\n│           Output: _part_starting_offset, _part_offset, _distance\n│           Indexes:\n│             PrimaryKey\n│               Condition: true\n│               Parts: 1/1\n│               Granules: 1/1\n│             Skip\n│               Name: idx_vec\n│               Description: vector_similarity GRANULARITY 100000000\n│               Parts: 1/1\n│               Granules: 1/1\n│             Ranges: 1\n└──LazilyReadFromMergeTree\n      Lazily read columns: video_id, t_start, t_end\n"
+    },
+    {
+      "query_id": "hybrid_prefilter",
+      "title": "Hybrid prefilter",
+      "kind": "hybrid_prefilter",
+      "description": "Exact kolon filtrelerini once uygular, kalan adaylarda brute-force vector search yapar.",
+      "filename": "06_hybrid_prefilter.sql",
+      "sql": "WITH (\n    SELECT embedding\n    FROM clips_xclip_hf_zeroshot\n    ORDER BY video_id, t_start\n    LIMIT 1\n) AS query_vector\nSELECT\n    video_id,\n    t_start,\n    t_end,\n    bus_count,\n    person_count,\n    cosineDistance(embedding, query_vector) AS distance,\n    1 - distance AS score\nFROM clips_xclip_hf_zeroshot\nWHERE bus_count >= 1\n  AND person_count >= 1\nORDER BY distance ASC\nLIMIT 10\nSETTINGS vector_search_filter_strategy = 'prefilter'",
+      "rows": [
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 0,
+          "t_end": 8,
+          "bus_count": 3,
+          "person_count": 9,
+          "distance": 0.2983995,
+          "score": 0.7016004920005798
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 4,
+          "t_end": 8.52,
+          "bus_count": 2,
+          "person_count": 10,
+          "distance": 0.30216736,
+          "score": 0.6978326439857483
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 0,
+          "t_end": 8,
+          "bus_count": 1,
+          "person_count": 9,
+          "distance": 0.33385628,
+          "score": 0.6661437153816223
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 4,
+          "t_end": 8.76,
+          "bus_count": 1,
+          "person_count": 8,
+          "distance": 0.3369959,
+          "score": 0.6630041003227234
+        }
+      ],
+      "row_count": 4,
+      "statistics": {
+        "elapsed": 0.004464935,
+        "rows_read": 21,
+        "bytes_read": 29242
+      },
+      "client_elapsed_ms": 7.461,
+      "vector_index_in_plan": false,
+      "query_plan": "Output: video_id, t_start, t_end, bus_count, person_count, cosineDistance(embedding, [query_vector omitted]), 1 − cosineDistance(embedding, [query_vector omitted])\n\nJoinLazyColumnsStep\n├──Limit (preliminary LIMIT)\n│  │  Limit 10\n│  │  Offset 0\n│  └──Sorting (Sorting for ORDER BY)\n│     │  Sort description: cosineDistance(embedding, [query_vector omitted]) ASC\n│     │  Limit 10\n│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)\n│           Read type: Default\n│           Parts: 1 | Granules: 1\n│           Output: bus_count, person_count, _part_starting_offset, _part_offset, embedding\n│           Prewhere filter\n│           Prewhere filter column:  person_count >= 1 AND bus_count >= 1\n│           Indexes:\n│             PrimaryKey\n│               Condition: true\n│               Parts: 1/1\n│               Granules: 1/1\n│             Skip\n│               Name: idx_bus\n│               Description: minmax GRANULARITY 4\n│               Condition: (bus_count in [1, +Inf))\n│               Parts: 1/1\n│               Granules: 1/1\n│             Skip\n│               Name: idx_person\n│               Description: minmax GRANULARITY 4\n│               Condition: (person_count in [1, +Inf))\n│               Parts: 1/1\n│               Granules: 1/1\n│             Ranges: 1\n└──LazilyReadFromMergeTree\n      Lazily read columns: video_id, t_start, t_end\n"
+    },
+    {
+      "query_id": "hybrid_postfilter_rescore",
+      "title": "Hybrid postfilter + rescore",
+      "kind": "hybrid_postfilter",
+      "description": "HNSW adaylarini bulur, filtreler ve full-precision vektorlerle yeniden skorlar.",
+      "filename": "07_hybrid_postfilter_rescore.sql",
+      "sql": "WITH (\n    SELECT embedding\n    FROM clips_xclip_hf_zeroshot\n    ORDER BY video_id, t_start\n    LIMIT 1\n) AS query_vector\nSELECT\n    video_id,\n    t_start,\n    t_end,\n    bus_count,\n    person_count,\n    cosineDistance(embedding, query_vector) AS distance,\n    1 - distance AS score\nFROM clips_xclip_hf_zeroshot\nWHERE bus_count >= 1\n  AND person_count >= 1\nORDER BY distance ASC\nLIMIT 10\nSETTINGS\n    vector_search_filter_strategy = 'postfilter',\n    vector_search_with_rescoring = 1,\n    vector_search_index_fetch_multiplier = 5",
+      "rows": [
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 0,
+          "t_end": 8,
+          "bus_count": 3,
+          "person_count": 9,
+          "distance": 0.2983995,
+          "score": 0.7016004920005798
+        },
+        {
+          "video_id": "uav0000138_00000_v",
+          "t_start": 4,
+          "t_end": 8.52,
+          "bus_count": 2,
+          "person_count": 10,
+          "distance": 0.30216736,
+          "score": 0.6978326439857483
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 0,
+          "t_end": 8,
+          "bus_count": 1,
+          "person_count": 9,
+          "distance": 0.33385628,
+          "score": 0.6661437153816223
+        },
+        {
+          "video_id": "uav0000361_02323_v",
+          "t_start": 4,
+          "t_end": 8.76,
+          "bus_count": 1,
+          "person_count": 8,
+          "distance": 0.3369959,
+          "score": 0.6630041003227234
+        }
+      ],
+      "row_count": 4,
+      "statistics": {
+        "elapsed": 0.004280473,
+        "rows_read": 21,
+        "bytes_read": 29242
+      },
+      "client_elapsed_ms": 6.916,
+      "vector_index_in_plan": true,
+      "query_plan": "Output: video_id, t_start, t_end, bus_count, person_count, cosineDistance(embedding, [query_vector omitted]), 1 − cosineDistance(embedding, [query_vector omitted])\n\nJoinLazyColumnsStep\n├──Limit (preliminary LIMIT)\n│  │  Limit 10\n│  │  Offset 0\n│  └──Sorting (Sorting for ORDER BY)\n│     │  Sort description: cosineDistance(embedding, [query_vector omitted]) ASC\n│     │  Limit 10\n│     └──Filter\n│        │  Filter column: bus_count >= 1 AND person_count >= 1\n│        └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)\n│              Read type: Default\n│              Parts: 1 | Granules: 1\n│              Output: _part_starting_offset, _part_offset, bus_count, person_count, embedding\n│              Indexes:\n│                PrimaryKey\n│                  Condition: true\n│                  Parts: 1/1\n│                  Granules: 1/1\n│                Skip\n│                  Name: idx_vec\n│                  Description: vector_similarity GRANULARITY 100000000\n│                  Parts: 1/1\n│                  Granules: 1/1\n│                Skip\n│                  Name: idx_bus\n│                  Description: minmax GRANULARITY 4\n│                  Condition: (bus_count in [1, +Inf))\n│                  Parts: 1/1\n│                  Granules: 1/1\n│                Skip\n│                  Name: idx_person\n│                  Description: minmax GRANULARITY 4\n│                  Condition: (person_count in [1, +Inf))\n│                  Parts: 1/1\n│                  Granules: 1/1\n│                Ranges: 1\n└──LazilyReadFromMergeTree\n      Lazily read columns: video_id, t_start, t_end\n"
+    }
+  ],
+  "methodology": [
+    "Vector lab sorgulari tekrar edilebilir self-probe kullanir: query vector ilk kayitli video embedding'idir; dogal dil kalite benchmark'i degildir.",
+    "Exact SQL filtresi saklanan kolon degerine kesindir; YOLO veya telemetri kolonunun gercek dunya dogrulugunu garanti etmez.",
+    "Az satirli smoke tablolarinda HNSW hiz veya recall avantaji kanitlanamaz; brute-force zaten ucuzdur.",
+    "HNSW sonucu yaklasik olabilir. Exact brute-force katalog sorgusu query_plan_try_use_vector_search=0 ile indeks optimizasyonunu kapatir."
+  ]
+}

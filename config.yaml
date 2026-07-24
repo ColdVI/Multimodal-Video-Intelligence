@@ -1,0 +1,23 @@
+window:
+  size_s: 8.0
+  stride_s: 4.0
+  min_window_s: 2.0
+
+merge:
+  gap_tolerance_s: 10.0
+
+eval:
+  iou_threshold: 0.5
+  top_k: 10
+
+paths:
+  videos_dir: data/raw/videos
+  manifest: data/raw/manifest.json
+  annotations_dir: data/raw/VisDrone2019-MOT-train/annotations
+  windows: data/windows.json
+  features: data/features.json
+  groundtruth: data/groundtruth/gt.json
+
+clickhouse:
+  host: localhost
+  port: 8123

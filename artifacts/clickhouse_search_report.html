@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>ClickHouse Search Lab Report</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;max-width:1180px;margin:36px auto;padding:0 22px;color:#172033;line-height:1.55;background:#f7f9fc}
+.hero{background:linear-gradient(120deg,#102a56,#2458a6);color:white;border-radius:18px;padding:24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+.card,.query{background:white;border:1px solid #dce4ef;border-radius:14px;padding:17px;margin:14px 0}
+.badge{display:inline-block;background:#e6eeff;color:#174a9c;border-radius:999px;padding:4px 9px;font-size:12px}
+.meta{color:#667085;font-size:13px;margin-bottom:10px} pre{background:#111827;color:#e5edf8;border-radius:10px;padding:13px;overflow:auto}
+.scroll{overflow:auto} table{border-collapse:collapse;width:100%;font-size:13px} th,td{border-bottom:1px solid #e5e9f0;padding:8px;text-align:left;white-space:nowrap} th{background:#f1f4f9}
+.warn{border-left:5px solid #e7a500}
+</style></head><body>
+<div class="hero"><h1>ClickHouse Search Lab</h1><p>Exact filtre · exact brute-force vector · HNSW · hybrid pre/postfilter</p></div>
+<div class="grid">
+  <div class="card"><b>ClickHouse</b><br>26.7.1.1315</div>
+  <div class="card"><b>Katalog sorgusu</b><br>7</div>
+  <div class="card"><b>Toplam model satırı</b><br>14</div>
+  <div class="card"><b>Exact ↔ HNSW sırası</b><br>Aynı</div>
+  <div class="card"><b>Distance değerleri</b><br>Farklı · max Δ 0.000102</div>
+</div>
+<section class="card warn"><h2>Metodolojik sınırlar</h2><ul><li>Vector lab sorgulari tekrar edilebilir self-probe kullanir: query vector ilk kayitli video embedding&#x27;idir; dogal dil kalite benchmark&#x27;i degildir.</li><li>Exact SQL filtresi saklanan kolon degerine kesindir; YOLO veya telemetri kolonunun gercek dunya dogrulugunu garanti etmez.</li><li>Az satirli smoke tablolarinda HNSW hiz veya recall avantaji kanitlanamaz; brute-force zaten ucuzdur.</li><li>HNSW sonucu yaklasik olabilir. Exact brute-force katalog sorgusu query_plan_try_use_vector_search=0 ile indeks optimizasyonunu kapatir.</li></ul></section>
+<section class="card"><h2>Aktif vector ayarları</h2><div class='scroll'><table><thead><tr><th>setting</th><th>value</th></tr></thead><tbody><tr><td>query_plan_try_use_vector_search</td><td>1</td></tr><tr><td>vector_search_filter_strategy</td><td>auto</td></tr><tr><td>vector_search_index_fetch_multiplier</td><td>1</td></tr><tr><td>vector_search_with_rescoring</td><td>0</td></tr></tbody></table></div></section>
+<h2>Çalıştırılan SQL ve kanıtlar</h2>
+            <section class="query">
+              <div class="badge">inventory</div>
+              <h3>Tablo envanteri</h3>
+              <p>Model tablolarinin satir ve disk boyutlarini listeler.</p>
+              <div class="meta">Dosya: 01_table_inventory.sql · Satır: 2 · Sunucu: 1.605 ms · HTTP: 4.218 ms · HNSW planı: yok</div>
+              <pre>SELECT
+    name AS table_name,
+    total_rows,
+    total_bytes
+FROM system.tables
+WHERE database = &#x27;default&#x27;
+  AND name LIKE &#x27;clips_%&#x27;
+ORDER BY name</pre>
+              <div class='scroll'><table><thead><tr><th>table_name</th><th>total_rows</th><th>total_bytes</th></tr></thead><tbody><tr><td>clips_siglip2_frameavg</td><td>7</td><td>50630</td></tr><tr><td>clips_xclip_hf_zeroshot</td><td>7</td><td>23601</td></tr></tbody></table></div>
+              
+            </section>
+            <section class="query">
+              <div class="badge">inventory</div>
+              <h3>Indeks envanteri</h3>
+              <p>Minmax ve HNSW vector_similarity indekslerini listeler.</p>
+              <div class="meta">Dosya: 02_index_inventory.sql · Satır: 6 · Sunucu: 1.605 ms · HTTP: 22.899 ms · HNSW planı: yok</div>
+              <pre>SELECT
+    table,
+    name AS index_name,
+    type_full,
+    granularity
+FROM system.data_skipping_indices
+WHERE database = &#x27;default&#x27;
+  AND table LIKE &#x27;clips_%&#x27;
+ORDER BY table, index_name</pre>
+              <div class='scroll'><table><thead><tr><th>table</th><th>index_name</th><th>type_full</th><th>granularity</th></tr></thead><tbody><tr><td>clips_siglip2_frameavg</td><td>idx_bus</td><td>minmax</td><td>4</td></tr><tr><td>clips_siglip2_frameavg</td><td>idx_person</td><td>minmax</td><td>4</td></tr><tr><td>clips_siglip2_frameavg</td><td>idx_vec</td><td>vector_similarity(&#x27;hnsw&#x27;, &#x27;cosineDistance&#x27;, 1152)</td><td>100000000</td></tr><tr><td>clips_xclip_hf_zeroshot</td><td>idx_bus</td><td>minmax</td><td>4</td></tr><tr><td>clips_xclip_hf_zeroshot</td><td>idx_person</td><td>minmax</td><td>4</td></tr><tr><td>clips_xclip_hf_zeroshot</td><td>idx_vec</td><td>vector_similarity(&#x27;hnsw&#x27;, &#x27;cosineDistance&#x27;, 512)</td><td>100000000</td></tr></tbody></table></div>
+              
+            </section>
+            <section class="query">
+              <div class="badge">exact_filter</div>
+              <h3>Exact yapilandirilmis filtre</h3>
+              <p>Embedding kullanmadan bus_count ve person_count kolonlarini deterministik filtreler.</p>
+              <div class="meta">Dosya: 03_exact_filter.sql · Satır: 4 · Sunucu: 3.920 ms · HTTP: 6.286 ms · HNSW planı: yok</div>
+              <pre>SELECT
+    video_id,
+    t_start,
+    t_end,
+    bus_count,
+    person_count,
+    length(embedding) AS embedding_dim
+FROM clips_xclip_hf_zeroshot
+WHERE bus_count &gt;= 1
+  AND person_count &gt;= 1
+ORDER BY video_id, t_start
+LIMIT 10</pre>
+              <div class='scroll'><table><thead><tr><th>video_id</th><th>t_start</th><th>t_end</th><th>bus_count</th><th>person_count</th><th>embedding_dim</th></tr></thead><tbody><tr><td>uav0000138_00000_v</td><td>0</td><td>8</td><td>3</td><td>9</td><td>512</td></tr><tr><td>uav0000138_00000_v</td><td>4</td><td>8.520000</td><td>2</td><td>10</td><td>512</td></tr><tr><td>uav0000361_02323_v</td><td>0</td><td>8</td><td>1</td><td>9</td><td>512</td></tr><tr><td>uav0000361_02323_v</td><td>4</td><td>8.760000</td><td>1</td><td>8</td><td>512</td></tr></tbody></table></div>
+              <details><summary>EXPLAIN indexes = 1</summary><pre>Output: video_id, t_start, t_end, bus_count, person_count, length(embedding)
+
+JoinLazyColumnsStep
+├──Limit (preliminary LIMIT)
+│  │  Limit 10
+│  │  Offset 0
+│  └──Sorting (Sorting for ORDER BY)
+│     │  Prefix sort description: video_id ASC, t_start ASC
+│     │  Result sort description: video_id ASC, t_start ASC
+│     │  Limit 10
+│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)
+│           Read type: InOrder
+│           Parts: 1 | Granules: 1
+│           Output: bus_count, person_count, _part_starting_offset, _part_offset, video_id, t_start
+│           Prewhere filter
+│           Prewhere filter column:  person_count &gt;= 1 AND bus_count &gt;= 1
+│           Indexes:
+│             PrimaryKey
+│               Condition: true
+│               Parts: 1/1
+│               Granules: 1/1
+│             Skip
+│               Name: idx_bus
+│               Description: minmax GRANULARITY 4
+│               Condition: (bus_count in [1, +Inf))
+│               Parts: 1/1
+│               Granules: 1/1
+│             Skip
+│               Name: idx_person
+│               Description: minmax GRANULARITY 4
+│               Condition: (person_count in [1, +Inf))
+│               Parts: 1/1
+│               Granules: 1/1
+│             Ranges: 1
+└──LazilyReadFromMergeTree
+      Lazily read columns: t_end, embedding
+</pre></details>
+            </section>
+            <section class="query">
+              <div class="badge">vector_exact</div>
+              <h3>Exact brute-force vector search</h3>
+              <p>HNSW optimizasyonunu kapatip tum adaylarin cosine distance degerini hesaplar.</p>
+              <div class="meta">Dosya: 04_similarity_exact_bruteforce.sql · Satır: 7 · Sunucu: 4.228 ms · HTTP: 22.228 ms · HNSW planı: yok</div>
+              <pre>WITH (
+    SELECT embedding
+    FROM clips_xclip_hf_zeroshot
+    ORDER BY video_id, t_start
+    LIMIT 1
+) AS query_vector
+SELECT
+    video_id,
+    t_start,
+    t_end,
+    cosineDistance(embedding, query_vector) AS distance,
+    1 - distance AS score
+FROM clips_xclip_hf_zeroshot
+ORDER BY distance ASC
+LIMIT 10
+SETTINGS query_plan_try_use_vector_search = 0</pre>
+              <div class='scroll'><table><thead><tr><th>video_id</th><th>t_start</th><th>t_end</th><th>distance</th><th>score</th></tr></thead><tbody><tr><td>uav0000013_01073_v</td><td>0</td><td>2.320000</td><td>0</td><td>1</td></tr><tr><td>uav0000138_00000_v</td><td>0</td><td>8</td><td>0.298399</td><td>0.701600</td></tr><tr><td>uav0000138_00000_v</td><td>4</td><td>8.520000</td><td>0.302167</td><td>0.697833</td></tr><tr><td>uav0000361_02323_v</td><td>0</td><td>8</td><td>0.333856</td><td>0.666144</td></tr><tr><td>uav0000361_02323_v</td><td>4</td><td>8.760000</td><td>0.336996</td><td>0.663004</td></tr><tr><td>uav0000266_04830_v</td><td>0</td><td>4.640000</td><td>0.341876</td><td>0.658124</td></tr><tr><td>uav0000072_04488_v</td><td>0</td><td>3.400000</td><td>0.429466</td><td>0.570534</td></tr></tbody></table></div>
+              <details><summary>EXPLAIN indexes = 1</summary><pre>Output: video_id, t_start, t_end, cosineDistance(embedding, [query_vector omitted]), 1 − cosineDistance(embedding, [query_vector omitted])
+
+JoinLazyColumnsStep
+├──Limit (preliminary LIMIT)
+│  │  Limit 10
+│  │  Offset 0
+│  └──Sorting (Sorting for ORDER BY)
+│     │  Sort description: cosineDistance(embedding, [query_vector omitted]) ASC
+│     │  Limit 10
+│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)
+│           Read type: Default
+│           Parts: 1 | Granules: 1
+│           Output: _part_starting_offset, _part_offset, embedding
+│           Indexes:
+│             PrimaryKey
+│               Condition: true
+│               Parts: 1/1
+│               Granules: 1/1
+│             Ranges: 1
+└──LazilyReadFromMergeTree
+      Lazily read columns: video_id, t_start, t_end
+</pre></details>
+            </section>
+            <section class="query">
+              <div class="badge">vector_ann</div>
+              <h3>HNSW approximate similarity search</h3>
+              <p>ClickHouse query planner&#x27;in HNSW vector_similarity indeksini kullanmasina izin verir.</p>
+              <div class="meta">Dosya: 05_similarity_hnsw.sql · Satır: 7 · Sunucu: 3.881 ms · HTTP: 27.519 ms · HNSW planı: kullanıldı</div>
+              <pre>WITH (
+    SELECT embedding
+    FROM clips_xclip_hf_zeroshot
+    ORDER BY video_id, t_start
+    LIMIT 1
+) AS query_vector
+SELECT
+    video_id,
+    t_start,
+    t_end,
+    cosineDistance(embedding, query_vector) AS distance,
+    1 - distance AS score
+FROM clips_xclip_hf_zeroshot
+ORDER BY distance ASC
+LIMIT 10
+SETTINGS query_plan_try_use_vector_search = 1</pre>
+              <div class='scroll'><table><thead><tr><th>video_id</th><th>t_start</th><th>t_end</th><th>distance</th><th>score</th></tr></thead><tbody><tr><td>uav0000013_01073_v</td><td>0</td><td>2.320000</td><td>0.000000</td><td>1.000000</td></tr><tr><td>uav0000138_00000_v</td><td>0</td><td>8</td><td>0.298423</td><td>0.701577</td></tr><tr><td>uav0000138_00000_v</td><td>4</td><td>8.520000</td><td>0.302188</td><td>0.697812</td></tr><tr><td>uav0000361_02323_v</td><td>0</td><td>8</td><td>0.333920</td><td>0.666080</td></tr><tr><td>uav0000361_02323_v</td><td>4</td><td>8.760000</td><td>0.337055</td><td>0.662945</td></tr><tr><td>uav0000266_04830_v</td><td>0</td><td>4.640000</td><td>0.341871</td><td>0.658129</td></tr><tr><td>uav0000072_04488_v</td><td>0</td><td>3.400000</td><td>0.429364</td><td>0.570636</td></tr></tbody></table></div>
+              <details><summary>EXPLAIN indexes = 1</summary><pre>Output: video_id, t_start, t_end, _distance, 1 − _distance
+
+JoinLazyColumnsStep
+├──Limit (preliminary LIMIT)
+│  │  Limit 10
+│  │  Offset 0
+│  └──Sorting (Sorting for ORDER BY)
+│     │  Sort description: _distance ASC
+│     │  Limit 10
+│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)
+│           Read type: Default
+│           Parts: 1 | Granules: 1
+│           Output: _part_starting_offset, _part_offset, _distance
+│           Indexes:
+│             PrimaryKey
+│               Condition: true
+│               Parts: 1/1
+│               Granules: 1/1
+│             Skip
+│               Name: idx_vec
+│               Description: vector_similarity GRANULARITY 100000000
+│               Parts: 1/1
+│               Granules: 1/1
+│             Ranges: 1
+└──LazilyReadFromMergeTree
+      Lazily read columns: video_id, t_start, t_end
+</pre></details>
+            </section>
+            <section class="query">
+              <div class="badge">hybrid_prefilter</div>
+              <h3>Hybrid prefilter</h3>
+              <p>Exact kolon filtrelerini once uygular, kalan adaylarda brute-force vector search yapar.</p>
+              <div class="meta">Dosya: 06_hybrid_prefilter.sql · Satır: 4 · Sunucu: 4.465 ms · HTTP: 7.461 ms · HNSW planı: yok</div>
+              <pre>WITH (
+    SELECT embedding
+    FROM clips_xclip_hf_zeroshot
+    ORDER BY video_id, t_start
+    LIMIT 1
+) AS query_vector
+SELECT
+    video_id,
+    t_start,
+    t_end,
+    bus_count,
+    person_count,
+    cosineDistance(embedding, query_vector) AS distance,
+    1 - distance AS score
+FROM clips_xclip_hf_zeroshot
+WHERE bus_count &gt;= 1
+  AND person_count &gt;= 1
+ORDER BY distance ASC
+LIMIT 10
+SETTINGS vector_search_filter_strategy = &#x27;prefilter&#x27;</pre>
+              <div class='scroll'><table><thead><tr><th>video_id</th><th>t_start</th><th>t_end</th><th>bus_count</th><th>person_count</th><th>distance</th><th>score</th></tr></thead><tbody><tr><td>uav0000138_00000_v</td><td>0</td><td>8</td><td>3</td><td>9</td><td>0.298399</td><td>0.701600</td></tr><tr><td>uav0000138_00000_v</td><td>4</td><td>8.520000</td><td>2</td><td>10</td><td>0.302167</td><td>0.697833</td></tr><tr><td>uav0000361_02323_v</td><td>0</td><td>8</td><td>1</td><td>9</td><td>0.333856</td><td>0.666144</td></tr><tr><td>uav0000361_02323_v</td><td>4</td><td>8.760000</td><td>1</td><td>8</td><td>0.336996</td><td>0.663004</td></tr></tbody></table></div>
+              <details><summary>EXPLAIN indexes = 1</summary><pre>Output: video_id, t_start, t_end, bus_count, person_count, cosineDistance(embedding, [query_vector omitted]), 1 − cosineDistance(embedding, [query_vector omitted])
+
+JoinLazyColumnsStep
+├──Limit (preliminary LIMIT)
+│  │  Limit 10
+│  │  Offset 0
+│  └──Sorting (Sorting for ORDER BY)
+│     │  Sort description: cosineDistance(embedding, [query_vector omitted]) ASC
+│     │  Limit 10
+│     └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)
+│           Read type: Default
+│           Parts: 1 | Granules: 1
+│           Output: bus_count, person_count, _part_starting_offset, _part_offset, embedding
+│           Prewhere filter
+│           Prewhere filter column:  person_count &gt;= 1 AND bus_count &gt;= 1
+│           Indexes:
+│             PrimaryKey
+│               Condition: true
+│               Parts: 1/1
+│               Granules: 1/1
+│             Skip
+│               Name: idx_bus
+│               Description: minmax GRANULARITY 4
+│               Condition: (bus_count in [1, +Inf))
+│               Parts: 1/1
+│               Granules: 1/1
+│             Skip
+│               Name: idx_person
+│               Description: minmax GRANULARITY 4
+│               Condition: (person_count in [1, +Inf))
+│               Parts: 1/1
+│               Granules: 1/1
+│             Ranges: 1
+└──LazilyReadFromMergeTree
+      Lazily read columns: video_id, t_start, t_end
+</pre></details>
+            </section>
+            <section class="query">
+              <div class="badge">hybrid_postfilter</div>
+              <h3>Hybrid postfilter + rescore</h3>
+              <p>HNSW adaylarini bulur, filtreler ve full-precision vektorlerle yeniden skorlar.</p>
+              <div class="meta">Dosya: 07_hybrid_postfilter_rescore.sql · Satır: 4 · Sunucu: 4.280 ms · HTTP: 6.916 ms · HNSW planı: kullanıldı</div>
+              <pre>WITH (
+    SELECT embedding
+    FROM clips_xclip_hf_zeroshot
+    ORDER BY video_id, t_start
+    LIMIT 1
+) AS query_vector
+SELECT
+    video_id,
+    t_start,
+    t_end,
+    bus_count,
+    person_count,
+    cosineDistance(embedding, query_vector) AS distance,
+    1 - distance AS score
+FROM clips_xclip_hf_zeroshot
+WHERE bus_count &gt;= 1
+  AND person_count &gt;= 1
+ORDER BY distance ASC
+LIMIT 10
+SETTINGS
+    vector_search_filter_strategy = &#x27;postfilter&#x27;,
+    vector_search_with_rescoring = 1,
+    vector_search_index_fetch_multiplier = 5</pre>
+              <div class='scroll'><table><thead><tr><th>video_id</th><th>t_start</th><th>t_end</th><th>bus_count</th><th>person_count</th><th>distance</th><th>score</th></tr></thead><tbody><tr><td>uav0000138_00000_v</td><td>0</td><td>8</td><td>3</td><td>9</td><td>0.298399</td><td>0.701600</td></tr><tr><td>uav0000138_00000_v</td><td>4</td><td>8.520000</td><td>2</td><td>10</td><td>0.302167</td><td>0.697833</td></tr><tr><td>uav0000361_02323_v</td><td>0</td><td>8</td><td>1</td><td>9</td><td>0.333856</td><td>0.666144</td></tr><tr><td>uav0000361_02323_v</td><td>4</td><td>8.760000</td><td>1</td><td>8</td><td>0.336996</td><td>0.663004</td></tr></tbody></table></div>
+              <details><summary>EXPLAIN indexes = 1</summary><pre>Output: video_id, t_start, t_end, bus_count, person_count, cosineDistance(embedding, [query_vector omitted]), 1 − cosineDistance(embedding, [query_vector omitted])
+
+JoinLazyColumnsStep
+├──Limit (preliminary LIMIT)
+│  │  Limit 10
+│  │  Offset 0
+│  └──Sorting (Sorting for ORDER BY)
+│     │  Sort description: cosineDistance(embedding, [query_vector omitted]) ASC
+│     │  Limit 10
+│     └──Filter
+│        │  Filter column: bus_count &gt;= 1 AND person_count &gt;= 1
+│        └──ReadFromMergeTree (default.clips_xclip_hf_zeroshot)
+│              Read type: Default
+│              Parts: 1 | Granules: 1
+│              Output: _part_starting_offset, _part_offset, bus_count, person_count, embedding
+│              Indexes:
+│                PrimaryKey
+│                  Condition: true
+│                  Parts: 1/1
+│                  Granules: 1/1
+│                Skip
+│                  Name: idx_vec
+│                  Description: vector_similarity GRANULARITY 100000000
+│                  Parts: 1/1
+│                  Granules: 1/1
+│                Skip
+│                  Name: idx_bus
+│                  Description: minmax GRANULARITY 4
+│                  Condition: (bus_count in [1, +Inf))
+│                  Parts: 1/1
+│                  Granules: 1/1
+│                Skip
+│                  Name: idx_person
+│                  Description: minmax GRANULARITY 4
+│                  Condition: (person_count in [1, +Inf))
+│                  Parts: 1/1
+│                  Granules: 1/1
+│                Ranges: 1
+└──LazilyReadFromMergeTree
+      Lazily read columns: video_id, t_start, t_end
+</pre></details>
+            </section>
+</body></html>

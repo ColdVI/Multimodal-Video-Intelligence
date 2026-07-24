@@ -1,0 +1,11 @@
+numpy>=1.26
+pyyaml>=6.0
+opencv-python-headless>=4.9
+imageio-ffmpeg>=0.6
+gdown>=6.1
+torch>=2.2
+transformers>=4.45
+ultralytics>=8.3
+clickhouse-connect>=0.7
+fiftyone>=0.24
+pytest>=8.0

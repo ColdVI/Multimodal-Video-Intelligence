@@ -1,0 +1,28 @@
+# Not: Postgres kasıtlı olarak yok. Bu POC'ta 'platform' kolonu sabit
+# 'visdrone' - gerçek çoklu-platform katalog join'i (TB2 vs Akıncı vb.)
+# yok, bu yüzden Postgres'in POC'ta gerçek bir rolü yok. Üretim köprüsünde
+# (CONTEXT.md, Faz 5) geri gelir.
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports: ["8123:8123", "9000:9000"]
+    volumes:
+      - ch_data:/var/lib/clickhouse
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: 1
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports: ["9002:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: poc
+      MINIO_ROOT_PASSWORD: pocsecret
+    volumes:
+      - minio_data:/data
+
+volumes:
+  ch_data: {}
+  minio_data: {}
