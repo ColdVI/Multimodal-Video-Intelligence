@@ -32,6 +32,31 @@ skor biçiminde veren ölçülebilir bir hibrit retrieval sistemi kurmak.
   telafisi yapmaz. Gerçek veri görsel denetimi olmadan güvenilir etiket değildir.
 - Filtre yanlış negatifleri geri döndürülemez aday kaybı yaratabilir. Saf
   vektör modu bu nedenle karşılaştırma baseline'ı olarak kalmalıdır.
+- Üretim ortamı hem air-gapped (ağ çağrısı yok) HEM GPU garantisiz kabul
+  edilir. İki kısıt farklı şeyleri eler: (a) runtime'da API çağrısına
+  bağımlı hiçbir model/adaptör kullanılamaz — bu zaten `offline_mode`
+  (`local_files_only=True`) ile yapısal olarak engelli; (b) CPU, "en kötü
+  durum" değil "birincil ölçüm ortamı"dır — bench raporlarında CPU satırı
+  zorunlu, GPU satırları (lokal GT 1030, Colab T4 gibi bulut GPU) ek/
+  karşılaştırma amaçlıdır, varsayım değildir. Bench koşum manifest'i her
+  satırda `hardware_profile` (ör. `cpu`, `gt1030_cuda`, `colab_t4`) alanını
+  taşır ki rapor okuyan hangi sayının hangi donanım sınıfına ait olduğunu
+  karıştırmasın.
+- GT 1030 CUDA denemesi bu oturumda BLOKE: `torch==2.13.0+cu126` kurulumu
+  Windows `MAX_PATH` (260 karakter) sınırına takıldı (repo yolu derin +
+  torch'un `dist-info/licenses/third_party/kineto/.../duktape-*` gibi çok
+  derin iç içe lisans dizinleri). Kök neden `HKLM:\SYSTEM\CurrentControlSet\
+  Control\FileSystem\LongPathsEnabled=0`; düzeltme admin yetkisiyle bu
+  değeri 1 yapmak (Microsoft'un resmi, geri alınabilir, reboot gerektirmeyen
+  önerisi) ama bu ortamdaki shell admin değil ve etkileşimsiz UAC onayı
+  alınamıyor. CPU-only `torch==2.13.0+cpu` kurulumu da AYNI limite takıldı;
+  wheel'i elle (zipfile ile, yalnızca 5 aşırı-derin 3.-parti LICENSE dosyası
+  atlanarak - torch'un kendi kodu/lisansı etkilenmedi) çıkararak eski çalışan
+  duruma dönüldü, 54/54 test tekrar geçti. GT1030 CUDA ölçümü "yapılmadı"
+  olarak raporlanır; düzeltme tek satır: kullanıcı elle yükseltilmiş
+  PowerShell'de `Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\
+  Control\FileSystem' -Name LongPathsEnabled -Value 1` çalıştırırsa sonraki
+  oturumda tekrar denenebilir.
 
 ## Önceliklendirilmiş geliştirme fikirleri
 

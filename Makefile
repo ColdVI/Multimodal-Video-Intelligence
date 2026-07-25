@@ -2,7 +2,7 @@ MODEL ?= xclip_hf_zeroshot
 SEQUENCE ?=
 
 .PHONY: help download-data infra-up infra-down schema frames windows detect embed load \
-        ingest groundtruth eval search-report fiftyone test clean
+        ingest groundtruth eval search-report bench fiftyone test clean
 
 help:
 	@echo "make infra-up      - ClickHouse + MinIO baslatir"
@@ -12,6 +12,7 @@ help:
 	@echo "make groundtruth   - VisDrone anotasyonlarindan GT uretir"
 	@echo "make eval          - model x filtre kiyaslamasini kosar"
 	@echo "make search-report - exact/vector/hybrid SQL kanit raporu uretir"
+	@echo "make bench         - Faz 1 benchmark harness'ini kosar, HTML/JSON rapor uretir"
 	@echo "make fiftyone      - sonuclari FiftyOne'da acar"
 	@echo "make test          - saf-mantik pytest (GPU/veri gerekmez)"
 
@@ -57,6 +58,9 @@ eval:
 
 search-report:
 	python scripts/run_clickhouse_search_report.py
+
+bench:
+	python -m bench.runner
 
 fiftyone:
 	python notebooks/inspect_fiftyone.py

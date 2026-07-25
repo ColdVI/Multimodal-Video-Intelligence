@@ -53,6 +53,26 @@
   aktif Torch CPU-only olduğu için CUDA benchmark'ı çalıştırılamadı. Ayrıntı:
   `BENCHMARK_CPU_GT1030_T4.md`.
 
+## Faz 1 benchmark altyapısı (docs/codex/05_..., 25 Temmuz 2026)
+
+- `bench/` paketi gerçek çalıştırıldı: 19 sekans (56'dan seçilmiş temsili bench
+  subset, `config.yaml: bench.subset`) → 73 pencere → 2 model × 2 filtre = 4
+  run, `artifacts/benchmark_report.{html,json}`.
+- GT 28 sorguya çıkarıldı (TR+EN çiftli, tekli/hareket/sayısal/bileşik/
+  negatif-kontrol). Filtre AÇIK tutarlı biçimde precision ve MRR'ı artırıyor
+  (ör. X-CLIP bileşik: MRR 0.92 filtreli vs 0.51 filtresiz); recall filtresiz
+  biraz daha yüksek kalabiliyor (aday havuzu daralmıyor) — beklenen ödünleşim.
+  Negatif-kontrol sorguları (n_gt=0) recall/precision=0 veriyor; bu P/R@K
+  metriğinin bir sınırıdır (boş GT'ye karşı hiçbir tahmin "doğru" sayılamaz),
+  başarısızlık değildir.
+- Determinizm kontrolü GEÇTİ: aynı RunSpec iki kez koşuldu, 28 sorgunun tümünde
+  metrikler birebir aynı çıktı.
+- SigLIP2 sorgu gecikmesi X-CLIP'in ~3 katı (mean 0.92sn vs 0.31sn, filtreli),
+  512d/1152d boyut farkına ve CPU-only ortama tutarlı.
+- GT 1030 CUDA denemesi bloke oldu (Windows `MAX_PATH`/`LongPathsEnabled=0`);
+  detay `docs/codex/02_FIKIRLER_VE_KARARLAR.md`. CPU-only ortam korunuyor,
+  54→72 test hâlâ geçiyor.
+
 ## Açık kalanlar
 
 - Tüm 56 sekans üzerinde toplu MP4/YOLO/model ingest henüz koşulmadı; mevcut

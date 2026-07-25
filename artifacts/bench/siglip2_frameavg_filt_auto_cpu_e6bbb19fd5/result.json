@@ -1,0 +1,952 @@
+{
+  "spec": {
+    "model_name": "siglip2_frameavg",
+    "use_filters": true,
+    "strategy": "auto",
+    "top_k": 200,
+    "hardware_profile": "cpu",
+    "yolo_variant": "yolo26x"
+  },
+  "rows": [
+    {
+      "query": "otobüsü göster",
+      "category": "tekli",
+      "lang": "tr",
+      "concept": "bus",
+      "n_pred_windows": 18,
+      "n_pred_intervals": 8,
+      "mrr": 0.5,
+      "n_gt": 11,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 11,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.2727272727272727,
+          "n_gt": 11,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.5,
+          "recall@k": 0.36363636363636365,
+          "n_gt": 11,
+          "n_pred": 8,
+          "n_hits": 4
+        }
+      }
+    },
+    {
+      "query": "show the bus",
+      "category": "tekli",
+      "lang": "en",
+      "concept": "bus",
+      "n_pred_windows": 18,
+      "n_pred_intervals": 8,
+      "mrr": 0.5,
+      "n_gt": 11,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 11,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.2727272727272727,
+          "n_gt": 11,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.5,
+          "recall@k": 0.36363636363636365,
+          "n_gt": 11,
+          "n_pred": 8,
+          "n_hits": 4
+        }
+      }
+    },
+    {
+      "query": "kamyonu göster",
+      "category": "tekli",
+      "lang": "tr",
+      "concept": "truck",
+      "n_pred_windows": 41,
+      "n_pred_intervals": 12,
+      "mrr": 1.0,
+      "n_gt": 15,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.06666666666666667,
+          "n_gt": 15,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.3333333333333333,
+          "n_gt": 15,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.7,
+          "recall@k": 0.4666666666666667,
+          "n_gt": 15,
+          "n_pred": 10,
+          "n_hits": 7
+        }
+      }
+    },
+    {
+      "query": "show the truck",
+      "category": "tekli",
+      "lang": "en",
+      "concept": "truck",
+      "n_pred_windows": 41,
+      "n_pred_intervals": 12,
+      "mrr": 1.0,
+      "n_gt": 15,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.06666666666666667,
+          "n_gt": 15,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.3333333333333333,
+          "n_gt": 15,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.9,
+          "recall@k": 0.6,
+          "n_gt": 15,
+          "n_pred": 10,
+          "n_hits": 9
+        }
+      }
+    },
+    {
+      "query": "arabaları göster",
+      "category": "tekli",
+      "lang": "tr",
+      "concept": "car",
+      "n_pred_windows": 67,
+      "n_pred_intervals": 17,
+      "mrr": 1.0,
+      "n_gt": 18,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.05555555555555555,
+          "n_gt": 18,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.2777777777777778,
+          "n_gt": 18,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.5555555555555556,
+          "n_gt": 18,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "show the cars",
+      "category": "tekli",
+      "lang": "en",
+      "concept": "car",
+      "n_pred_windows": 67,
+      "n_pred_intervals": 17,
+      "mrr": 1.0,
+      "n_gt": 18,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.05555555555555555,
+          "n_gt": 18,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.2777777777777778,
+          "n_gt": 18,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.5555555555555556,
+          "n_gt": 18,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "yayaları göster",
+      "category": "tekli",
+      "lang": "tr",
+      "concept": "pedestrian",
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
+      "mrr": 1.0,
+      "n_gt": 18,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.05555555555555555,
+          "n_gt": 18,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.2777777777777778,
+          "n_gt": 18,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.5555555555555556,
+          "n_gt": 18,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "show the pedestrians",
+      "category": "tekli",
+      "lang": "en",
+      "concept": "pedestrian",
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
+      "mrr": 1.0,
+      "n_gt": 18,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.05555555555555555,
+          "n_gt": 18,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.2777777777777778,
+          "n_gt": 18,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.5555555555555556,
+          "n_gt": 18,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "vanı göster",
+      "category": "tekli",
+      "lang": "tr",
+      "concept": "van",
+      "n_pred_windows": 73,
+      "n_pred_intervals": 19,
+      "mrr": 1.0,
+      "n_gt": 15,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.06666666666666667,
+          "n_gt": 15,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.3333333333333333,
+          "n_gt": 15,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.6,
+          "recall@k": 0.4,
+          "n_gt": 15,
+          "n_pred": 10,
+          "n_hits": 6
+        }
+      }
+    },
+    {
+      "query": "show the van",
+      "category": "tekli",
+      "lang": "en",
+      "concept": "van",
+      "n_pred_windows": 73,
+      "n_pred_intervals": 19,
+      "mrr": 0.5,
+      "n_gt": 15,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 15,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.4,
+          "recall@k": 0.13333333333333333,
+          "n_gt": 15,
+          "n_pred": 5,
+          "n_hits": 2
+        },
+        "10": {
+          "precision@k": 0.7,
+          "recall@k": 0.4666666666666667,
+          "n_gt": 15,
+          "n_pred": 10,
+          "n_hits": 7
+        }
+      }
+    },
+    {
+      "query": "yürüyen adamı göster",
+      "category": "hareket",
+      "lang": "tr",
+      "concept": "walking",
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
+      "mrr": 0.5,
+      "n_gt": 19,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 19,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.8,
+          "recall@k": 0.21052631578947367,
+          "n_gt": 19,
+          "n_pred": 5,
+          "n_hits": 4
+        },
+        "10": {
+          "precision@k": 0.9,
+          "recall@k": 0.47368421052631576,
+          "n_gt": 19,
+          "n_pred": 10,
+          "n_hits": 9
+        }
+      }
+    },
+    {
+      "query": "show the walking person",
+      "category": "hareket",
+      "lang": "en",
+      "concept": "walking",
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
+      "mrr": 1.0,
+      "n_gt": 19,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.05263157894736842,
+          "n_gt": 19,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.2631578947368421,
+          "n_gt": 19,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.9,
+          "recall@k": 0.47368421052631576,
+          "n_gt": 19,
+          "n_pred": 10,
+          "n_hits": 9
+        }
+      }
+    },
+    {
+      "query": "en az 3 araba göster",
+      "category": "sayısal",
+      "lang": "tr",
+      "concept": "car_at_least_3",
+      "n_pred_windows": 61,
+      "n_pred_intervals": 17,
+      "mrr": 1.0,
+      "n_gt": 21,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.047619047619047616,
+          "n_gt": 21,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.23809523809523808,
+          "n_gt": 21,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.47619047619047616,
+          "n_gt": 21,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "show at least 3 cars",
+      "category": "sayısal",
+      "lang": "en",
+      "concept": "car_at_least_3",
+      "n_pred_windows": 61,
+      "n_pred_intervals": 17,
+      "mrr": 1.0,
+      "n_gt": 21,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.047619047619047616,
+          "n_gt": 21,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.23809523809523808,
+          "n_gt": 21,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.47619047619047616,
+          "n_gt": 21,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "en az 5 kişi göster",
+      "category": "sayısal",
+      "lang": "tr",
+      "concept": "person_at_least_5",
+      "n_pred_windows": 47,
+      "n_pred_intervals": 14,
+      "mrr": 1.0,
+      "n_gt": 17,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.058823529411764705,
+          "n_gt": 17,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.29411764705882354,
+          "n_gt": 17,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.9,
+          "recall@k": 0.5294117647058824,
+          "n_gt": 17,
+          "n_pred": 10,
+          "n_hits": 9
+        }
+      }
+    },
+    {
+      "query": "show at least 5 people",
+      "category": "sayısal",
+      "lang": "en",
+      "concept": "person_at_least_5",
+      "n_pred_windows": 47,
+      "n_pred_intervals": 14,
+      "mrr": 1.0,
+      "n_gt": 17,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.058823529411764705,
+          "n_gt": 17,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.29411764705882354,
+          "n_gt": 17,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.9,
+          "recall@k": 0.5294117647058824,
+          "n_gt": 17,
+          "n_pred": 10,
+          "n_hits": 9
+        }
+      }
+    },
+    {
+      "query": "kalabalık bir sahne göster",
+      "category": "sayısal",
+      "lang": "tr",
+      "concept": "crowd_at_least_10",
+      "n_pred_windows": 13,
+      "n_pred_intervals": 7,
+      "mrr": 1.0,
+      "n_gt": 21,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.047619047619047616,
+          "n_gt": 21,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.14285714285714285,
+          "n_gt": 21,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.7142857142857143,
+          "recall@k": 0.23809523809523808,
+          "n_gt": 21,
+          "n_pred": 7,
+          "n_hits": 5
+        }
+      }
+    },
+    {
+      "query": "show a crowded scene",
+      "category": "sayısal",
+      "lang": "en",
+      "concept": "crowd_at_least_10",
+      "n_pred_windows": 13,
+      "n_pred_intervals": 7,
+      "mrr": 1.0,
+      "n_gt": 21,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.047619047619047616,
+          "n_gt": 21,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.14285714285714285,
+          "n_gt": 21,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.7142857142857143,
+          "recall@k": 0.23809523809523808,
+          "n_gt": 21,
+          "n_pred": 7,
+          "n_hits": 5
+        }
+      }
+    },
+    {
+      "query": "otobüs ve yürüyen adam",
+      "category": "bileşik",
+      "lang": "tr",
+      "concept": "bus_and_walking",
+      "n_pred_windows": 11,
+      "n_pred_intervals": 7,
+      "mrr": 1.0,
+      "n_gt": 9,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.1111111111111111,
+          "n_gt": 9,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.3333333333333333,
+          "n_gt": 9,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.5714285714285714,
+          "recall@k": 0.4444444444444444,
+          "n_gt": 9,
+          "n_pred": 7,
+          "n_hits": 4
+        }
+      }
+    },
+    {
+      "query": "bus and walking person",
+      "category": "bileşik",
+      "lang": "en",
+      "concept": "bus_and_walking",
+      "n_pred_windows": 11,
+      "n_pred_intervals": 7,
+      "mrr": 1.0,
+      "n_gt": 9,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.1111111111111111,
+          "n_gt": 9,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.3333333333333333,
+          "n_gt": 9,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.5714285714285714,
+          "recall@k": 0.4444444444444444,
+          "n_gt": 9,
+          "n_pred": 7,
+          "n_hits": 4
+        }
+      }
+    },
+    {
+      "query": "kamyon ve yaya birlikte",
+      "category": "bileşik",
+      "lang": "tr",
+      "concept": "truck_and_pedestrian",
+      "n_pred_windows": 35,
+      "n_pred_intervals": 11,
+      "mrr": 1.0,
+      "n_gt": 13,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.07692307692307693,
+          "n_gt": 13,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.38461538461538464,
+          "n_gt": 13,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 0.7,
+          "recall@k": 0.5384615384615384,
+          "n_gt": 13,
+          "n_pred": 10,
+          "n_hits": 7
+        }
+      }
+    },
+    {
+      "query": "truck and pedestrian together",
+      "category": "bileşik",
+      "lang": "en",
+      "concept": "truck_and_pedestrian",
+      "n_pred_windows": 35,
+      "n_pred_intervals": 11,
+      "mrr": 1.0,
+      "n_gt": 13,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.07692307692307693,
+          "n_gt": 13,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.6,
+          "recall@k": 0.23076923076923078,
+          "n_gt": 13,
+          "n_pred": 5,
+          "n_hits": 3
+        },
+        "10": {
+          "precision@k": 0.7,
+          "recall@k": 0.5384615384615384,
+          "n_gt": 13,
+          "n_pred": 10,
+          "n_hits": 7
+        }
+      }
+    },
+    {
+      "query": "araba ve yaya birlikte",
+      "category": "bileşik",
+      "lang": "tr",
+      "concept": "car_and_pedestrian",
+      "n_pred_windows": 59,
+      "n_pred_intervals": 16,
+      "mrr": 1.0,
+      "n_gt": 16,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.0625,
+          "n_gt": 16,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.3125,
+          "n_gt": 16,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.625,
+          "n_gt": 16,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "car and pedestrian together",
+      "category": "bileşik",
+      "lang": "en",
+      "concept": "car_and_pedestrian",
+      "n_pred_windows": 59,
+      "n_pred_intervals": 16,
+      "mrr": 1.0,
+      "n_gt": 16,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.0625,
+          "n_gt": 16,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 1.0,
+          "recall@k": 0.3125,
+          "n_gt": 16,
+          "n_pred": 5,
+          "n_hits": 5
+        },
+        "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.625,
+          "n_gt": 16,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "tren göster",
+      "category": "negatif-kontrol",
+      "lang": "tr",
+      "concept": "train",
+      "n_pred_windows": 73,
+      "n_pred_intervals": 19,
+      "mrr": 0.0,
+      "n_gt": 0,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 5,
+          "n_hits": 0
+        },
+        "10": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 10,
+          "n_hits": 0
+        }
+      }
+    },
+    {
+      "query": "show the train",
+      "category": "negatif-kontrol",
+      "lang": "en",
+      "concept": "train",
+      "n_pred_windows": 73,
+      "n_pred_intervals": 19,
+      "mrr": 0.0,
+      "n_gt": 0,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 5,
+          "n_hits": 0
+        },
+        "10": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 10,
+          "n_hits": 0
+        }
+      }
+    },
+    {
+      "query": "bisiklet göster",
+      "category": "negatif-kontrol",
+      "lang": "tr",
+      "concept": "bicycle",
+      "n_pred_windows": 73,
+      "n_pred_intervals": 19,
+      "mrr": 0.0,
+      "n_gt": 0,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 5,
+          "n_hits": 0
+        },
+        "10": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 10,
+          "n_hits": 0
+        }
+      }
+    },
+    {
+      "query": "show the bicycle",
+      "category": "negatif-kontrol",
+      "lang": "en",
+      "concept": "bicycle",
+      "n_pred_windows": 73,
+      "n_pred_intervals": 19,
+      "mrr": 0.0,
+      "n_gt": 0,
+      "by_k": {
+        "1": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 1,
+          "n_hits": 0
+        },
+        "5": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 5,
+          "n_hits": 0
+        },
+        "10": {
+          "precision@k": 0.0,
+          "recall@k": 0.0,
+          "n_gt": 0,
+          "n_pred": 10,
+          "n_hits": 0
+        }
+      }
+    }
+  ],
+  "timing": {
+    "query": {
+      "n": 28,
+      "total_s": 25.763703199918382,
+      "mean_s": 0.9201322571399422,
+      "p50_s": 0.5043331499764463,
+      "p95_s": 0.6147675150074065
+    },
+    "merge": {
+      "n": 28,
+      "total_s": 0.0014830000000074506,
+      "mean_s": 5.2964285714551806e-05,
+      "p50_s": 5.5599986808374524e-05,
+      "p95_s": 6.86249986756593e-05
+    }
+  }
+}

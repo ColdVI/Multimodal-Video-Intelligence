@@ -1,0 +1,101 @@
+{
+  "run_id": "siglip2_frameavg_nofilt_auto_cpu_e0f5195980",
+  "spec": {
+    "model_name": "siglip2_frameavg",
+    "use_filters": false,
+    "strategy": "auto",
+    "top_k": 200,
+    "hardware_profile": "cpu",
+    "yolo_variant": "yolo26x"
+  },
+  "git_hash": "ee3ad48f1003746e4907c418d0118bf1d021adfc",
+  "os": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.6",
+  "torch": {
+    "version": "2.13.0+cpu",
+    "cuda_available": false
+  },
+  "clickhouse_version": "26.7.1.1315",
+  "model": {
+    "name": "siglip2_frameavg",
+    "dim": 1152,
+    "l2_normalized": true
+  },
+  "config_snapshot": {
+    "window": {
+      "size_s": 8.0,
+      "stride_s": 4.0,
+      "min_window_s": 2.0
+    },
+    "merge": {
+      "gap_tolerance_s": 10.0
+    },
+    "eval": {
+      "iou_threshold": 0.5,
+      "top_k": 10
+    },
+    "paths": {
+      "videos_dir": "data/raw/videos",
+      "manifest": "data/raw/manifest.json",
+      "annotations_dir": "data/raw/VisDrone2019-MOT-train/annotations",
+      "windows": "data/windows.json",
+      "features": "data/features.json",
+      "groundtruth": "data/groundtruth/gt.json"
+    },
+    "clickhouse": {
+      "host": "localhost",
+      "port": 8123
+    },
+    "offline_mode": false,
+    "bench": {
+      "subset": [
+        "uav0000013_01073_v",
+        "uav0000072_04488_v",
+        "uav0000138_00000_v",
+        "uav0000266_04830_v",
+        "uav0000361_02323_v",
+        "uav0000126_00001_v",
+        "uav0000357_00920_v",
+        "uav0000084_00000_v",
+        "uav0000308_00000_v",
+        "uav0000279_00001_v",
+        "uav0000295_02300_v",
+        "uav0000278_00001_v",
+        "uav0000289_00001_v",
+        "uav0000266_03598_v",
+        "uav0000263_03289_v",
+        "uav0000071_03240_v",
+        "uav0000150_02310_v",
+        "uav0000239_12336_v",
+        "uav0000363_00001_v"
+      ]
+    }
+  },
+  "data_scope": {
+    "sequences": [
+      "uav0000013_01073_v",
+      "uav0000071_03240_v",
+      "uav0000072_04488_v",
+      "uav0000084_00000_v",
+      "uav0000126_00001_v",
+      "uav0000138_00000_v",
+      "uav0000150_02310_v",
+      "uav0000239_12336_v",
+      "uav0000263_03289_v",
+      "uav0000266_03598_v",
+      "uav0000266_04830_v",
+      "uav0000278_00001_v",
+      "uav0000279_00001_v",
+      "uav0000289_00001_v",
+      "uav0000295_02300_v",
+      "uav0000308_00000_v",
+      "uav0000357_00920_v",
+      "uav0000361_02323_v",
+      "uav0000363_00001_v"
+    ],
+    "n_sequences": 19,
+    "n_queries": 28
+  },
+  "duration_s": 15.82160520000616,
+  "generated_at": "2026-07-25T10:05:02"
+}

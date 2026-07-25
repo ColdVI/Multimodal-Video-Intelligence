@@ -55,3 +55,28 @@ planına aittir. Numaralandırma o dosyayla birebir eşleşir (kendi Faz 0'ı va
 - [x] `common.offline_mode_enabled()` + `config.yaml: offline_mode` + her iki adaptörde `local_files_only`
 - [x] `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` gerçek smoke: X-CLIP ve SigLIP2 lokal cache'ten yüklendi, ağ çağrısı yok
 - [x] `scripts/package_weights.py` gerçek çalıştırıldı: `weights/weights_manifest.json` (X-CLIP 783.7 MB, SigLIP2 4578.6 MB, yolo26x.pt 118.7 MB)
+
+### Faz 1 — Benchmark altyapısı
+- [x] Çalıştırma yüzeyi açıldı: `Makefile: bench:` hedefi ve `poc.ps1 ValidateSet`'e `'bench'`
+- [x] `bench/` paketi: `spec.py` (RunSpec+run_id), `timing.py` (StageTimer, p50/p95),
+      `metrics.py` (eval/metrics.py sarmalayıcı: MRR + K=1,5,10), `manifest.py`
+      (git hash, OS/Python/Torch/ClickHouse sürümü, GPU, model meta, config snapshot),
+      `report.py` (tek HTML+JSON), `runner.py` (RunSpec→sonuç, `--check-determinism`)
+- [x] GT seti 6 → 28 sorguya çıkarıldı, TR+EN çiftli (tekli×5, hareket×1, sayısal×3,
+      bileşik×3, negatif-kontrol×2 — `eval/make_groundtruth.py::build_queries` +
+      `build_query_metadata`); `search/parser.py` İngilizce eşanlamlı + sayısal eşik
+      (`en az N` / `at least N`) desteğiyle genişletildi (dil karşılaştırması filtre
+      varlığıyla değil yalnızca semantik kaliteyle ayrışsın diye)
+- [x] Bench subset: 56 sekanstan seçilmiş 19 sekans (`config.yaml: bench.subset`,
+      kanıt: `scripts/select_bench_subset.py`) — trafik yoğunluğu, bus/truck
+      varlığı, kare-parlaklığı (61.7–189.3) çeşitliliği kapsar
+- [x] 19 sekans gerçek ingest edildi: frames (19 mp4) → windows (73 pencere) →
+      detect (73 YOLO satırı) → embed+load iki model (73×512d X-CLIP, 73×1152d
+      SigLIP2, ClickHouse tabloları truncate edilip taze yüklendi)
+- [x] `python -m bench.runner`: 2 model × 2 filtre = 4 run, gerçek
+      `artifacts/benchmark_report.{html,json}` üretti (kategori kırılımlı
+      recall@10/precision@10/MRR + p50/p95 sorgu süresi)
+- [x] Determinizm kontrolü gerçek çalıştırıldı (`--check-determinism`, 19 sekans,
+      28 sorgu, iki koşum arasında fark yok): **GEÇTİ**
+- [x] 20 yeni saf-mantık testi eklendi (`test_bench_spec/timing/metrics/report.py`,
+      genişletilmiş `test_parser.py`, `test_common.py`) — toplam 72/72 geçiyor

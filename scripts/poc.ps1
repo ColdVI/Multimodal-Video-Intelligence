@@ -4,7 +4,7 @@ param(
     [ValidateSet(
         'help', 'download-data', 'infra-up', 'infra-down', 'schema', 'frames', 'windows',
         'detect', 'embed', 'load', 'ingest', 'groundtruth', 'eval',
-        'search-report', 'fiftyone', 'test'
+        'search-report', 'bench', 'fiftyone', 'test'
     )]
     [string] $Task,
     [string] $Model = 'xclip_hf_zeroshot',
@@ -44,7 +44,7 @@ function Invoke-Task([string] $name) {
         'help' {
             Write-Output 'Kullanım: .\scripts\poc.ps1 <görev> [-Model model_adı] [-Sequence sekans] [-AllModels] [-NoLaunch]'
             Write-Output 'Görevler: download-data infra-up schema frames windows detect embed load ingest'
-            Write-Output '          groundtruth eval search-report fiftyone test infra-down'
+            Write-Output '          groundtruth eval search-report bench fiftyone test infra-down'
         }
         'infra-up' {
             & docker compose up -d
@@ -87,6 +87,7 @@ function Invoke-Task([string] $name) {
             Invoke-Python $arguments
         }
         'search-report' { Invoke-Python @('scripts/run_clickhouse_search_report.py') }
+        'bench' { Invoke-Python @('-m', 'bench.runner') }
         'fiftyone' {
             $arguments = @('notebooks/inspect_fiftyone.py')
             if ($NoLaunch) {

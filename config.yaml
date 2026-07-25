@@ -26,3 +26,31 @@ clickhouse:
 # yuklenir (air-gapped kurulum). HF_HUB_OFFLINE=1 ortam degiskeni ayni
 # etkiyi config'e dokunmadan tetikler.
 offline_mode: false
+
+# Faz 1 bench subset: 56 VisDrone-MOT sekansindan secilmis 19 sekans.
+# Secim kaniti: scripts/select_bench_subset.py (kisi/arac yogunlugu, otobus/
+# kamyon varligi, kare-parlakligi proxy'si ile cesitlilik). Ilk 5'i mevcut
+# smoke sekanslariyla ortak (data/raw/manifest.json) - tam CPU ingest saatler
+# surdugu icin bench raporlari bu subset uzerinde kosar; CUDA'li ortamda
+# tam 56-sekans set'e gecis ayri, olculu bir adimdir.
+bench:
+  subset:
+    - uav0000013_01073_v   # en kisa (58 kare), bus/truck yok
+    - uav0000072_04488_v   # en karanlik (61.7), truck var bus yok, yuksek kisi
+    - uav0000138_00000_v   # bus var, yuksek kisi (58.5 ort), parlak (132)
+    - uav0000266_04830_v   # truck var, cok seyrek trafik, parlak (180.2)
+    - uav0000361_02323_v   # bus+truck, parlak (159.7)
+    - uav0000126_00001_v   # en yogun trafik (bus+truck+araba 107 ort)
+    - uav0000357_00920_v   # bus+truck, uzun sure (691 kare)
+    - uav0000084_00000_v   # bus/truck yok, araba=0, sadece yaya sahnesi
+    - uav0000308_00000_v   # bus/truck yok, orta yogunluk
+    - uav0000279_00001_v   # truck var bus yok, yuksek araba yogunlugu
+    - uav0000295_02300_v   # bus+truck, orta yogunluk
+    - uav0000278_00001_v   # bus+truck, en uzun sure (962 kare), parlak
+    - uav0000289_00001_v   # bus/truck yok, en parlak (189.3)
+    - uav0000266_03598_v   # truck var, cok seyrek (araba 3.16, kisi 3.0)
+    - uav0000263_03289_v   # bus+truck, kisi=0 uc-durum
+    - uav0000071_03240_v   # bus/truck yok, karanlik (68.4)
+    - uav0000150_02310_v   # truck var bus yok, medyana yakin parlaklik
+    - uav0000239_12336_v   # bus+truck, dusuk-orta yogunluk
+    - uav0000363_00001_v   # bus+truck, orta yogunluk, karanlik-yakin (96.9)
