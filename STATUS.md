@@ -99,6 +99,26 @@
 - 1M/10M ölçek testi ve CODEC(NONE)/binary-bind/materialize-throughput
   denemeleri süre bütçesi nedeniyle yapılmadı (TASKS.md'de açıkça işaretli).
 
+## Faz 3 YOLO dedektör bake-off (docs/codex/05_..., 25 Temmuz 2026)
+
+- Planın önerdiği `dronefreak/visdrone-detection-model-zoo` HF reposu
+  yok (indirmeden önce doğrulandı: 401). Gerçek alternatif kullanıldı:
+  `mshamrai/yolov8{n,s}-visdrone` (gerçek mAP@0.5 0.341/0.408).
+- `ingest/04_detect.py` config-driven `detector.variants` registry'sine
+  taşındı (checkpoint + class_map per varyant); eski COCO davranışı
+  varyant belirtilmezse birebir korunuyor.
+- 73 pencerede gerçek bake-off: `yolov8n_visdrone` COCO baseline'a göre
+  ~2× hızlı (1.61 vs 0.82 fps, CPU) VE downstream Recall/Precision@10'da
+  eşdeğer/genelde daha iyi (precision tekli 0.86 vs 0.81, sayısal 0.87 vs
+  0.84, bileşik 0.85 vs 0.76) — **yeni varsayılan dedektör**. İlginç ama
+  dürüst bulgu: truck sınıfında COCO x-large modeli (recall 0.88) her iki
+  VisDrone-tuned varyanttan (0.50/0.71) daha iyi — "küçük fine-tune'lu
+  model büyüğü her zaman geçer" varsayımı burada doğrulanmadı, ama truck
+  payı düşük olduğu için downstream'e yansımadı.
+- Her iki ClickHouse tablosu (X-CLIP + SigLIP2) yeni varsayılan dedektörün
+  ürettiği filtre kolonlarıyla yeniden yüklendi.
+- Batch/imgsz/FP16/n_sample ablation'ları süre bütçesi nedeniyle yapılmadı.
+
 ## Açık kalanlar
 
 - Tüm 56 sekans üzerinde toplu MP4/YOLO/model ingest henüz koşulmadı; mevcut

@@ -141,3 +141,66 @@ planına aittir. Numaralandırma o dosyayla birebir eşleşir (kendi Faz 0'ı va
 belgelendi, 100K'da tam sıfıra kadar gidiyor. 100K stratejı karşılaştırması
 tamam; 1M yapılmadı (raporda açıkça işaretli). R2 düzeltmesi: risk bu
 sürümde zaten canlı değildi, kanıtlandı.
+
+### Faz 3 — YOLO optimizasyonu
+- [x] **Plan düzeltmesi:** planın önerdiği `dronefreak/visdrone-detection-model-zoo`
+      HF reposu gerçekte YOK (401/bulunamadı doğrulandı, indirmeden önce
+      kontrol edildi). Gerçek, doğrulanmış alternatif: `mshamrai/yolov8{n,s,m}
+      -visdrone` (gerçek mAP@0.5: 0.341/0.408/0.454, gerçek VisDrone sınıf
+      haritası indirilip `model.names`'ten okunarak doğrulandı: {0:pedestrian,
+      1:people, 2:bicycle, 3:car, 4:van, 5:truck, 6:tricycle,
+      7:awning-tricycle, 8:bus, 9:motor}).
+- [x] `ingest/04_detect.py`'deki sabit `COCO_MAP` config'e taşındı
+      (`config.yaml: detector.variants.<ad>.{checkpoint,class_map}` +
+      `detector.n_sample`); `--variant` CLI argümanı eklendi, varsayılan
+      davranış (variant verilmezse) eski COCO_MAP ile birebir aynı.
+      `window_features()` artik checkpoint+class_map parametreli.
+- [x] `yolov8n-visdrone` (6.2 MB) ve `yolov8s-visdrone` (22.5 MB) gerçekten
+      indirildi (`huggingface_hub`), `weights/weights_manifest.json`'a
+      SHA-256 ile eklendi.
+- [x] Dedektör bake-off matrisi 73 pencerede gerçek çalıştırıldı
+      (`bench/detector_baseline.py`, `scripts/run_detector_bakeoff.py`):
+
+  | varyant | fps (CPU, tek kare) | person P/R | car P/R | bus P/R | truck P/R |
+  |---|---:|---|---|---|---|
+  | yolo26x_coco (COCO, mevcut baseline) | 0.82 | 1.00/0.98 | 1.00/1.00 | 0.83/0.75 | 0.73/0.88 |
+  | yolov8n_visdrone | **1.61** | 1.00/0.95 | 1.00/0.97 | 0.81/0.85 | 0.85/0.50 |
+  | yolov8s_visdrone | 1.53 | 1.00/0.98 | 1.00/0.97 | 0.73/0.80 | 0.75/0.71 |
+
+  Count MAE person/car mutlak olarak yüksek (8.7–14) çünkü VisDrone
+  sahneleri yoğun (pencere başına onlarca küçük nesne); asıl kullanılan
+  sinyal eşik P/R'dır (filtreler `count>=1` kullanıyor). **Karışık ama net
+  bulgu:** VisDrone-tuned modeller person/bus'ta COCO modeline eşdeğer/
+  hafif iyi, ama truck recall'da COCO x-large belirgin önde (0.88 vs
+  0.50/0.71) — büyük/genel model bazı sınıflarda küçük/özel modelden daha
+  iyi genelliyor; "küçük fine-tune'lu her zaman kazanır" varsayımı burada
+  doğrulanmadı.
+- [x] **Downstream etki gerçek ölçüldü** (aynı embedding modeli — X-CLIP —
+      sabit, yalnız dedektör değişti, filtre AÇIK, 28 sorgu):
+
+  | varyant | tekli P@10 | sayısal P@10 | bileşik P@10 |
+  |---|---:|---:|---:|
+  | yolo26x_coco | 0.810 | 0.838 | 0.757 |
+  | yolov8n_visdrone | **0.856** | **0.867** | **0.849** |
+  | yolov8s_visdrone | 0.818 | 0.883 | 0.780 |
+
+  Recall@10 üç varyantta da ~aynı (0.50 tekli, 0.40–0.46 sayısal, 0.52
+  bileşik) — truck recall'daki izole zayıflık downstream retrieval'a önemli
+  bir zarar olarak yansımadı (truck-özel sorgu payı düşük); tersine
+  yolov8n_visdrone çoğu kategoride precision'ı gerçek biçimde artırdı.
+- [x] **Karar:** `yolov8n_visdrone` varsayılan dedektör (config.yaml:
+      `detector.default_variant`) — en hızlı (COCO'dan ~2× hızlı) VE
+      downstream'de en az eşdeğer/genelde daha iyi. ClickHouse'daki her iki
+      model tablosu bu varyantın ürettiği filtre kolonlarıyla yeniden
+      yüklendi (73 satır × 2 model); `artifacts/benchmark_report.{html,json}`
+      bu durumu yansıtacak şekilde yeniden üretildi.
+- [ ] Batch inference (batch=8/16), tek-decode paylaşımı, `imgsz` ablation'ı
+      (640 vs 960/1280), FP16, `n_sample` {3,6,12} ablation'ı — süre bütçesi
+      nedeniyle yapılmadı.
+- [x] 4 yeni saf-mantık testi (`test_detector_baseline.py`) — toplam 87/87
+      geçiyor.
+
+**Çıkış kapısı durumu:** ≥2 VisDrone-tuned YOLO gerçek veride ölçüldü (3
+varyant); varsayılan dedektör kararı sayıyla (hız + downstream P/R@10)
+gerekçelendirildi. Inference-optimizasyon ablation'ları (batch/imgsz/FP16/
+n_sample) yapılmadı — TASKS.md'de açıkça işaretli.

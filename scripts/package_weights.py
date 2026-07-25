@@ -23,6 +23,8 @@ HF_MODEL_IDS = [
 ]
 YOLO_CHECKPOINTS = [
     "yolo26x.pt",
+    "weights/yolo_visdrone/best.pt",
+    "weights/yolo_visdrone_s/best.pt",
 ]
 
 
@@ -80,9 +82,15 @@ def package_yolo_checkpoint(name, dest_root):
     src = REPO_ROOT / name
     if not src.exists():
         return None
-    dest = dest_root / "yolo" / name
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, dest)
+    try:
+        # zaten weights/ altindaysa (ör. VisDrone checkpoint'leri) tekrar
+        # kopyalamaya gerek yok - sadece hash/boyut kaydedilir.
+        dest = src
+        dest.relative_to(dest_root)
+    except ValueError:
+        dest = dest_root / "yolo" / pathlib.Path(name).name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dest)
     return {
         "type": "yolo",
         "model_id": name,

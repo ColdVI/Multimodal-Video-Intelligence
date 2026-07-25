@@ -5,153 +5,165 @@
        sure=8.5sn</p>
     <h3>Kategori ozeti</h3>
     <table border="1"><tr><th>kategori</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
-    <tr><td>tekli</td><td>0.50</td><td>0.81</td><td>0.83</td></tr><tr><td>hareket</td><td>0.50</td><td>0.95</td><td>1.00</td></tr><tr><td>sayısal</td><td>0.40</td><td>0.84</td><td>1.00</td></tr><tr><td>bileşik</td><td>0.54</td><td>0.76</td><td>0.92</td></tr><tr><td>negatif-kontrol</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
+    <tr><td>tekli</td><td>0.50</td><td>0.86</td><td>0.83</td></tr><tr><td>hareket</td><td>0.50</td><td>0.95</td><td>1.00</td></tr><tr><td>sayısal</td><td>0.45</td><td>0.87</td><td>1.00</td></tr><tr><td>bileşik</td><td>0.52</td><td>0.85</td><td>0.92</td></tr><tr><td>negatif-kontrol</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
     <h3>Sorgu detayi</h3>
+    <p><i>negatif-kontrol satırlarında (n_gt=0) recall/precision tanım gereği
+    0.0'dır; anlamlı sinyal n_pred (sistemin corpus'ta olmayan bir kavram
+    için kaç sonuç döndürdüğü) kolonudur.</i></p>
     <table border="1"><tr><th>sorgu</th><th>dil</th><th>kategori</th><th>n_gt</th>
-    <th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
-    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>0.36</td><td>0.50</td><td>0.50</td></tr>
-<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>0.36</td><td>0.50</td><td>0.33</td></tr>
-<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.53</td><td>0.80</td><td>1.00</td></tr>
-<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.60</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
-<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>0.53</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>0.47</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>0.53</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>0.53</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.24</td><td>0.71</td><td>1.00</td></tr>
-<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>0.24</td><td>0.71</td><td>1.00</td></tr>
-<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>0.44</td><td>0.57</td><td>0.50</td></tr>
-<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>0.44</td><td>0.57</td><td>1.00</td></tr>
-<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>0.54</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>0.54</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
+    <th>n_pred</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
+    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>8</td><td>0.45</td><td>0.62</td><td>0.50</td></tr>
+<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>8</td><td>0.45</td><td>0.62</td><td>0.33</td></tr>
+<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>7</td><td>0.40</td><td>0.86</td><td>1.00</td></tr>
+<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>7</td><td>0.40</td><td>0.86</td><td>1.00</td></tr>
+<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>19</td><td>0.60</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>19</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
+<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>17</td><td>0.53</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>17</td><td>0.47</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>16</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>16</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>14</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>14</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>12</td><td>0.33</td><td>0.70</td><td>1.00</td></tr>
+<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>12</td><td>0.33</td><td>0.70</td><td>1.00</td></tr>
+<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>7</td><td>0.56</td><td>0.71</td><td>0.50</td></tr>
+<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>7</td><td>0.56</td><td>0.71</td><td>1.00</td></tr>
+<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>6</td><td>0.38</td><td>0.83</td><td>1.00</td></tr>
+<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>6</td><td>0.38</td><td>0.83</td><td>1.00</td></tr>
+<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>15</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>15</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr></table>
     
     <h2>xclip_hf_zeroshot_nofilt_auto_cpu_1f15e999c0</h2>
     <p>model=xclip_hf_zeroshot filtre=False
        strateji=auto donanim=cpu
-       sure=2.7sn</p>
+       sure=2.5sn</p>
     <h3>Kategori ozeti</h3>
     <table border="1"><tr><th>kategori</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
     <tr><td>tekli</td><td>0.44</td><td>0.71</td><td>0.68</td></tr><tr><td>hareket</td><td>0.45</td><td>0.85</td><td>0.75</td></tr><tr><td>sayısal</td><td>0.40</td><td>0.78</td><td>0.79</td></tr><tr><td>bileşik</td><td>0.35</td><td>0.50</td><td>0.51</td></tr><tr><td>negatif-kontrol</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
     <h3>Sorgu detayi</h3>
+    <p><i>negatif-kontrol satırlarında (n_gt=0) recall/precision tanım gereği
+    0.0'dır; anlamlı sinyal n_pred (sistemin corpus'ta olmayan bir kavram
+    için kaç sonuç döndürdüğü) kolonudur.</i></p>
     <table border="1"><tr><th>sorgu</th><th>dil</th><th>kategori</th><th>n_gt</th>
-    <th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
-    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>0.09</td><td>0.10</td><td>0.17</td></tr>
-<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>0.18</td><td>0.20</td><td>0.12</td></tr>
-<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
-<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.50</td><td>0.90</td><td>0.50</td></tr>
-<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>0.50</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.60</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
-<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>0.47</td><td>0.90</td><td>0.50</td></tr>
-<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>0.42</td><td>0.80</td><td>1.00</td></tr>
-<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>0.47</td><td>0.80</td><td>0.50</td></tr>
-<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>0.47</td><td>0.80</td><td>1.00</td></tr>
-<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.29</td><td>0.60</td><td>0.25</td></tr>
-<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>0.33</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>0.00</td><td>0.00</td><td>0.08</td></tr>
-<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>0.22</td><td>0.20</td><td>0.12</td></tr>
-<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>0.46</td><td>0.60</td><td>0.33</td></tr>
-<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>0.31</td><td>0.40</td><td>0.50</td></tr>
-<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>0.56</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>0.56</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
+    <th>n_pred</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
+    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>19</td><td>0.09</td><td>0.10</td><td>0.17</td></tr>
+<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>19</td><td>0.18</td><td>0.20</td><td>0.12</td></tr>
+<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>19</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
+<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>19</td><td>0.47</td><td>0.70</td><td>1.00</td></tr>
+<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>19</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>19</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>19</td><td>0.50</td><td>0.90</td><td>0.50</td></tr>
+<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>19</td><td>0.50</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>19</td><td>0.60</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>19</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
+<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>19</td><td>0.47</td><td>0.90</td><td>0.50</td></tr>
+<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>19</td><td>0.42</td><td>0.80</td><td>1.00</td></tr>
+<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>19</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>19</td><td>0.43</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>19</td><td>0.47</td><td>0.80</td><td>0.50</td></tr>
+<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>19</td><td>0.47</td><td>0.80</td><td>1.00</td></tr>
+<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>19</td><td>0.29</td><td>0.60</td><td>0.25</td></tr>
+<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>19</td><td>0.33</td><td>0.70</td><td>1.00</td></tr>
+<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>19</td><td>0.00</td><td>0.00</td><td>0.08</td></tr>
+<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>19</td><td>0.22</td><td>0.20</td><td>0.12</td></tr>
+<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>19</td><td>0.46</td><td>0.60</td><td>0.33</td></tr>
+<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>19</td><td>0.31</td><td>0.40</td><td>0.50</td></tr>
+<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>19</td><td>0.56</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>19</td><td>0.56</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr></table>
     
     <h2>siglip2_frameavg_filt_auto_cpu_e6bbb19fd5</h2>
     <p>model=siglip2_frameavg filtre=True
        strateji=auto donanim=cpu
-       sure=25.8sn</p>
+       sure=23.8sn</p>
     <h3>Kategori ozeti</h3>
     <table border="1"><tr><th>kategori</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
-    <tr><td>tekli</td><td>0.49</td><td>0.79</td><td>0.85</td></tr><tr><td>hareket</td><td>0.47</td><td>0.90</td><td>0.75</td></tr><tr><td>sayısal</td><td>0.41</td><td>0.87</td><td>1.00</td></tr><tr><td>bileşik</td><td>0.54</td><td>0.76</td><td>1.00</td></tr><tr><td>negatif-kontrol</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
+    <tr><td>tekli</td><td>0.48</td><td>0.83</td><td>0.85</td></tr><tr><td>hareket</td><td>0.47</td><td>0.90</td><td>0.75</td></tr><tr><td>sayısal</td><td>0.47</td><td>0.90</td><td>1.00</td></tr><tr><td>bileşik</td><td>0.52</td><td>0.85</td><td>1.00</td></tr><tr><td>negatif-kontrol</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
     <h3>Sorgu detayi</h3>
+    <p><i>negatif-kontrol satırlarında (n_gt=0) recall/precision tanım gereği
+    0.0'dır; anlamlı sinyal n_pred (sistemin corpus'ta olmayan bir kavram
+    için kaç sonuç döndürdüğü) kolonudur.</i></p>
     <table border="1"><tr><th>sorgu</th><th>dil</th><th>kategori</th><th>n_gt</th>
-    <th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
-    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>0.36</td><td>0.50</td><td>0.50</td></tr>
-<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>0.36</td><td>0.50</td><td>0.50</td></tr>
-<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>0.60</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
-<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
-<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>0.47</td><td>0.90</td><td>0.50</td></tr>
-<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>0.47</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>0.53</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>0.53</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.24</td><td>0.71</td><td>1.00</td></tr>
-<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>0.24</td><td>0.71</td><td>1.00</td></tr>
-<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>0.44</td><td>0.57</td><td>1.00</td></tr>
-<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>0.44</td><td>0.57</td><td>1.00</td></tr>
-<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>0.54</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>0.54</td><td>0.70</td><td>1.00</td></tr>
-<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
+    <th>n_pred</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
+    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>8</td><td>0.45</td><td>0.62</td><td>0.50</td></tr>
+<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>8</td><td>0.45</td><td>0.62</td><td>0.50</td></tr>
+<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>7</td><td>0.40</td><td>0.86</td><td>1.00</td></tr>
+<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>7</td><td>0.40</td><td>0.86</td><td>1.00</td></tr>
+<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>17</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>19</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
+<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>19</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
+<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>17</td><td>0.47</td><td>0.90</td><td>0.50</td></tr>
+<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>17</td><td>0.47</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>16</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>16</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>14</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>14</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>12</td><td>0.33</td><td>0.70</td><td>1.00</td></tr>
+<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>12</td><td>0.33</td><td>0.70</td><td>1.00</td></tr>
+<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>7</td><td>0.56</td><td>0.71</td><td>1.00</td></tr>
+<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>7</td><td>0.56</td><td>0.71</td><td>1.00</td></tr>
+<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>6</td><td>0.38</td><td>0.83</td><td>1.00</td></tr>
+<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>6</td><td>0.38</td><td>0.83</td><td>1.00</td></tr>
+<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>15</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>15</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr></table>
     
     <h2>siglip2_frameavg_nofilt_auto_cpu_e0f5195980</h2>
     <p>model=siglip2_frameavg filtre=False
        strateji=auto donanim=cpu
-       sure=15.8sn</p>
+       sure=13.3sn</p>
     <h3>Kategori ozeti</h3>
     <table border="1"><tr><th>kategori</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
     <tr><td>tekli</td><td>0.43</td><td>0.70</td><td>0.80</td></tr><tr><td>hareket</td><td>0.47</td><td>0.90</td><td>0.75</td></tr><tr><td>sayısal</td><td>0.44</td><td>0.85</td><td>1.00</td></tr><tr><td>bileşik</td><td>0.34</td><td>0.48</td><td>0.54</td></tr><tr><td>negatif-kontrol</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
     <h3>Sorgu detayi</h3>
+    <p><i>negatif-kontrol satırlarında (n_gt=0) recall/precision tanım gereği
+    0.0'dır; anlamlı sinyal n_pred (sistemin corpus'ta olmayan bir kavram
+    için kaç sonuç döndürdüğü) kolonudur.</i></p>
     <table border="1"><tr><th>sorgu</th><th>dil</th><th>kategori</th><th>n_gt</th>
-    <th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
-    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>0.18</td><td>0.20</td><td>0.20</td></tr>
-<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>0.27</td><td>0.30</td><td>0.25</td></tr>
-<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
-<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
-<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
-<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
-<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>0.47</td><td>0.90</td><td>0.50</td></tr>
-<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>0.47</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>0.24</td><td>0.50</td><td>1.00</td></tr>
-<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>0.29</td><td>0.60</td><td>1.00</td></tr>
-<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>0.11</td><td>0.10</td><td>0.10</td></tr>
-<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>0.11</td><td>0.10</td><td>0.11</td></tr>
-<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>0.31</td><td>0.40</td><td>0.50</td></tr>
-<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>0.31</td><td>0.40</td><td>0.50</td></tr>
-<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
-<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>0.56</td><td>0.90</td><td>1.00</td></tr>
-<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
-<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></table>
+    <th>n_pred</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
+    <tr><td>otobüsü göster</td><td>tr</td><td>tekli</td><td>11</td><td>19</td><td>0.18</td><td>0.20</td><td>0.20</td></tr>
+<tr><td>show the bus</td><td>en</td><td>tekli</td><td>11</td><td>19</td><td>0.27</td><td>0.30</td><td>0.25</td></tr>
+<tr><td>kamyonu göster</td><td>tr</td><td>tekli</td><td>15</td><td>19</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
+<tr><td>show the truck</td><td>en</td><td>tekli</td><td>15</td><td>19</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
+<tr><td>arabaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>19</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the cars</td><td>en</td><td>tekli</td><td>18</td><td>19</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>yayaları göster</td><td>tr</td><td>tekli</td><td>18</td><td>19</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show the pedestrians</td><td>en</td><td>tekli</td><td>18</td><td>19</td><td>0.56</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>vanı göster</td><td>tr</td><td>tekli</td><td>15</td><td>19</td><td>0.40</td><td>0.60</td><td>1.00</td></tr>
+<tr><td>show the van</td><td>en</td><td>tekli</td><td>15</td><td>19</td><td>0.47</td><td>0.70</td><td>0.50</td></tr>
+<tr><td>yürüyen adamı göster</td><td>tr</td><td>hareket</td><td>19</td><td>19</td><td>0.47</td><td>0.90</td><td>0.50</td></tr>
+<tr><td>show the walking person</td><td>en</td><td>hareket</td><td>19</td><td>19</td><td>0.47</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>en az 3 araba göster</td><td>tr</td><td>sayısal</td><td>21</td><td>19</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show at least 3 cars</td><td>en</td><td>sayısal</td><td>21</td><td>19</td><td>0.48</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>en az 5 kişi göster</td><td>tr</td><td>sayısal</td><td>17</td><td>19</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>show at least 5 people</td><td>en</td><td>sayısal</td><td>17</td><td>19</td><td>0.59</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>kalabalık bir sahne göster</td><td>tr</td><td>sayısal</td><td>21</td><td>19</td><td>0.24</td><td>0.50</td><td>1.00</td></tr>
+<tr><td>show a crowded scene</td><td>en</td><td>sayısal</td><td>21</td><td>19</td><td>0.29</td><td>0.60</td><td>1.00</td></tr>
+<tr><td>otobüs ve yürüyen adam</td><td>tr</td><td>bileşik</td><td>9</td><td>19</td><td>0.11</td><td>0.10</td><td>0.10</td></tr>
+<tr><td>bus and walking person</td><td>en</td><td>bileşik</td><td>9</td><td>19</td><td>0.11</td><td>0.10</td><td>0.11</td></tr>
+<tr><td>kamyon ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>13</td><td>19</td><td>0.31</td><td>0.40</td><td>0.50</td></tr>
+<tr><td>truck and pedestrian together</td><td>en</td><td>bileşik</td><td>13</td><td>19</td><td>0.31</td><td>0.40</td><td>0.50</td></tr>
+<tr><td>araba ve yaya birlikte</td><td>tr</td><td>bileşik</td><td>16</td><td>19</td><td>0.62</td><td>1.00</td><td>1.00</td></tr>
+<tr><td>car and pedestrian together</td><td>en</td><td>bileşik</td><td>16</td><td>19</td><td>0.56</td><td>0.90</td><td>1.00</td></tr>
+<tr><td>tren göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the train</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>bisiklet göster</td><td>tr</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr>
+<tr><td>show the bicycle</td><td>en</td><td>negatif-kontrol</td><td>0</td><td>19</td><td>0.00 (n_gt=0: P/R tanımsız, n_pred'e bak)</td><td>0.00</td><td>0.00</td></tr></table>
     </body></html>

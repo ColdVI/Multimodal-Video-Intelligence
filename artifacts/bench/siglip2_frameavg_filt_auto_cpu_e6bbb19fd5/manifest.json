@@ -8,7 +8,7 @@
     "hardware_profile": "cpu",
     "yolo_variant": "yolo26x"
   },
-  "git_hash": "ee3ad48f1003746e4907c418d0118bf1d021adfc",
+  "git_hash": "1412889d0b3c5f5420c178336a562090440c7db1",
   "os": "Windows-11-10.0.26200-SP0",
   "python": "3.14.6",
   "torch": {
@@ -45,6 +45,44 @@
     "clickhouse": {
       "host": "localhost",
       "port": 8123
+    },
+    "detector": {
+      "default_variant": "yolov8n_visdrone",
+      "n_sample": 6,
+      "variants": {
+        "yolo26x_coco": {
+          "checkpoint": "yolo26x.pt",
+          "taxonomy": "coco",
+          "class_map": {
+            "0": "person",
+            "2": "car",
+            "5": "bus",
+            "7": "truck"
+          }
+        },
+        "yolov8n_visdrone": {
+          "checkpoint": "weights/yolo_visdrone/best.pt",
+          "taxonomy": "visdrone",
+          "class_map": {
+            "0": "person",
+            "1": "person",
+            "3": "car",
+            "5": "truck",
+            "8": "bus"
+          }
+        },
+        "yolov8s_visdrone": {
+          "checkpoint": "weights/yolo_visdrone_s/best.pt",
+          "taxonomy": "visdrone",
+          "class_map": {
+            "0": "person",
+            "1": "person",
+            "3": "car",
+            "5": "truck",
+            "8": "bus"
+          }
+        }
+      }
     },
     "offline_mode": false,
     "bench": {
@@ -96,6 +134,6 @@
     "n_sequences": 19,
     "n_queries": 28
   },
-  "duration_s": 25.767562399996677,
-  "generated_at": "2026-07-25T10:04:46"
+  "duration_s": 23.79686039997614,
+  "generated_at": "2026-07-25T11:08:47"
 }

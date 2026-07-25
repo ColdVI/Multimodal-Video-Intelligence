@@ -1,11 +1,31 @@
 {
-  "spec": {
-    "model_name": "siglip2_frameavg",
-    "use_filters": false,
-    "strategy": "auto",
-    "top_k": 200,
-    "hardware_profile": "cpu",
-    "yolo_variant": "yolo26x"
+  "variant": "yolov8s_visdrone",
+  "category_summary": {
+    "tekli": {
+      "recall@10": 0.4997979797979798,
+      "precision@10": 0.8183333333333334,
+      "mrr": 0.7833333333333333
+    },
+    "hareket": {
+      "recall@10": 0.5,
+      "precision@10": 0.95,
+      "mrr": 1.0
+    },
+    "sayısal": {
+      "recall@10": 0.4579831932773109,
+      "precision@10": 0.8833333333333333,
+      "mrr": 1.0
+    },
+    "bileşik": {
+      "recall@10": 0.5217236467236467,
+      "precision@10": 0.7797619047619048,
+      "mrr": 0.9166666666666666
+    },
+    "negatif-kontrol": {
+      "recall@10": 0.0,
+      "precision@10": 0.0,
+      "mrr": 0.0
+    }
   },
   "rows": [
     {
@@ -13,9 +33,9 @@
       "category": "tekli",
       "lang": "tr",
       "concept": "bus",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.2,
+      "n_pred_windows": 22,
+      "n_pred_intervals": 8,
+      "mrr": 0.5,
       "n_gt": 11,
       "by_k": {
         "1": {
@@ -26,18 +46,18 @@
           "n_hits": 0
         },
         "5": {
-          "precision@k": 0.2,
-          "recall@k": 0.09090909090909091,
+          "precision@k": 0.6,
+          "recall@k": 0.2727272727272727,
           "n_gt": 11,
           "n_pred": 5,
-          "n_hits": 1
+          "n_hits": 3
         },
         "10": {
-          "precision@k": 0.2,
-          "recall@k": 0.18181818181818182,
+          "precision@k": 0.625,
+          "recall@k": 0.45454545454545453,
           "n_gt": 11,
-          "n_pred": 10,
-          "n_hits": 2
+          "n_pred": 8,
+          "n_hits": 5
         }
       }
     },
@@ -46,9 +66,9 @@
       "category": "tekli",
       "lang": "en",
       "concept": "bus",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.25,
+      "n_pred_windows": 22,
+      "n_pred_intervals": 8,
+      "mrr": 0.3333333333333333,
       "n_gt": 11,
       "by_k": {
         "1": {
@@ -66,11 +86,11 @@
           "n_hits": 2
         },
         "10": {
-          "precision@k": 0.3,
-          "recall@k": 0.2727272727272727,
+          "precision@k": 0.625,
+          "recall@k": 0.45454545454545453,
           "n_gt": 11,
-          "n_pred": 10,
-          "n_hits": 3
+          "n_pred": 8,
+          "n_hits": 5
         }
       }
     },
@@ -79,17 +99,17 @@
       "category": "tekli",
       "lang": "tr",
       "concept": "truck",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 1.0,
+      "n_pred_windows": 32,
+      "n_pred_intervals": 9,
+      "mrr": 0.5,
       "n_gt": 15,
       "by_k": {
         "1": {
-          "precision@k": 1.0,
-          "recall@k": 0.06666666666666667,
+          "precision@k": 0.0,
+          "recall@k": 0.0,
           "n_gt": 15,
           "n_pred": 1,
-          "n_hits": 1
+          "n_hits": 0
         },
         "5": {
           "precision@k": 0.8,
@@ -99,10 +119,10 @@
           "n_hits": 4
         },
         "10": {
-          "precision@k": 0.6,
+          "precision@k": 0.6666666666666666,
           "recall@k": 0.4,
           "n_gt": 15,
-          "n_pred": 10,
+          "n_pred": 9,
           "n_hits": 6
         }
       }
@@ -112,8 +132,8 @@
       "category": "tekli",
       "lang": "en",
       "concept": "truck",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 32,
+      "n_pred_intervals": 9,
       "mrr": 1.0,
       "n_gt": 15,
       "by_k": {
@@ -132,10 +152,10 @@
           "n_hits": 4
         },
         "10": {
-          "precision@k": 0.6,
+          "precision@k": 0.6666666666666666,
           "recall@k": 0.4,
           "n_gt": 15,
-          "n_pred": 10,
+          "n_pred": 9,
           "n_hits": 6
         }
       }
@@ -145,8 +165,8 @@
       "category": "tekli",
       "lang": "tr",
       "concept": "car",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 65,
+      "n_pred_intervals": 17,
       "mrr": 1.0,
       "n_gt": 18,
       "by_k": {
@@ -178,8 +198,8 @@
       "category": "tekli",
       "lang": "en",
       "concept": "car",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 65,
+      "n_pred_intervals": 17,
       "mrr": 1.0,
       "n_gt": 18,
       "by_k": {
@@ -211,8 +231,8 @@
       "category": "tekli",
       "lang": "tr",
       "concept": "pedestrian",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
       "mrr": 1.0,
       "n_gt": 18,
       "by_k": {
@@ -244,8 +264,8 @@
       "category": "tekli",
       "lang": "en",
       "concept": "pedestrian",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
       "mrr": 1.0,
       "n_gt": 18,
       "by_k": {
@@ -290,18 +310,18 @@
           "n_hits": 1
         },
         "5": {
-          "precision@k": 1.0,
-          "recall@k": 0.3333333333333333,
+          "precision@k": 0.8,
+          "recall@k": 0.26666666666666666,
           "n_gt": 15,
           "n_pred": 5,
-          "n_hits": 5
+          "n_hits": 4
         },
         "10": {
-          "precision@k": 0.6,
-          "recall@k": 0.4,
+          "precision@k": 0.9,
+          "recall@k": 0.6,
           "n_gt": 15,
           "n_pred": 10,
-          "n_hits": 6
+          "n_hits": 9
         }
       }
     },
@@ -323,11 +343,11 @@
           "n_hits": 0
         },
         "5": {
-          "precision@k": 0.4,
-          "recall@k": 0.13333333333333333,
+          "precision@k": 0.8,
+          "recall@k": 0.26666666666666666,
           "n_gt": 15,
           "n_pred": 5,
-          "n_hits": 2
+          "n_hits": 4
         },
         "10": {
           "precision@k": 0.7,
@@ -343,41 +363,8 @@
       "category": "hareket",
       "lang": "tr",
       "concept": "walking",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.5,
-      "n_gt": 19,
-      "by_k": {
-        "1": {
-          "precision@k": 0.0,
-          "recall@k": 0.0,
-          "n_gt": 19,
-          "n_pred": 1,
-          "n_hits": 0
-        },
-        "5": {
-          "precision@k": 0.8,
-          "recall@k": 0.21052631578947367,
-          "n_gt": 19,
-          "n_pred": 5,
-          "n_hits": 4
-        },
-        "10": {
-          "precision@k": 0.9,
-          "recall@k": 0.47368421052631576,
-          "n_gt": 19,
-          "n_pred": 10,
-          "n_hits": 9
-        }
-      }
-    },
-    {
-      "query": "show the walking person",
-      "category": "hareket",
-      "lang": "en",
-      "concept": "walking",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
       "mrr": 1.0,
       "n_gt": 19,
       "by_k": {
@@ -396,6 +383,39 @@
           "n_hits": 5
         },
         "10": {
+          "precision@k": 1.0,
+          "recall@k": 0.5263157894736842,
+          "n_gt": 19,
+          "n_pred": 10,
+          "n_hits": 10
+        }
+      }
+    },
+    {
+      "query": "show the walking person",
+      "category": "hareket",
+      "lang": "en",
+      "concept": "walking",
+      "n_pred_windows": 65,
+      "n_pred_intervals": 18,
+      "mrr": 1.0,
+      "n_gt": 19,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.05263157894736842,
+          "n_gt": 19,
+          "n_pred": 1,
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.8,
+          "recall@k": 0.21052631578947367,
+          "n_gt": 19,
+          "n_pred": 5,
+          "n_hits": 4
+        },
+        "10": {
           "precision@k": 0.9,
           "recall@k": 0.47368421052631576,
           "n_gt": 19,
@@ -409,8 +429,8 @@
       "category": "sayısal",
       "lang": "tr",
       "concept": "car_at_least_3",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 60,
+      "n_pred_intervals": 17,
       "mrr": 1.0,
       "n_gt": 21,
       "by_k": {
@@ -429,11 +449,11 @@
           "n_hits": 5
         },
         "10": {
-          "precision@k": 1.0,
-          "recall@k": 0.47619047619047616,
+          "precision@k": 0.9,
+          "recall@k": 0.42857142857142855,
           "n_gt": 21,
           "n_pred": 10,
-          "n_hits": 10
+          "n_hits": 9
         }
       }
     },
@@ -442,8 +462,8 @@
       "category": "sayısal",
       "lang": "en",
       "concept": "car_at_least_3",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 60,
+      "n_pred_intervals": 17,
       "mrr": 1.0,
       "n_gt": 21,
       "by_k": {
@@ -462,11 +482,11 @@
           "n_hits": 5
         },
         "10": {
-          "precision@k": 1.0,
-          "recall@k": 0.47619047619047616,
+          "precision@k": 0.9,
+          "recall@k": 0.42857142857142855,
           "n_gt": 21,
           "n_pred": 10,
-          "n_hits": 10
+          "n_hits": 9
         }
       }
     },
@@ -475,8 +495,8 @@
       "category": "sayısal",
       "lang": "tr",
       "concept": "person_at_least_5",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 53,
+      "n_pred_intervals": 14,
       "mrr": 1.0,
       "n_gt": 17,
       "by_k": {
@@ -508,8 +528,8 @@
       "category": "sayısal",
       "lang": "en",
       "concept": "person_at_least_5",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 53,
+      "n_pred_intervals": 14,
       "mrr": 1.0,
       "n_gt": 17,
       "by_k": {
@@ -541,8 +561,8 @@
       "category": "sayısal",
       "lang": "tr",
       "concept": "crowd_at_least_10",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 41,
+      "n_pred_intervals": 14,
       "mrr": 1.0,
       "n_gt": 21,
       "by_k": {
@@ -554,18 +574,18 @@
           "n_hits": 1
         },
         "5": {
-          "precision@k": 0.2,
-          "recall@k": 0.047619047619047616,
+          "precision@k": 0.8,
+          "recall@k": 0.19047619047619047,
           "n_gt": 21,
           "n_pred": 5,
-          "n_hits": 1
+          "n_hits": 4
         },
         "10": {
-          "precision@k": 0.5,
-          "recall@k": 0.23809523809523808,
+          "precision@k": 0.7,
+          "recall@k": 0.3333333333333333,
           "n_gt": 21,
           "n_pred": 10,
-          "n_hits": 5
+          "n_hits": 7
         }
       }
     },
@@ -574,8 +594,8 @@
       "category": "sayısal",
       "lang": "en",
       "concept": "crowd_at_least_10",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 41,
+      "n_pred_intervals": 14,
       "mrr": 1.0,
       "n_gt": 21,
       "by_k": {
@@ -587,18 +607,18 @@
           "n_hits": 1
         },
         "5": {
-          "precision@k": 0.6,
-          "recall@k": 0.14285714285714285,
+          "precision@k": 0.8,
+          "recall@k": 0.19047619047619047,
           "n_gt": 21,
           "n_pred": 5,
-          "n_hits": 3
+          "n_hits": 4
         },
         "10": {
-          "precision@k": 0.6,
-          "recall@k": 0.2857142857142857,
+          "precision@k": 0.8,
+          "recall@k": 0.38095238095238093,
           "n_gt": 21,
           "n_pred": 10,
-          "n_hits": 6
+          "n_hits": 8
         }
       }
     },
@@ -607,9 +627,9 @@
       "category": "bileşik",
       "lang": "tr",
       "concept": "bus_and_walking",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.1,
+      "n_pred_windows": 16,
+      "n_pred_intervals": 7,
+      "mrr": 0.5,
       "n_gt": 9,
       "by_k": {
         "1": {
@@ -620,18 +640,18 @@
           "n_hits": 0
         },
         "5": {
-          "precision@k": 0.0,
-          "recall@k": 0.0,
+          "precision@k": 0.6,
+          "recall@k": 0.3333333333333333,
           "n_gt": 9,
           "n_pred": 5,
-          "n_hits": 0
+          "n_hits": 3
         },
         "10": {
-          "precision@k": 0.1,
-          "recall@k": 0.1111111111111111,
+          "precision@k": 0.7142857142857143,
+          "recall@k": 0.5555555555555556,
           "n_gt": 9,
-          "n_pred": 10,
-          "n_hits": 1
+          "n_pred": 7,
+          "n_hits": 5
         }
       }
     },
@@ -640,31 +660,31 @@
       "category": "bileşik",
       "lang": "en",
       "concept": "bus_and_walking",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.1111111111111111,
+      "n_pred_windows": 16,
+      "n_pred_intervals": 7,
+      "mrr": 1.0,
       "n_gt": 9,
       "by_k": {
         "1": {
-          "precision@k": 0.0,
-          "recall@k": 0.0,
-          "n_gt": 9,
-          "n_pred": 1,
-          "n_hits": 0
-        },
-        "5": {
-          "precision@k": 0.0,
-          "recall@k": 0.0,
-          "n_gt": 9,
-          "n_pred": 5,
-          "n_hits": 0
-        },
-        "10": {
-          "precision@k": 0.1,
+          "precision@k": 1.0,
           "recall@k": 0.1111111111111111,
           "n_gt": 9,
-          "n_pred": 10,
+          "n_pred": 1,
           "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.8,
+          "recall@k": 0.4444444444444444,
+          "n_gt": 9,
+          "n_pred": 5,
+          "n_hits": 4
+        },
+        "10": {
+          "precision@k": 0.7142857142857143,
+          "recall@k": 0.5555555555555556,
+          "n_gt": 9,
+          "n_pred": 7,
+          "n_hits": 5
         }
       }
     },
@@ -673,17 +693,50 @@
       "category": "bileşik",
       "lang": "tr",
       "concept": "truck_and_pedestrian",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.5,
+      "n_pred_windows": 26,
+      "n_pred_intervals": 8,
+      "mrr": 1.0,
       "n_gt": 13,
       "by_k": {
         "1": {
-          "precision@k": 0.0,
-          "recall@k": 0.0,
+          "precision@k": 1.0,
+          "recall@k": 0.07692307692307693,
           "n_gt": 13,
           "n_pred": 1,
-          "n_hits": 0
+          "n_hits": 1
+        },
+        "5": {
+          "precision@k": 0.8,
+          "recall@k": 0.3076923076923077,
+          "n_gt": 13,
+          "n_pred": 5,
+          "n_hits": 4
+        },
+        "10": {
+          "precision@k": 0.625,
+          "recall@k": 0.38461538461538464,
+          "n_gt": 13,
+          "n_pred": 8,
+          "n_hits": 5
+        }
+      }
+    },
+    {
+      "query": "truck and pedestrian together",
+      "category": "bileşik",
+      "lang": "en",
+      "concept": "truck_and_pedestrian",
+      "n_pred_windows": 26,
+      "n_pred_intervals": 8,
+      "mrr": 1.0,
+      "n_gt": 13,
+      "by_k": {
+        "1": {
+          "precision@k": 1.0,
+          "recall@k": 0.07692307692307693,
+          "n_gt": 13,
+          "n_pred": 1,
+          "n_hits": 1
         },
         "5": {
           "precision@k": 0.6,
@@ -693,44 +746,11 @@
           "n_hits": 3
         },
         "10": {
-          "precision@k": 0.4,
-          "recall@k": 0.3076923076923077,
+          "precision@k": 0.625,
+          "recall@k": 0.38461538461538464,
           "n_gt": 13,
-          "n_pred": 10,
-          "n_hits": 4
-        }
-      }
-    },
-    {
-      "query": "truck and pedestrian together",
-      "category": "bileşik",
-      "lang": "en",
-      "concept": "truck_and_pedestrian",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
-      "mrr": 0.5,
-      "n_gt": 13,
-      "by_k": {
-        "1": {
-          "precision@k": 0.0,
-          "recall@k": 0.0,
-          "n_gt": 13,
-          "n_pred": 1,
-          "n_hits": 0
-        },
-        "5": {
-          "precision@k": 0.4,
-          "recall@k": 0.15384615384615385,
-          "n_gt": 13,
-          "n_pred": 5,
-          "n_hits": 2
-        },
-        "10": {
-          "precision@k": 0.4,
-          "recall@k": 0.3076923076923077,
-          "n_gt": 13,
-          "n_pred": 10,
-          "n_hits": 4
+          "n_pred": 8,
+          "n_hits": 5
         }
       }
     },
@@ -739,8 +759,8 @@
       "category": "bileşik",
       "lang": "tr",
       "concept": "car_and_pedestrian",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 59,
+      "n_pred_intervals": 16,
       "mrr": 1.0,
       "n_gt": 16,
       "by_k": {
@@ -772,8 +792,8 @@
       "category": "bileşik",
       "lang": "en",
       "concept": "car_and_pedestrian",
-      "n_pred_windows": 73,
-      "n_pred_intervals": 19,
+      "n_pred_windows": 59,
+      "n_pred_intervals": 16,
       "mrr": 1.0,
       "n_gt": 16,
       "by_k": {
@@ -792,11 +812,11 @@
           "n_hits": 5
         },
         "10": {
-          "precision@k": 0.9,
-          "recall@k": 0.5625,
+          "precision@k": 1.0,
+          "recall@k": 0.625,
           "n_gt": 16,
           "n_pred": 10,
-          "n_hits": 9
+          "n_hits": 10
         }
       }
     },
@@ -932,21 +952,5 @@
         }
       }
     }
-  ],
-  "timing": {
-    "query": {
-      "n": 28,
-      "total_s": 13.273829099984141,
-      "mean_s": 0.4740653249994336,
-      "p50_s": 0.4498988499981351,
-      "p95_s": 0.575693209990277
-    },
-    "merge": {
-      "n": 28,
-      "total_s": 0.001781799946911633,
-      "mean_s": 6.363571238970118e-05,
-      "p50_s": 5.989999044686556e-05,
-      "p95_s": 7.819000456947832e-05
-    }
-  }
+  ]
 }

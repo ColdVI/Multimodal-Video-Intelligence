@@ -23,10 +23,17 @@ def aggregate_by_category(rows: list, k: int = 10) -> dict:
 
 def _row_html(r: dict) -> str:
     by10 = r["by_k"][10]
+    # n_gt=0 (negatif-kontrol) satirlarinda recall/precision tanim geregi
+    # 0.0'dir - bu "basarisizlik" degil, bos GT'ye karsi hicbir tahmin
+    # "dogru" sayilamamasi demektir. Boyle satirlarda asil anlamli sinyal
+    # n_pred_intervals: sistem corpus'ta olmayan bir kavram icin kac sonuc
+    # donduruyor (idealde az/hicbir sey).
+    note = " (n_gt=0: P/R tanımsız, n_pred'e bak)" if r["n_gt"] == 0 else ""
     return (
         f"<tr><td>{r['query']}</td><td>{r.get('lang', '')}</td>"
         f"<td>{r.get('category', '')}</td><td>{r['n_gt']}</td>"
-        f"<td>{by10['recall@k']:.2f}</td><td>{by10['precision@k']:.2f}</td>"
+        f"<td>{r['n_pred_intervals']}</td>"
+        f"<td>{by10['recall@k']:.2f}{note}</td><td>{by10['precision@k']:.2f}</td>"
         f"<td>{r['mrr']:.2f}</td></tr>"
     )
 
@@ -51,8 +58,11 @@ def _run_html(run: dict) -> str:
     <table border="1"><tr><th>kategori</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
     {cat_html}</table>
     <h3>Sorgu detayi</h3>
+    <p><i>negatif-kontrol satırlarında (n_gt=0) recall/precision tanım gereği
+    0.0'dır; anlamlı sinyal n_pred (sistemin corpus'ta olmayan bir kavram
+    için kaç sonuç döndürdüğü) kolonudur.</i></p>
     <table border="1"><tr><th>sorgu</th><th>dil</th><th>kategori</th><th>n_gt</th>
-    <th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
+    <th>n_pred</th><th>recall@10</th><th>precision@10</th><th>mrr</th></tr>
     {rows_html}</table>
     """
 

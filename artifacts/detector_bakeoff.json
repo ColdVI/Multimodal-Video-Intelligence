@@ -1,0 +1,140 @@
+[
+  {
+    "variant": "yolo26x_coco",
+    "n_windows": 73,
+    "mae": {
+      "person": 13.952054794520548,
+      "car": 12.89041095890411,
+      "bus": 0.1917808219178082,
+      "truck": 0.5753424657534246
+    },
+    "threshold_pr": {
+      "person": {
+        "precision": 1.0,
+        "recall": 0.9848484848484849,
+        "tp": 65,
+        "fp": 0,
+        "fn": 1,
+        "tn": 7
+      },
+      "car": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "tp": 67,
+        "fp": 0,
+        "fn": 0,
+        "tn": 6
+      },
+      "bus": {
+        "precision": 0.8333333333333334,
+        "recall": 0.75,
+        "tp": 15,
+        "fp": 3,
+        "fn": 5,
+        "tn": 50
+      },
+      "truck": {
+        "precision": 0.7317073170731707,
+        "recall": 0.8823529411764706,
+        "tp": 30,
+        "fp": 11,
+        "fn": 4,
+        "tn": 28
+      }
+    },
+    "mean_inference_s_per_frame": 1.2233958422374054,
+    "fps": 0.8173969254065403
+  },
+  {
+    "variant": "yolov8n_visdrone",
+    "n_windows": 73,
+    "mae": {
+      "person": 9.650684931506849,
+      "car": 11.698630136986301,
+      "bus": 0.2191780821917808,
+      "truck": 0.6575342465753424
+    },
+    "threshold_pr": {
+      "person": {
+        "precision": 1.0,
+        "recall": 0.9545454545454546,
+        "tp": 63,
+        "fp": 0,
+        "fn": 3,
+        "tn": 7
+      },
+      "car": {
+        "precision": 1.0,
+        "recall": 0.9701492537313433,
+        "tp": 65,
+        "fp": 0,
+        "fn": 2,
+        "tn": 6
+      },
+      "bus": {
+        "precision": 0.8095238095238095,
+        "recall": 0.85,
+        "tp": 17,
+        "fp": 4,
+        "fn": 3,
+        "tn": 49
+      },
+      "truck": {
+        "precision": 0.85,
+        "recall": 0.5,
+        "tp": 17,
+        "fp": 3,
+        "fn": 17,
+        "tn": 36
+      }
+    },
+    "mean_inference_s_per_frame": 0.6209992954338561,
+    "fps": 1.6103077851342136
+  },
+  {
+    "variant": "yolov8s_visdrone",
+    "n_windows": 73,
+    "mae": {
+      "person": 8.746575342465754,
+      "car": 10.32876712328767,
+      "bus": 0.2328767123287671,
+      "truck": 0.5753424657534246
+    },
+    "threshold_pr": {
+      "person": {
+        "precision": 1.0,
+        "recall": 0.9848484848484849,
+        "tp": 65,
+        "fp": 0,
+        "fn": 1,
+        "tn": 7
+      },
+      "car": {
+        "precision": 1.0,
+        "recall": 0.9701492537313433,
+        "tp": 65,
+        "fp": 0,
+        "fn": 2,
+        "tn": 6
+      },
+      "bus": {
+        "precision": 0.7272727272727273,
+        "recall": 0.8,
+        "tp": 16,
+        "fp": 6,
+        "fn": 4,
+        "tn": 47
+      },
+      "truck": {
+        "precision": 0.75,
+        "recall": 0.7058823529411765,
+        "tp": 24,
+        "fp": 8,
+        "fn": 10,
+        "tn": 31
+      }
+    },
+    "mean_inference_s_per_frame": 0.6521586342466879,
+    "fps": 1.533369256323817
+  }
+]

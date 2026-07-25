@@ -22,6 +22,32 @@ clickhouse:
   host: localhost
   port: 8123
 
+# Faz 3: dedektor varyant registry'si. class_map, o checkpoint'in kendi
+# cikti sinif ID'sini bizim filtre kolon kavramimiza (person/car/bus/truck)
+# baglar; ayni kavrama birden fazla sinif ID'si dusebilir (ör. VisDrone
+# pedestrian+people -> person). Yeni varyant eklemek: checkpoint dosyasini
+# weights/ altina koy, buraya bir girdi ekle - kod degisikligi gerekmez.
+detector:
+  # Faz 3 bake-off karari (73 pencere, gercek veri): yolov8n_visdrone en
+  # hizli (1.61 fps vs yolo26x_coco 0.82 fps CPU'da) VE downstream
+  # Recall/Precision@10'da en az esdeger (cogu kategoride daha iyi
+  # precision). Detay: TASKS.md Faz 3, artifacts/detector_bakeoff.json.
+  default_variant: yolov8n_visdrone
+  n_sample: 6
+  variants:
+    yolo26x_coco:
+      checkpoint: yolo26x.pt
+      taxonomy: coco
+      class_map: {0: person, 2: car, 5: bus, 7: truck}
+    yolov8n_visdrone:
+      checkpoint: weights/yolo_visdrone/best.pt
+      taxonomy: visdrone
+      class_map: {0: person, 1: person, 3: car, 5: truck, 8: bus}
+    yolov8s_visdrone:
+      checkpoint: weights/yolo_visdrone_s/best.pt
+      taxonomy: visdrone
+      class_map: {0: person, 1: person, 3: car, 5: truck, 8: bus}
+
 # true iken tum HF from_pretrained cagrilari local_files_only=True ile
 # yuklenir (air-gapped kurulum). HF_HUB_OFFLINE=1 ortam degiskeni ayni
 # etkiyi config'e dokunmadan tetikler.

@@ -31,6 +31,22 @@ seçiciliği bilinmeyen/yüksek olabilecek sorgularda `search/query.py::search()
 korunuyor) yalnızca gevşek/filtresiz sorgular için güvenli kabul edilir. Detay
 ve tam sayılar: `STATUS.md` Faz 2 bölümü, `artifacts/strategy_matrix_report.json`.
 
+## Faz 3 kanıtlı bulgusu: küçük fine-tune'lu model her sınıfta kazanmıyor
+
+`05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md`'nin referans aldığı
+`dronefreak/visdrone-detection-model-zoo` reposu gerçekte yok (indirmeden
+önce doğrulandı, 401 döndü) — gerçek alternatif `mshamrai/yolov8{n,s,m}
+-visdrone` kullanıldı. 73 pencerelik gerçek bake-off'ta VisDrone-tuned
+`yolov8n`/`yolov8s`, COCO-pretrained `yolo26x`'e göre person/bus eşik
+doğruluğunda eşdeğer/hafif iyi ve ~2× hızlıydı — ama **truck recall'da
+COCO x-large modeli (0.88) her iki küçük VisDrone-tuned varyandan
+(0.50/0.71) belirgin önde**. Karar: `yolov8n_visdrone` varsayılan (hız +
+downstream Recall/Precision@10 birlikte gerekçelendiriyor), ama "küçük
+fine-tune'lu model büyük genel modeli her sınıfta geçer" varsayımı genel
+bir kural olarak KABUL EDİLMEDİ — sınıf bazlı doğrulama olmadan yeni bir
+dedektör değişikliği yapılmamalı. Detay: `TASKS.md` Faz 3,
+`artifacts/detector_bakeoff.json`.
+
 ## Kritik teknik notlar
 
 - Hugging Face `microsoft/xclip` modeli ile Ma vd. retrieval-özel AOSM
