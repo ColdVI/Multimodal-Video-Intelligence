@@ -7,10 +7,19 @@ configure_runtime_environment()
 from .base import VideoTextEmbedder
 from .siglip_avg import SiglipAvg
 from .xclip_hf import XClipHF
+# qwen3vl_emb: agir bagimlilik (sentence-transformers) yalnizca adaptorun
+# __init__'i cagrildiginda import edilir (bkz. models/qwen3vl_emb.py
+# docstring'i) - burada modul-seviyesi import guvenli, sentence-transformers
+# eksik olsa bile diger modelleri/testleri bozmaz.
+from .qwen3vl_emb import Qwen3VLEmb256, Qwen3VLEmb512, Qwen3VLEmb1024, Qwen3VLEmb2048
 
 _REGISTRY = {
     SiglipAvg.name: SiglipAvg,
     XClipHF.name: XClipHF,
+    Qwen3VLEmb2048.name: Qwen3VLEmb2048,
+    Qwen3VLEmb1024.name: Qwen3VLEmb1024,
+    Qwen3VLEmb512.name: Qwen3VLEmb512,
+    Qwen3VLEmb256.name: Qwen3VLEmb256,
 }
 _instances = {}
 

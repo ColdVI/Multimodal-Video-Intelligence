@@ -15,7 +15,9 @@ from models import available_models
 from search.merge import merge_intervals
 from search.query import search
 
-MODELS = ["siglip2_frameavg", "xclip_hf_zeroshot"]  # adapter eklendikce buyur
+MODELS = ["siglip2_frameavg", "xclip_hf_zeroshot",
+          "qwen3vl_emb_2048", "qwen3vl_emb_1024", "qwen3vl_emb_512",
+          "qwen3vl_emb_256"]  # adapter eklendikce buyur
 
 
 def category_of(q: str) -> str:

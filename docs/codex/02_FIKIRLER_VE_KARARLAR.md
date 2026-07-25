@@ -47,6 +47,32 @@ bir kural olarak KABUL EDİLMEDİ — sınıf bazlı doğrulama olmadan yeni bir
 dedektör değişikliği yapılmamalı. Detay: `TASKS.md` Faz 3,
 `artifacts/detector_bakeoff.json`.
 
+## Faz 4 aday doğrulaması: planın "kolay HF indirme" varsayımı iki adayda yanlış çıktı
+
+Planın Faz 4 aday tablosu VideoCLIP-XL ve LanguageBind_Video'yu "HF checkpoint'i
+lokal indirilebilir" diye tanımlıyor; ikisi de gerçek ve indirilebilir ama
+"kolay entegrasyon" varsayımı doğrulanmadı:
+
+- **VideoCLIP-XL** (`alibaba-pai/VideoCLIP-XL`, gerçek): lisansı
+  **CC-BY-NC-SA-4.0 (ticari olmayan)** — bu projenin "kurumsal İHA şirketi
+  üretimi" hedefiyle doğrudan çelişiyor, teknik performanstan bağımsız
+  olarak eleniyor. Ayrıca standart `transformers` checkpoint'i değil; özel
+  `modeling.py` + `utils/` kodu vendor edilmesi gerekiyor (planın
+  `xclip_ma_aosm` için öngördüğü entegrasyon riskiyle aynı sınıfta).
+- **LanguageBind_Video** (`LanguageBind/LanguageBind_Video`, gerçek): lisans
+  MIT (temiz), ama `model_type: LanguageBindVideo` yüklü `transformers`
+  (5.14.1) tarafından tanınmıyor — `AutoModel.from_pretrained()` gerçek
+  çalıştırmada `ValueError` verdi. Resmi olmayan bir PyPI paketi
+  (`languagebind`, PKU-YuanGroup deposunun pip-kurulabilir hâli) veya
+  orijinal GitHub kodu gerekiyor. Üçüncü parti/resmî-olmayan paket güven
+  riski + süre bütçesi nedeniyle bu oturumda entegre edilmedi.
+
+**Karar:** Faz 4'ün gerçek, ölçülen yeni adayı olarak `Qwen/Qwen3-VL-Embedding-2B`
+kullanıldı (Apache-2.0, gerçek doğrulandı, `transformers` 5.14.1 mimariyi
+zaten native destekliyor, `sentence-transformers` üzerinden standart
+`model.encode()` ile çalışıyor — vendor kod gerekmiyor). Detay ve gerçek
+ölçüm sonuçları: `STATUS.md` Faz 4, `artifacts/`.
+
 ## Kritik teknik notlar
 
 - Hugging Face `microsoft/xclip` modeli ile Ma vd. retrieval-özel AOSM

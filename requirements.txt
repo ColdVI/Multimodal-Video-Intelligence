@@ -9,3 +9,8 @@ ultralytics>=8.3
 clickhouse-connect>=0.7
 fiftyone>=0.24
 pytest>=8.0
+
+# Faz 4 (opsiyonel): yalnizca qwen3vl_emb_* modelleri icin gerekir; registry
+# lazy-import kullanir, eksikse diger modeller/testler etkilenmez.
+sentence-transformers>=5.0
+qwen-vl-utils>=0.0.14

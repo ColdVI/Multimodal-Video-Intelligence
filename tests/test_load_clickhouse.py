@@ -19,6 +19,8 @@ def test_ensure_schema_sends_one_http_command_per_create_table():
     client = Client()
     MODULE.ensure_schema(client, Path(__file__).parents[1] / "schema.sql")
 
-    assert len(client.commands) == 2
+    assert len(client.commands) == 6
     assert client.commands[0].startswith("CREATE TABLE IF NOT EXISTS clips_xclip")
     assert client.commands[1].startswith("CREATE TABLE IF NOT EXISTS clips_siglip2")
+    assert all(c.startswith("CREATE TABLE IF NOT EXISTS clips_qwen3vl_emb")
+               for c in client.commands[2:])
