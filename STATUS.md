@@ -73,6 +73,32 @@
   detay `docs/codex/02_FIKIRLER_VE_KARARLAR.md`. CPU-only ortam korunuyor,
   54→72 test hâlâ geçiyor.
 
+## Faz 2 ClickHouse strateji doğrulaması (docs/codex/05_..., 25 Temmuz 2026)
+
+- **En önemli bulgu:** varsayılan davranış (`vector_search_filter_strategy=
+  'auto'`, ClickHouse'un kendi dokümantasyonuna göre postfiltering) seçici
+  filtrede (`bus_count>=1 AND person_count>=3`) 100K satırlık sentetik ölçekte
+  **0 satır döndürdü** — LIMIT 10 istenmesine rağmen. Aynı filtre `prefilter`
+  ve `bruteforce` stratejileriyle doğru 10 satır döndürdü. Bu, planın R1
+  riskinin teorik değil gerçek ve ciddi olduğunu kanıtlıyor.
+- `vector_search_index_fetch_multiplier`'ı varsayılan 1'den 50'ye çıkarmak
+  0-satır sorununu düzeltiyor ama o noktada gecikme zaten prefilter'a
+  yakınsıyor — **öneri: seçici filtreli sorgularda `strategy='prefilter'`
+  varsayılan olmalı**, `search/query.py::search()`'e eklenen yeni `strategy`
+  parametresiyle artık seçilebilir (varsayılan `'auto'`, önceki davranışla
+  birebir aynı, hiçbir çağıran kod bozulmadı).
+- R2 (`max_limit_for_vector_search_queries`) düzeltmesi: bu ClickHouse
+  sürümünde (26.7.1) gerçek varsayılan 1000, planın varsaydığı 100 değil —
+  `system.settings`'ten doğrulandı. `top_k=200` zaten güvenli.
+- 100K satırlık `bench_scale_512` tablosu (üretim `clips_*` tablolarına
+  dokunmadan) gerçekten oluşturuldu: insert 35.6sn, index inşası
+  (`OPTIMIZE TABLE FINAL`) 38.7sn, index boyutu 113.31 MiB. Buradan
+  ekstrapole: 1M×512d≈1.19GB, 1M×1152d≈2.67GB (planın 2.6GB tahminiyle
+  örtüşüyor), 10M×1152d≈26.7GB — varsayılan 5GB cache 10M ölçekte açıkça
+  yetersiz. Temizleme: `DROP TABLE bench_scale_512` (otomatik silinmedi).
+- 1M/10M ölçek testi ve CODEC(NONE)/binary-bind/materialize-throughput
+  denemeleri süre bütçesi nedeniyle yapılmadı (TASKS.md'de açıkça işaretli).
+
 ## Açık kalanlar
 
 - Tüm 56 sekans üzerinde toplu MP4/YOLO/model ingest henüz koşulmadı; mevcut

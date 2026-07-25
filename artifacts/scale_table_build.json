@@ -1,0 +1,25 @@
+{
+  "table": "bench_scale_512",
+  "dim": 512,
+  "n_rows": 100000,
+  "insert_s": 35.64,
+  "optimize_final_s": 38.71,
+  "indices": [
+    {
+      "name": "idx_vec",
+      "size_readable": "113.31 MiB",
+      "size_bytes": 118816003
+    },
+    {
+      "name": "idx_bus",
+      "size_readable": "38.00 B",
+      "size_bytes": 38
+    },
+    {
+      "name": "idx_person",
+      "size_readable": "47.00 B",
+      "size_bytes": 47
+    }
+  ],
+  "cleanup_command": "DROP TABLE bench_scale_512"
+}

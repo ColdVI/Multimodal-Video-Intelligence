@@ -1,0 +1,108 @@
+{
+  "matrix": [
+    {
+      "strategy": "bruteforce",
+      "selectivity": "loose",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 156.314,
+      "p95_ms": 238.42,
+      "mean_ms": 182.025,
+      "row_count": 10,
+      "rows_read": 149938,
+      "bytes_read": 217331576
+    },
+    {
+      "strategy": "bruteforce",
+      "selectivity": "strict",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 111.841,
+      "p95_ms": 175.622,
+      "mean_ms": 119.184,
+      "row_count": 10,
+      "rows_read": 139814,
+      "bytes_read": 217602602
+    },
+    {
+      "strategy": "hnsw",
+      "selectivity": "loose",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 22.54,
+      "p95_ms": 40.33,
+      "mean_ms": 26.682,
+      "row_count": 10,
+      "rows_read": 94845,
+      "bytes_read": 11360274
+    },
+    {
+      "strategy": "hnsw",
+      "selectivity": "strict",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 16.723,
+      "p95_ms": 33.708,
+      "mean_ms": 19.037,
+      "row_count": 0,
+      "rows_read": 49938,
+      "bytes_read": 10993703
+    },
+    {
+      "strategy": "prefilter",
+      "selectivity": "loose",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 143.776,
+      "p95_ms": 175.076,
+      "mean_ms": 146.371,
+      "row_count": 10,
+      "rows_read": 149938,
+      "bytes_read": 217331576
+    },
+    {
+      "strategy": "prefilter",
+      "selectivity": "strict",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 104.188,
+      "p95_ms": 125.219,
+      "mean_ms": 125.628,
+      "row_count": 10,
+      "rows_read": 139814,
+      "bytes_read": 217602602
+    },
+    {
+      "strategy": "postfilter_rescore",
+      "selectivity": "loose",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 109.181,
+      "p95_ms": 150.22,
+      "mean_ms": 113.081,
+      "row_count": 10,
+      "rows_read": 149938,
+      "bytes_read": 217331576
+    },
+    {
+      "strategy": "postfilter_rescore",
+      "selectivity": "strict",
+      "table": "bench_scale_512",
+      "n_repeats": 50,
+      "p50_ms": 113.256,
+      "p95_ms": 166.004,
+      "mean_ms": 119.315,
+      "row_count": 0,
+      "rows_read": 105031,
+      "bytes_read": 216973646
+    }
+  ],
+  "hnsw_recall_at_10": {
+    "table": "bench_scale_512",
+    "k": 10,
+    "recall_at_k": 1.0,
+    "n_exact": 10,
+    "n_hnsw": 10,
+    "n_overlap": 10
+  }
+}

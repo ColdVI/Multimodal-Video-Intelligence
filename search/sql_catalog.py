@@ -23,6 +23,12 @@ class QuerySpec:
     filename: str
     description: str
     explain: bool = True
+    # Faz 2 strateji matrisi icin: dosyadaki dort stratejiden (bruteforce/
+    # hnsw/prefilter/postfilter) hangisi ve hangi filtre secicilikte
+    # (loose: person_count>=1, strict: bus_count>=1 AND person_count>=3).
+    # Orijinal 7 smoke sorgusunda None kalir.
+    strategy: str = None
+    selectivity: str = None
 
     @property
     def path(self) -> pathlib.Path:
@@ -30,6 +36,13 @@ class QuerySpec:
 
     def sql(self) -> str:
         return self.path.read_text(encoding="utf-8").strip().rstrip(";")
+
+    def sql_for_table(self, table: str) -> str:
+        """Faz 2'nin 'iki tablo' ekseni: dosyanin kendisi (insan/test'in
+        okudugu) tek tabloyu (clips_xclip_hf_zeroshot) hedefler; ikinci
+        tablo icin ayni sorgu seklini runtime'da tablo adini degistirerek
+        uretiriz - mekanik bir isim degisimi, sorgu mantigi aynidir."""
+        return self.sql().replace("clips_xclip_hf_zeroshot", table)
 
 
 QUERY_SPECS = (
@@ -83,6 +96,58 @@ QUERY_SPECS = (
         "hybrid_postfilter",
         "07_hybrid_postfilter_rescore.sql",
         "HNSW adaylarini bulur, filtreler ve full-precision vektorlerle yeniden skorlar.",
+    ),
+    # Faz 2 strateji matrisi: dort strateji x iki filtre secicilik (loose:
+    # person_count>=1, strict: bus_count>=1 AND person_count>=3). Ikinci
+    # tablo (clips_siglip2_frameavg) rapor tarafinda sql_for_table() ile
+    # ayni dosyadan uretilir - bkz. docs/codex/05_..._PLANI.md Faz 2 madde 1.
+    QuerySpec(
+        "matrix_bruteforce_loose", "Matrix: brute-force x loose", "matrix",
+        "08_matrix_bruteforce_loose.sql",
+        "Exact brute-force vector search + person_count>=1.",
+        strategy="bruteforce", selectivity="loose",
+    ),
+    QuerySpec(
+        "matrix_bruteforce_strict", "Matrix: brute-force x strict", "matrix",
+        "09_matrix_bruteforce_strict.sql",
+        "Exact brute-force vector search + bus_count>=1 AND person_count>=3.",
+        strategy="bruteforce", selectivity="strict",
+    ),
+    QuerySpec(
+        "matrix_hnsw_loose", "Matrix: HNSW x loose", "matrix",
+        "10_matrix_hnsw_loose.sql",
+        "HNSW (varsayilan vector_search_filter_strategy='auto') + person_count>=1.",
+        strategy="hnsw", selectivity="loose",
+    ),
+    QuerySpec(
+        "matrix_hnsw_strict", "Matrix: HNSW x strict", "matrix",
+        "11_matrix_hnsw_strict.sql",
+        "HNSW (varsayilan) + bus_count>=1 AND person_count>=3.",
+        strategy="hnsw", selectivity="strict",
+    ),
+    QuerySpec(
+        "matrix_prefilter_loose", "Matrix: prefilter x loose", "matrix",
+        "12_matrix_prefilter_loose.sql",
+        "vector_search_filter_strategy='prefilter' + person_count>=1.",
+        strategy="prefilter", selectivity="loose",
+    ),
+    QuerySpec(
+        "matrix_prefilter_strict", "Matrix: prefilter x strict", "matrix",
+        "13_matrix_prefilter_strict.sql",
+        "vector_search_filter_strategy='prefilter' + bus_count>=1 AND person_count>=3.",
+        strategy="prefilter", selectivity="strict",
+    ),
+    QuerySpec(
+        "matrix_postfilter_loose", "Matrix: postfilter+rescore x loose", "matrix",
+        "14_matrix_postfilter_loose.sql",
+        "postfilter + rescoring + fetch_multiplier=5 + person_count>=1.",
+        strategy="postfilter_rescore", selectivity="loose",
+    ),
+    QuerySpec(
+        "matrix_postfilter_strict", "Matrix: postfilter+rescore x strict", "matrix",
+        "15_matrix_postfilter_strict.sql",
+        "postfilter + rescoring + fetch_multiplier=5 + bus_count>=1 AND person_count>=3.",
+        strategy="postfilter_rescore", selectivity="strict",
     ),
 )
 

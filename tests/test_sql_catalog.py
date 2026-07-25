@@ -10,7 +10,7 @@ from search.sql_catalog import (
 
 def test_catalog_is_complete_and_read_only():
     validate_catalog()
-    assert len(QUERY_SPECS) == 7
+    assert len(QUERY_SPECS) == 15
     assert {spec.kind for spec in QUERY_SPECS} == {
         "inventory",
         "exact_filter",
@@ -18,7 +18,28 @@ def test_catalog_is_complete_and_read_only():
         "vector_ann",
         "hybrid_prefilter",
         "hybrid_postfilter",
+        "matrix",
     }
+
+
+def test_strategy_matrix_covers_four_strategies_and_two_selectivities():
+    matrix_specs = [spec for spec in QUERY_SPECS if spec.kind == "matrix"]
+    assert len(matrix_specs) == 8
+    assert {spec.strategy for spec in matrix_specs} == {
+        "bruteforce", "hnsw", "prefilter", "postfilter_rescore",
+    }
+    assert {spec.selectivity for spec in matrix_specs} == {"loose", "strict"}
+    for strategy in ("bruteforce", "hnsw", "prefilter", "postfilter_rescore"):
+        selectivities = {s.selectivity for s in matrix_specs if s.strategy == strategy}
+        assert selectivities == {"loose", "strict"}
+
+
+def test_sql_for_table_swaps_table_name_only():
+    spec = get_query_spec("matrix_hnsw_loose")
+    swapped = spec.sql_for_table("clips_siglip2_frameavg")
+    assert "clips_siglip2_frameavg" in swapped
+    assert "clips_xclip_hf_zeroshot" not in swapped
+    assert "person_count >= 1" in swapped
 
 
 def test_exact_and_vector_contracts_are_not_conflated():

@@ -80,3 +80,64 @@ planına aittir. Numaralandırma o dosyayla birebir eşleşir (kendi Faz 0'ı va
       28 sorgu, iki koşum arasında fark yok): **GEÇTİ**
 - [x] 20 yeni saf-mantık testi eklendi (`test_bench_spec/timing/metrics/report.py`,
       genişletilmiş `test_parser.py`, `test_common.py`) — toplam 72/72 geçiyor
+
+### Faz 2 — ClickHouse arama katmanı: davranış doğrulaması + ölçek
+- [x] `system.settings` gerçekten sorgulandı (26.7.1): tüm 7 ayar bu sürümde var.
+      **R2 düzeltmesi:** `max_limit_for_vector_search_queries` varsayılanı
+      planın varsaydığı 100 değil **1000** — `search/query.py`'nin `top_k=200`
+      varsayılanı zaten güvenli sınırın altında, bu risk bu sürümde canlı değil.
+      `vector_search_filter_strategy` varsayılanı `'auto'` = ClickHouse'un
+      kendi dokümantasyonuna göre **postfiltering** (R1'i doğrular).
+- [x] 8 yeni SQL kataloğu dosyası (`sql/search_lab/08-15`): 4 strateji ×
+      2 seçicilik (loose: `person_count>=1`, strict: `bus_count>=1 AND
+      person_count>=3`); `search/sql_catalog.py` `strategy`/`selectivity`
+      alanlarıyla genişletildi, ikinci tablo `sql_for_table()` ile üretiliyor.
+- [x] `search/query.py::search()`'e `strategy` parametresi eklendi (imza
+      değişmedi, varsayılan `'auto'` önceki davranışla birebir aynı) —
+      `'exact' | 'prefilter' | 'postfilter_rescore'`, SETTINGS değerleri
+      sql/search_lab/06-07 ile senkron.
+- [x] **R1 GERÇEK VERİYLE KANITLANDI (73 satır):** `hnsw strict` LIMIT 10
+      yerine 4 satır döndürdü; `prefilter strict` ve `bruteforce strict` tam
+      10 döndürdü. EXPLAIN indexes=1: `vector_index_in_plan=True` yalnızca
+      hnsw/postfilter_rescore'da, prefilter/bruteforce'ta False (beklendiği
+      gibi index'i atlıyorlar).
+- [x] **100K satırlık sentetik ölçek testi çalıştırıldı** (`bench_scale_512`,
+      ayrı tablo, `scripts/build_scale_table.py` — insert 35.6sn, `OPTIMIZE
+      TABLE FINAL` ile index inşası 38.7sn, index boyutu 113.31 MiB):
+      `hnsw strict` **0 satır döndürdü** (tam sessiz kayıp), `postfilter_rescore
+      strict` (fetch_multiplier=5) de **0 satır**; `prefilter`/`bruteforce`
+      strict her ikisi de doğru 10 satır döndürdü. HNSW loose 22.5ms vs
+      bruteforce loose 156ms (~7× hızlı) — ama strict'te güvenilmez.
+- [x] `fetch_multiplier` sweep 100K ölçekte: {1,5,20,50,100} → satır sayısı
+      0,0,8,10,10. **Sonuç: varsayılan (1) ve planın önerdiği 5 yetersiz;
+      tam LIMIT için ~50 gerekli, o noktada gecikme (132ms) zaten prefilter'a
+      (104ms) yakınsıyor** — seçici filtrede prefilter hem daha doğru hem
+      rakip gecikmede. **Öneri: seçici filtre içeren sorgularda varsayılan
+      `strategy='prefilter'` kullanılmalı**, `'auto'` yalnızca gevşek/filtresiz
+      sorgularda güvenli.
+- [x] `ef_search` (`hnsw_candidate_list_size_for_search`) sweep {64,256,512}:
+      100K ölçekte satır sayısını değiştirmedi (4→4→4 küçük ölçekte) — bu
+      ayar aday-listesi kalitesini etkiler, LIMIT-altı dönme sorununu
+      `fetch_multiplier` kadar çözmüyor.
+- [x] HNSW recall@10: küçük ölçekte (73 satır) 1.00 — anlamsız (plan
+      kuralı); 100K ölçekte de 1.00 (bu veri dağılımında HNSW top-10 exact
+      top-10 ile birebir örtüştü, seçici filtre uygulanmadığı loose sorguda).
+- [x] **Bellek projeksiyonu (gerçek 100K/512d ölçümünden ekstrapole):**
+      1M×512d ≈ 1.19 GB, 10M×512d ≈ 11.88 GB, 1M×1152d ≈ 2.67 GB (planın
+      bağımsız tahmini 2.6 GB ile örtüşüyor), 10M×1152d ≈ 26.7 GB.
+      `vector_similarity_index_cache_size` varsayılanı 5 GB — 1M ölçekte iki
+      model toplamı (~3.9 GB) sığar ama büyüme payı yok; 10M'de (~38.6 GB)
+      açıkça yetersiz.
+- [ ] 1M/10M sentetik ölçek — süre bütçesi nedeniyle yapılmadı (100K'nın
+      kendisi kararı değiştirecek kadar net sinyal verdi).
+- [ ] `CODEC(NONE)`, binary vector bind, `materialize_skip_indexes_on_insert`
+      insert-throughput denemesi — süre bütçesi nedeniyle yapılmadı.
+- [x] 11 yeni saf-mantık testi (`test_sql_catalog.py` genişletildi +2,
+      `test_query_strategy.py` +6, `test_strategy_matrix_html.py` +3) —
+      toplam 83/83 geçiyor.
+
+**Çıkış kapısı durumu:** "Prefilter gerçekten prefilter mı?" — EVET, EXPLAIN
++ rows-returned kanıtıyla doğrulandı. Sıkı filtrede LIMIT-altı dönme —
+belgelendi, 100K'da tam sıfıra kadar gidiyor. 100K stratejı karşılaştırması
+tamam; 1M yapılmadı (raporda açıkça işaretli). R2 düzeltmesi: risk bu
+sürümde zaten canlı değildi, kanıtlandı.

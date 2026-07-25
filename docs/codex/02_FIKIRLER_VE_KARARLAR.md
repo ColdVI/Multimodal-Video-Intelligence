@@ -18,6 +18,19 @@ skor biçiminde veren ölçülebilir bir hibrit retrieval sistemi kurmak.
 | Otomatik VisDrone ground truth | Tekrar üretilebilir değerlendirme sağlar | Elle seçilmiş örneklerle yanıltıcı başarı |
 | Faz kapıları ve kanıt kaydı | “Kod yazıldı” ile “gerçek ortamda çalıştı” ayrılır | Doğrulanmamış başarı iddiası |
 
+## Faz 2 kanıtlı bulgusu: seçici filtrede varsayılan strateji güvensiz
+
+100K satırlık sentetik ölçekte (`bench_scale_512`, üretim tablosuna
+dokunmadan) `vector_search_filter_strategy='auto'` (ClickHouse varsayılanı,
+postfiltering) seçici filtrede (`bus_count>=1 AND person_count>=3`) **0 satır**
+döndürdü; `prefilter` ve `bruteforce` aynı filtreyle doğru 10 satır döndürdü.
+`vector_search_index_fetch_multiplier`'ı varsayılan 1'den 50'ye çıkarmak
+düzeltiyor ama o noktada gecikme prefilter'a yakınsıyor. **Karar:** filtre
+seçiciliği bilinmeyen/yüksek olabilecek sorgularda `search/query.py::search()`
+`strategy='prefilter'` ile çağrılmalı; `strategy='auto'` (varsayılan, imza
+korunuyor) yalnızca gevşek/filtresiz sorgular için güvenli kabul edilir. Detay
+ve tam sayılar: `STATUS.md` Faz 2 bölümü, `artifacts/strategy_matrix_report.json`.
+
 ## Kritik teknik notlar
 
 - Hugging Face `microsoft/xclip` modeli ile Ma vd. retrieval-özel AOSM
