@@ -11,6 +11,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from common import configure_runtime_environment, load_config
+from ingest.frame_io import read_frames_sequential, sample_frame_indices
 
 configure_runtime_environment()
 
@@ -44,22 +45,42 @@ def _get_model(checkpoint: str):
 
 
 def window_features(video_path, t0, t1, n_sample=6, checkpoint="yolo26x.pt",
-                    class_map=None):
+                    class_map=None, frames=None):
+    """frames verilirse (RGB ndarray listesi, kronolojik sirali) video hic
+    acilmaz - cagiran taraf zaten decode etmis kareleri paylasiyor demektir
+    (bkz. scripts/colab_gpu_bench.py: embedding icin okunan kareler
+    dedektore de veriliyor, ayni videoyu iki kez decode etmemek icin).
+    frames=None ise eskisi gibi video_path'ten TEK seek + sequential
+    okuma ile n_sample kare cekilir (eskiden n_sample AYRI seek yapiliyordu -
+    H.264'te her seek en yakin keyframe'e geri donup ileri decode ediyordu,
+    bkz. docs/codex/06_NIHAI_RAPOR.md)."""
     class_map = class_map or COCO_MAP
     model = _get_model(checkpoint)
     concepts = sorted(set(class_map.values()))
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
     counts = {c: [] for c in concepts}
     brightness, motions = [], []
     prev_gray = None
 
-    for t in np.linspace(t0, t1, n_sample, endpoint=False):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(t * fps))
-        ok, frame = cap.read()
-        if not ok:
-            continue
-        res = model(frame, verbose=False)[0]
+    if frames is None:
+        cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        cap.release()
+        indices = sample_frame_indices(t0, t1, fps, n_sample)
+        frame_map = read_frames_sequential(video_path, indices)
+        sampled = [frame_map[i] for i in indices if i in frame_map]
+    else:
+        idx = np.linspace(0, len(frames) - 1, min(n_sample, len(frames))).astype(int)
+        sampled = [frames[i] for i in idx]
+
+    for frame in sampled:
+        # frame_io RGB donduruyor (embedding modelleri - PIL/HF - RGB
+        # bekliyor). Ultralytics ise ham numpy array'i HER ZAMAN BGR sanip
+        # kendi icinde ters ceviriyor (engine/predictor.py: "im[..., ::-1]
+        # # BGR to RGB") - RGB'yi oldugu gibi versek YOLO onu BGR sanip
+        # tekrar cevirir, kanallar bozulur. O yuzden model'e vermeden once
+        # BGR'ye geri ceviriyoruz; gri/parlaklik/optik akis icin bu adima
+        # gerek yok (RGB2GRAY zaten dogru agirliklarla hesapliyor).
+        res = model(frame[..., ::-1], verbose=False)[0]
         cls = res.boxes.cls.cpu().numpy().astype(int)
         frame_counts = {c: 0 for c in concepts}
         for cid, cname in class_map.items():
@@ -67,7 +88,7 @@ def window_features(video_path, t0, t1, n_sample=6, checkpoint="yolo26x.pt",
         for cname, n in frame_counts.items():
             counts[cname].append(n)
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         brightness.append(float(gray.mean()))
         small = cv2.resize(gray, (160, 90))
         if prev_gray is not None:
@@ -75,7 +96,6 @@ def window_features(video_path, t0, t1, n_sample=6, checkpoint="yolo26x.pt",
                 prev_gray, small, None, 0.5, 3, 15, 3, 5, 1.2, 0)
             motions.append(float(np.linalg.norm(flow, axis=2).mean()))
         prev_gray = small
-    cap.release()
 
     return {
         "person_count": int(np.median(counts.get("person") or [0])),

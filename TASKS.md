@@ -319,3 +319,78 @@ TASKS.md bu haliyle kanıtlı/kanıtsız ayrımıyla güncel.
 **Genel durum: "tamamlandı" değil, "kısmen doğrulandı"** — GPU ölçümü,
 1M+ ölçek, `gt_walking` görsel denetimi ve profil-özel gerçek koşular
 açıkça eksik bırakıldı. Detay: `docs/codex/06_NIHAI_RAPOR.md` §10.
+
+## Faz 6 — P0: decode düzeltmesi + benchmark dürüstleştirme
+
+Tetikleyici: kullanıcı gerçek T4/L4 Colab GPU koşumlarını (`artifacts/
+colab_gpu_bench_{t4,l4,l4_v2}.json`) ayrı bir sohbette analiz ettirdi; o
+analiz iki gerçek bug'a işaret etti. Uygulamadan önce iddiaları kendi
+kodum/matematigimle bağımsız doğruladım (bkz. commit mesajları) — biri
+doğru çıktı, biri (CPU dedektör karşılaştırmasının da decode-dominant
+olabileceği spekülasyonu) ölçüldüğünde YANLIŞ çıktı.
+
+- [x] **Decode yeniden tasarımı** (`ingest/frame_io.py`, yeni): pencere
+      başına n_sample AYRI `cv2.CAP_PROP_POS_FRAMES` seek yerine TEK seek +
+      sequential grab/read. H.264'te her seek en yakın keyframe'e geri dönüp
+      ileri decode ettiriyordu. Gerçek video üzerinde doğrulandı: 4.04s →
+      0.32s (**12.6×**), kareler eski yöntemle **bit-bit aynı**.
+      `ingest/03_embed.py`, `ingest/04_detect.py`, `scripts/
+      colab_gpu_bench.py` bu ortak modülü kullanacak şekilde güncellendi.
+- [x] **Gerçek regresyon testi (bit-bit)**: production 73 pencerelik veri
+      üzerinde `ingest/03_embed.py --model xclip_hf_zeroshot` ve
+      `ingest/04_detect.py` yeniden koşuldu — embedding'ler max|diff|=0.0,
+      features.json 73/73 satır birebir aynı. Süre: embed 7dk14s (73
+      pencere, decode+embed birlikte), detect (yolov8n_visdrone) 1dk22s.
+- [x] **Renk kanalı bug'u (bulundu ve düzeltildi önce commit edilmeden)**:
+      `frame_io` RGB döndürüyor (embedding modelleri PIL/RGB bekliyor);
+      ultralytics ham numpy array'i HER ZAMAN BGR sayıp kendi içinde ters
+      çeviriyor (`engine/predictor.py: im[..., ::-1]`). RGB'yi olduğu gibi
+      versek YOLO'ya kanalları bozulmuş kare giderdi — `window_features()`
+      model'e vermeden önce tekrar BGR'ye çeviriyor artık. Testte kontrol
+      edildi (`tests/test_window_features.py`).
+- [x] **Dedektör artık decode paylaşıyor**: `scripts/colab_gpu_bench.py`
+      içinde `bench_detector_speed`, embedding için zaten okunmuş kareleri
+      `window_features(frames=...)` ile kullanıyor, videoyu tekrar açmıyor.
+      (`ingest/04_detect.py::window_features()` prodüksiyon çağrı yolunda
+      hâlâ `frames=None` ile kendi decode'unu yapabiliyor — çıktı sözleşmesi
+      değişmedi.)
+- [x] **Temiz CPU 3'lü dedektör karşılaştırması** (decode artık ihmal
+      edilebilir, gerçek 73 pencere, bu makine): yolov8n_visdrone 1.12s/
+      pencere, yolov8s_visdrone 1.45s/pencere, yolo26x_coco 4.25s/pencere.
+      **yolov8n ≈ 3.79× hızlı** (Faz 3'ün "~2×" iddiasından BÜYÜK, küçük
+      değil) — dış analizdeki "CPU sayısı da decode-dominant olabilir"
+      spekülasyonu ÖLÇÜLDÜĞÜNDE yanlış çıktı; küçük model gerçekten
+      belirgin şekilde hızlı, üstelik eski ölçüm bunu hafife almış.
+      Not: L4 GPU'daki ~1.03× (decode-dominant) bulgusu hâlâ geçerli ve
+      ayrı bir olgu — GPU'da decode payı farklı, orada gerçek yeniden ölçüm
+      hâlâ kullanıcının kendi Colab oturumunu gerektiriyor.
+- [x] `scripts/colab_gpu_bench.py` şema v2: ortam manifesti (compute
+      capability, torch/cuda sürümü, cpu/ram), warm-up (ilk 2 pencere
+      zamanlanmaz), MRL 4 satır yerine tek `qwen3vl_emb` + `truncate_dims`,
+      `--n-windows` varsayılanı 10→30, `migrate_legacy_schema()` ile eski
+      JSON'lar kaybolmadan yeni şemaya taşınıyor (3 gerçek dosyada
+      doğrulandı: t4/l4/l4_v2).
+- [x] `scripts/dtype_arch_probe.py` (yeni, P0-C): compute capability,
+      gerçek model dtype, attn_implementation, flash_attn kurulu mu,
+      native-dtype vs fp16 A/B, torch.compile A/B — GPU gerektirir, bu
+      oturumda YAZILDI ama ÇALIŞTIRILMADI (yerel makine CPU-only).
+      Kullanıcının T4/L4 Colab oturumunda çalıştırması gerekiyor; bf16/
+      Turing hipotezini (139.8× yavaşlama) çıkarımdan ölçüme taşıyacak
+      tek eksik adım budur.
+- [x] 122 test (106 + P0 testleri sonrası), tümü geçti; `tests/
+      test_frame_io.py`, `tests/test_window_features.py`, `tests/
+      test_colab_gpu_bench.py`, `tests/test_dtype_arch_probe.py` yeni.
+- [ ] **Yapılmadı, kullanıcı kararı bekliyor** (dış analizdeki P1/P2 ve
+      "karar vermeniz gerekenler" tablosu — bunlar Claude Code'un tek
+      başına karar veremeyeceği açıkça belirtilmiş): ClickHouse üçlü
+      strateji bake-off + `dataset_id`, değerlendirme istatistiksel gücü
+      (150+ sorgu, bootstrap/permütasyon testleri), dataset adapter katmanı
+      (CapERA/DVTMD), batch inference, dtype/mimari guard. Sıralama gerekçesi
+      ve tam prompt'lar kullanıcının kendi `claude_code_prompt_paketi.md`
+      dosyasında.
+
+**Çıkış kapısı durumu:** P0-A/B/C tamamlandı ve gerçek veriyle doğrulandı
+(bit-bit regresyon testi + 12.6× ve 3.79× gibi somut, ölçülmüş sayılar).
+P1/P2 kasıtlı olarak başlatılmadı — kaynak belgenin kendisi bunları insan
+kararı olarak işaretliyor (hedef GPU, ana model, korpus kapsamı, caption
+dataset'i) ve hepsi decode düzeltmesinden sonra yeniden ölçüm gerektiriyor.

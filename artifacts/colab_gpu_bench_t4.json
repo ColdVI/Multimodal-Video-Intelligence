@@ -1,0 +1,74 @@
+{
+  "hardware_profile": "colab_t4",
+  "gpu_name": "Tesla T4",
+  "embedding_speed": [
+    {
+      "model": "xclip_hf_zeroshot",
+      "hardware_profile": "colab_t4",
+      "load_s": 6.24,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 13.13060626999959,
+          "mean_s": 1.313060626999959,
+          "p50_s": 1.3013491660001364,
+          "p95_s": 1.9348109389499084
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.38593284800026595,
+          "mean_s": 0.03859328480002659,
+          "p50_s": 0.015167186500093521,
+          "p95_s": 0.1486314641000033
+        }
+      }
+    },
+    {
+      "model": "siglip2_frameavg",
+      "hardware_profile": "colab_t4",
+      "load_s": 115.91,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 17.31260439899961,
+          "mean_s": 1.7312604398999611,
+          "p50_s": 1.717452662499909,
+          "p95_s": 1.8964214647999824
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.26001342300014585,
+          "mean_s": 0.026001342300014586,
+          "p50_s": 0.024873991500271586,
+          "p95_s": 0.03104014365003422
+        }
+      }
+    },
+    {
+      "model": "qwen3vl_emb_2048",
+      "hardware_profile": "colab_t4",
+      "load_s": 117.77,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 3414.244935144002,
+          "mean_s": 341.4244935144002,
+          "p50_s": 349.4470184964998,
+          "p95_s": 351.24529690170027
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 1.1874014870008978,
+          "mean_s": 0.11874014870008978,
+          "p50_s": 0.11737712250032928,
+          "p95_s": 0.12567934995013275
+        }
+      }
+    }
+  ],
+  "detector_speed": [],
+  "frame_read_total_s": 1080.92
+}

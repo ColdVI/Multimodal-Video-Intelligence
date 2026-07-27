@@ -27,10 +27,13 @@ def _percentile(values, pct):
 
 
 def _stats(durations: list) -> dict:
+    mean = sum(durations) / len(durations)
+    variance = sum((d - mean) ** 2 for d in durations) / len(durations)
     return {
         "n": len(durations),
         "total_s": sum(durations),
-        "mean_s": sum(durations) / len(durations),
+        "mean_s": mean,
+        "std_s": variance ** 0.5,
         "p50_s": _percentile(durations, 50),
         "p95_s": _percentile(durations, 95),
     }

@@ -1,0 +1,186 @@
+{
+  "hardware_profile": "colab_l4",
+  "gpu_name": "NVIDIA L4",
+  "embedding_speed": [
+    {
+      "model": "xclip_hf_zeroshot",
+      "hardware_profile": "colab_l4",
+      "load_s": 7.74,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 6.3695193539999195,
+          "mean_s": 0.636951935399992,
+          "p50_s": 0.6260082324999701,
+          "p95_s": 0.9885175622000242
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.22873762999989822,
+          "mean_s": 0.022873762999989822,
+          "p50_s": 0.00717634949998569,
+          "p95_s": 0.09128554769998504
+        }
+      }
+    },
+    {
+      "model": "siglip2_frameavg",
+      "hardware_profile": "colab_l4",
+      "load_s": 18.72,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 7.54687492599993,
+          "mean_s": 0.754687492599993,
+          "p50_s": 0.7615735800000039,
+          "p95_s": 0.7824665187499761
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.15863137300016206,
+          "mean_s": 0.015863137300016206,
+          "p50_s": 0.014250850500047818,
+          "p95_s": 0.023000244350004077
+        }
+      }
+    },
+    {
+      "model": "qwen3vl_emb_2048",
+      "hardware_profile": "colab_l4",
+      "load_s": 29.09,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 25.509785833000137,
+          "mean_s": 2.550978583300014,
+          "p50_s": 2.5567842925000264,
+          "p95_s": 2.927489856200014
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.46217623299992283,
+          "mean_s": 0.04621762329999228,
+          "p50_s": 0.04548040550002952,
+          "p95_s": 0.04963684899996679
+        }
+      }
+    },
+    {
+      "model": "qwen3vl_emb_1024",
+      "hardware_profile": "colab_l4",
+      "load_s": 29.09,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 25.509785833000137,
+          "mean_s": 2.550978583300014,
+          "p50_s": 2.5567842925000264,
+          "p95_s": 2.927489856200014
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.46217623299992283,
+          "mean_s": 0.04621762329999228,
+          "p50_s": 0.04548040550002952,
+          "p95_s": 0.04963684899996679
+        }
+      },
+      "note": "qwen3vl_emb_2048 ile ayni olculmus timing - MRL truncate_dim sadece cikti vektorunu kirpiyor, transformer forward-pass'ini tekrar calistirmaya gerek yok (bkz. models/qwen3vl_emb.py)"
+    },
+    {
+      "model": "qwen3vl_emb_512",
+      "hardware_profile": "colab_l4",
+      "load_s": 29.09,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 25.509785833000137,
+          "mean_s": 2.550978583300014,
+          "p50_s": 2.5567842925000264,
+          "p95_s": 2.927489856200014
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.46217623299992283,
+          "mean_s": 0.04621762329999228,
+          "p50_s": 0.04548040550002952,
+          "p95_s": 0.04963684899996679
+        }
+      },
+      "note": "qwen3vl_emb_2048 ile ayni olculmus timing - MRL truncate_dim sadece cikti vektorunu kirpiyor, transformer forward-pass'ini tekrar calistirmaya gerek yok (bkz. models/qwen3vl_emb.py)"
+    },
+    {
+      "model": "qwen3vl_emb_256",
+      "hardware_profile": "colab_l4",
+      "load_s": 29.09,
+      "n_windows_sampled": 10,
+      "timing": {
+        "embed_video": {
+          "n": 10,
+          "total_s": 25.509785833000137,
+          "mean_s": 2.550978583300014,
+          "p50_s": 2.5567842925000264,
+          "p95_s": 2.927489856200014
+        },
+        "embed_text": {
+          "n": 10,
+          "total_s": 0.46217623299992283,
+          "mean_s": 0.04621762329999228,
+          "p50_s": 0.04548040550002952,
+          "p95_s": 0.04963684899996679
+        }
+      },
+      "note": "qwen3vl_emb_2048 ile ayni olculmus timing - MRL truncate_dim sadece cikti vektorunu kirpiyor, transformer forward-pass'ini tekrar calistirmaya gerek yok (bkz. models/qwen3vl_emb.py)"
+    }
+  ],
+  "detector_speed": [
+    {
+      "variant": "yolo26x_coco",
+      "hardware_profile": "colab_l4",
+      "n_windows_sampled": 10,
+      "timing": {
+        "detect_window": {
+          "n": 10,
+          "total_s": 37.99833514600016,
+          "mean_s": 3.799833514600016,
+          "p50_s": 3.657286363500077,
+          "p95_s": 6.590244644050051
+        }
+      }
+    },
+    {
+      "variant": "yolov8n_visdrone",
+      "hardware_profile": "colab_l4",
+      "n_windows_sampled": 10,
+      "timing": {
+        "detect_window": {
+          "n": 10,
+          "total_s": 37.04785168300009,
+          "mean_s": 3.704785168300009,
+          "p50_s": 3.6550418159999936,
+          "p95_s": 6.583310981400012
+        }
+      }
+    },
+    {
+      "variant": "yolov8s_visdrone",
+      "hardware_profile": "colab_l4",
+      "n_windows_sampled": 10,
+      "timing": {
+        "detect_window": {
+          "n": 10,
+          "total_s": 37.04812223499994,
+          "mean_s": 3.7048122234999936,
+          "p50_s": 3.6575978074999966,
+          "p95_s": 6.542578259200019
+        }
+      }
+    }
+  ],
+  "frame_read_total_s": 205.79
+}

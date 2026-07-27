@@ -5,25 +5,14 @@ import json
 import pathlib
 import sys
 
-import cv2
-import numpy as np
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from common import load_config
+from ingest.frame_io import read_window_frames
 from models import available_models, get_embedder
 
 
 def read_window(video_path, t0, t1, n=32):
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    frames = []
-    for t in np.linspace(t0, t1, n, endpoint=False):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(t * fps))
-        ok, frame = cap.read()
-        if ok:
-            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    cap.release()
-    return frames
+    return read_window_frames(video_path, t0, t1, n)
 
 
 def main():

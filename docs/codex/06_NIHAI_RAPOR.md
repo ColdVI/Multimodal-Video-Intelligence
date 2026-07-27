@@ -142,3 +142,61 @@ ikilisi) gerçek veriyle doğrulandı. Üretime geçmeden önce zorunlu üç iş
 (1) GPU ölçümü (Colab bundle hazır, çalıştırılmayı bekliyor), (2) `gt_walking`
 görsel denetimi, (3) 1M+ ölçek testi. Sahip: bu depoyu devralan sonraki
 oturum/kişi; `NEXT_SESSION_HANDOFF.md` ve bu rapor başlangıç noktasıdır.
+
+## 12. Faz 6 düzeltmeleri — decode bug'u ve iki iddianın yeniden ölçümü
+
+> Bu bölüm §4-5'teki orijinal Faz 0-5 bulgularını SİLMİYOR, üzerine
+> düzeltme ekliyor — geçmiş kayıt korunuyor, güncel doğru sayı burada.
+> Tetikleyici: kullanıcı gerçek T4/L4 GPU koşumlarını ayrı bir sohbette
+> analiz ettirdi; iki iddia çıktı, ikisini de bağımsız doğruladım (biri
+> doğru, biri yanlış çıktı — detay `TASKS.md` Faz 6).
+
+**Bulunan gerçek bug:** `ingest/03_embed.py`, `ingest/04_detect.py` ve
+`scripts/colab_gpu_bench.py`, pencere başına n_sample kez AYRI
+`cv2.CAP_PROP_POS_FRAMES` seek yapıyordu. H.264'te her seek decoder'ı en
+yakın keyframe'e geri gönderip yeniden decode ettiriyor. `ingest/
+frame_io.py` (yeni) bunu TEK seek + sequential okumaya çevirdi: gerçek
+video üzerinde **12.6× hızlanma, kareler eski yöntemle bit-bit aynı**
+(doğrulama: `tests/test_frame_io.py`, ayrıca 73 pencerelik gerçek
+production verisiyle uçtan uca `max|diff|=0.0`).
+
+**Düzeltilen iddia 1 — "küçük fine-tune'lu YOLO ~2× hızlı" (§4 bulgu 3):**
+Decode düzeltmesinden sonra temiz 3'lü CPU karşılaştırması (aynı 73
+pencere, bu makine): yolov8n_visdrone 1.12s/pencere, yolov8s_visdrone
+1.45s/pencere, yolo26x_coco 4.25s/pencere. **Gerçek fark ~3.79×** —
+orijinal "~2×" iddiasından KÜÇÜK değil, BÜYÜK. Yani decode gürültüsü
+eski ölçümde farkı ABARTMAMIŞ, HAFİFLETMİŞ.
+
+**Doğrulanan ama YANLIŞ çıkan iddia 2:** Dış analiz, "CPU'daki 2× sayısı
+da muhtemelen decode-dominant" diye spekülasyon yürütmüştü. Ölçüldüğünde
+bu YANLIŞ çıktı (yukarıdaki 3.79× gerçek, decode-bağımsız bir fark).
+Buna karşılık L4 GPU'da ölçülen ~1.03× (üç YOLO varyantı arasında
+neredeyse ayırt edilemez) bulgusu hâlâ geçerli VE decode-dominant —
+GPU'da model compute süresi o kadar küçülüyor ki sabit seek maliyeti
+payı büyüyor. CPU'da tam tersi: model compute zaten büyük, seek payı
+görece küçük. **İki ortam farklı rejimde, ikisi de doğru, çelişmiyor.**
+GPU tarafında temiz yeniden ölçüm hâlâ kullanıcının kendi Colab
+oturumunu gerektiriyor (`scripts/colab_gpu_bench.py` artık dedektör
+için de paylaşılan decode kullanıyor, hazır).
+
+**Düzeltilen iddia 3 — "6 embedding modeli ölçüldü" (§8, Pareto tablosu):**
+Gerçekte 3 model ölçüldü (X-CLIP, SigLIP2, Qwen3-VL-Embedding-2B);
+qwen3vl_emb_1024/512/256 aynı transformer forward-pass'ini paylaşıyor
+(MRL `truncate_dim` yalnız çıktı vektörünü kırpıyor, `models/
+qwen3vl_emb.py`). `scripts/colab_gpu_bench.py` şema v2 artık bunu tek
+`qwen3vl_emb` + `truncate_dims: [2048,1024,512,256]` satırıyla yazıyor.
+
+**Henüz ölçülmedi, sadece çıkarım:** Qwen3-VL-Embedding-2B'nin T4'te
+341.4s/pencere, L4'te 2.44s/pencere olması (139.8×) bf16/Turing
+uyumsuzluğuna bağlandı ama bu ÇIKARIM — doğrudan `torch.cuda.
+get_device_capability()`/dtype introspection ile teyit edilmedi.
+`scripts/dtype_arch_probe.py` (yeni) bunu ölçüme çevirecek şekilde
+yazıldı ama GPU gerektirdiği için bu oturumda çalıştırılamadı.
+
+**Açık kalan (kullanıcı kararı gerektiriyor, bu oturumda başlatılmadı):**
+ClickHouse üçlü strateji bake-off + `dataset_id`, değerlendirme
+istatistiksel gücü (150+ sorgu), dataset adapter katmanı, batch
+inference, dtype/mimari guard. Bunlar kaynak analiz belgesinin kendisinde
+"insan karar vermeli, Claude Code karar veremez" diye işaretli (hedef
+GPU, ana model, korpus kapsamı, caption dataset). Detay ve hazır
+prompt'lar: `TASKS.md` Faz 6.
