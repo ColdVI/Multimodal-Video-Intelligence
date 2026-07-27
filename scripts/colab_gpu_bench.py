@@ -52,6 +52,7 @@ from models import get_embedder
 HARDWARE_PROFILE = "colab_t4"  # gercek GPU adiyla degistirin (ör. colab_a100)
 EMBED_MODELS = ["xclip_hf_zeroshot", "siglip2_frameavg", "qwen3vl_emb_2048",
                 "qwen3vl_emb_1024", "qwen3vl_emb_512", "qwen3vl_emb_256"]
+QWEN_MRL_GROUP = ["qwen3vl_emb_2048", "qwen3vl_emb_1024", "qwen3vl_emb_512", "qwen3vl_emb_256"]
 
 
 def _read_window(video_path, t0, t1, n=32):
@@ -110,6 +111,31 @@ def bench_embedding_speed(cached_windows, queries, out_path, out):
         if model_name in done:
             print(f"{model_name}: atlaniyor (onceki kosumdan sonuc mevcut)")
             continue
+
+        # Qwen MRL boyut varyantlari (2048/1024/512/256) ayni checkpoint'i
+        # ayni sekilde forward eder - truncate_dim SADECE cikti vektorunu
+        # kirpiyor (bkz. models/qwen3vl_emb.py: SentenceTransformer(...,
+        # truncate_dim=self.dim)), transformer'in kendisini degil. Yani
+        # 1024/512/256 icin ayni modeli tekrar yukleyip 10 pencereyi tekrar
+        # kodlamak (~300sn/pencere x 10 x 3 = ~2.5 saat GPU zamani) hicbir
+        # yeni bilgi vermez - qwen3vl_emb_2048'in olculmus zamanini kopyalar.
+        if model_name in QWEN_MRL_GROUP and model_name != QWEN_MRL_GROUP[0]:
+            base = next((r for r in out["embedding_speed"]
+                        if r["model"] == QWEN_MRL_GROUP[0] and "error" not in r), None)
+            if base is not None:
+                derived = dict(base)
+                derived["model"] = model_name
+                derived["note"] = (f"{QWEN_MRL_GROUP[0]} ile ayni olculmus timing - MRL "
+                                  "truncate_dim sadece cikti vektorunu kirpiyor, "
+                                  "transformer forward-pass'ini tekrar calistirmaya "
+                                  "gerek yok (bkz. models/qwen3vl_emb.py)")
+                out["embedding_speed"].append(derived)
+                _save(out_path, out)
+                print(f"{model_name}: {QWEN_MRL_GROUP[0]} ile ayni forward-pass, "
+                     f"timing kopyalandi (model tekrar calistirilmadi) "
+                     f"[kaydedildi -> {out_path}]")
+                continue
+
         timer = StageTimer()
         try:
             t0 = time.perf_counter()
