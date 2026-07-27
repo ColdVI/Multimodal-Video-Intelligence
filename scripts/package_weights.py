@@ -20,6 +20,7 @@ from common import REPO_ROOT, configure_runtime_environment
 HF_MODEL_IDS = [
     "microsoft/xclip-base-patch16-zero-shot",
     "google/siglip2-so400m-patch14-384",
+    "Qwen/Qwen3-VL-Embedding-2B",
 ]
 YOLO_CHECKPOINTS = [
     "yolo26x.pt",

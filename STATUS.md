@@ -119,6 +119,30 @@
   ürettiği filtre kolonlarıyla yeniden yüklendi.
 - Batch/imgsz/FP16/n_sample ablation'ları süre bütçesi nedeniyle yapılmadı.
 
+## Faz 4 embedding bake-off (docs/codex/05_..., 26-27 Temmuz 2026)
+
+- Planın iki adayı da (VideoCLIP-XL, LanguageBind_Video) doğrulandı ama
+  ikisi de "kolay entegrasyon" değildi: VideoCLIP-XL ticari olmayan lisans
+  + özel kod; LanguageBind_Video (MIT) `transformers` 5.14.1'de tanınmıyor
+  (gerçek hata ile doğrulandı). Gerçek yeni aday: `Qwen/Qwen3-VL-Embedding-2B`
+  (Apache-2.0, `sentence-transformers` üzerinden çalışıyor).
+- **En büyük bulgu:** Qwen'in 73 pencerelik gerçek `embed_video` koşumu
+  **17.7 saat** sürdü (pencere başına ~14.5 dakika — X-CLIP'in ~27 katı).
+  İlk smoke testi (sentetik görüntüyle) bunu ~17× hafife aldırmıştı.
+  **Bu CPU'ya özgü bir sonuç** — GPU'da (Colab/T4 veya başka bir GPU)
+  çok daha hızlı olması beklenir ama bu oturumda GPU ölçümü yapılamadı
+  (GT1030 CUDA kurulumu bloke, Colab'i canlı süremiyorum).
+  `scripts/colab_gpu_bench.py` kullanıcının Colab'de çalıştırması için
+  hazırlandı ama gerçek GPU'da test edilmedi.
+- MRL (Matryoshka) boyut taraması gerçek ölçüldü: 2048d'den 256d'ye (8×
+  küçültme) kalite kaybı <0.02 recall, depolama ~7.4× azalıyor — üretim
+  için 256d/512d öneriliyor, 2048d yalnızca referans.
+- Qwen-2048, X-CLIP'e karşı bu benchmarkta eşdeğer (hareket kategorisinde
+  bile fark yok) — MMEB-V2 liderliğine rağmen. Muhtemel yorum: darboğaz
+  model kalitesi değil, pencereleme/GT/görev tasarımı.
+- Offline mod doğrulandı (`HF_HUB_OFFLINE=1`, gerçek çalıştırma, ağ
+  çağrısı yok); `weights_manifest.json`'a eklendi (4271.1 MB).
+
 ## Açık kalanlar
 
 - Tüm 56 sekans üzerinde toplu MP4/YOLO/model ingest henüz koşulmadı; mevcut

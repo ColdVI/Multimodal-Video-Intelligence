@@ -204,3 +204,76 @@ sürümde zaten canlı değildi, kanıtlandı.
 varyant); varsayılan dedektör kararı sayıyla (hız + downstream P/R@10)
 gerekçelendirildi. Inference-optimizasyon ablation'ları (batch/imgsz/FP16/
 n_sample) yapılmadı — TASKS.md'de açıkça işaretli.
+
+### Faz 4 — Embedding bake-off
+- [x] **Plan düzeltmesi:** planın iki adayı da "kolay HF indirme" varsayımını
+      doğrulamadı. `alibaba-pai/VideoCLIP-XL` gerçek ama lisansı
+      **CC-BY-NC-SA-4.0 (ticari olmayan)** — kurumsal üretim hedefiyle
+      uyumsuz, ayrıca özel `modeling.py`/`utils/` kodu gerektiriyor
+      (`transformers`-native değil). `LanguageBind/LanguageBind_Video`
+      gerçek ve MIT ama `model_type=LanguageBindVideo` yüklü `transformers`
+      5.14.1 tarafından tanınmıyor (gerçek `AutoModel.from_pretrained()`
+      hatası ile doğrulandı) — resmi olmayan bir PyPI paketi veya orijinal
+      GitHub kodu gerekiyor. İkisi de bu oturumda entegre edilmedi.
+- [x] Gerçek yeni aday: `Qwen/Qwen3-VL-Embedding-2B` (Apache-2.0, gerçek
+      doğrulandı, `transformers` 5.14.1 mimariyi native destekliyor,
+      `sentence-transformers` üzerinden standart `model.encode()`).
+      `models/qwen3vl_emb.py`: frame-average (n_sample=6), agir bagimlilik
+      (`sentence-transformers`, `qwen-vl-utils`) lazy-import.
+- [x] MRL (Matryoshka) boyutları ayrı registry/tablo:
+      `qwen3vl_emb_{2048,1024,512,256}`. 1024/512/256, tek gerçek 2048d
+      video-embed koşumundan `scripts/mrl_truncate_embeddings.py` ile
+      (kırp + L2-yeniden-normalize) türetildi — modeli 4 kez koşturmaya
+      gerek kalmadı.
+- [x] **Kritik CPU-maliyet bulgusu:** 73 pencerenin tamamı için gerçek
+      `embed_video` koşumu **1062 dakika (~17.7 saat)** sürdü — pencere
+      başına ~14.5 dakika. Karşılaştırma: X-CLIP ~32sn/pencere, SigLIP2
+      ~62sn/pencere (STATUS.md). İlk smoke testi (sentetik gürültü
+      görüntüleriyle, gerçek video karesi değil) bunu ~52sn/pencere olarak
+      hatalı tahmin etmişti — gerçek kare boyutu/karmaşıklığı maliyeti
+      ~17× hafife aldırmış. **Qwen3-VL-Embedding-2B bu CPU'da ingest için
+      pratik değil; GPU zorunlu.** Bu CPU-'ye özgü bir sonuçtur, modelin
+      kendisinin "kötü" olduğu anlamına gelmez — gerçek GPU sayıları
+      henüz yok (bkz. aşağıdaki "GPU ölçümü" maddesi).
+  - `embed_text` (sorgu) çok daha ucuz: model ısındıktan sonra ~1-6sn/sorgu
+    — arama zamanında (yalnızca metin embed edilir) kullanılabilir kalır.
+- [x] **MRL boyut taraması (gerçek, 19 sekans, 28 sorgu, filtre AÇIK):**
+
+  | boyut | tekli R@10/P@10 | hareket | sayısal | bileşik | HNSW index (73 satır) | 1M satırda ekstrapole |
+  |---|---|---|---|---|---:|---:|
+  | 2048 | 0.473/0.816 | 0.474/0.900 | 0.458/0.883 | 0.522/0.849 | 295.5 KiB | ~4.15 GB |
+  | 1024 | 0.460/0.796 | 0.474/0.900 | 0.458/0.883 | 0.522/0.849 | 148.9 KiB | ~2.09 GB |
+  | 512  | 0.466/0.806 | 0.474/0.900 | 0.466/0.900 | 0.522/0.849 | 75.6 KiB  | ~1.06 GB |
+  | 256  | 0.473/0.816 | 0.474/0.900 | 0.466/0.900 | 0.522/0.849 | 39.7 KiB  | ~0.56 GB |
+
+  **Sonuç: 2048d'den 256d'ye (8× küçültme) kalite kaybı ölçülemez düzeyde
+  (tüm kategorilerde <0.02 recall farkı), depolama ~7.4× azalıyor.** MRL
+  truncation burada teorik değil, doğrudan uygulanabilir bir öneri:
+  üretim adayı olarak 256d veya 512d, 2048d yalnızca üst-sınır referansı.
+- [x] **Model karşılaştırması (aynı 19 sekans/28 sorgu, filtre AÇIK,
+      `yolov8n_visdrone` dedektörüyle):** Qwen-2048 (tekli 0.473/hareket
+      0.474/bileşik 0.522) X-CLIP'e (tekli 0.500/hareket 0.500/bileşik
+      0.522) karşı **eşdeğer, belirgin biçimde üstün değil** — MMEB-V2'de
+      iddia edilen sınıf-lideri konumuna rağmen. Bu, ayrı bir konuşmada
+      öne sürülen hipotezi doğruluyor: darboğaz muhtemelen model kalitesi
+      değil, pencereleme/GT/görev tanımı (hareket kategorisinde bile fark
+      yok — gerçek zamansal model X-CLIP ile kare-ortalama Qwen/SigLIP2
+      ayrışmıyor).
+- [x] Offline doğrulama: `HF_HUB_OFFLINE=1` ile gerçek çalıştırma geçti
+      (model zaten cache'te, yükleme 12.3sn, embed_text 6.1sn, ağ çağrısı
+      yok). `weights_manifest.json`'a eklendi (4271.1 MB).
+- [ ] **GPU ölçümü henüz yok.** Bu oturumda GT1030 CUDA kurulumu
+      Windows `MAX_PATH` sınırına takıldı (Faz 2 notu); Colab'i canlı
+      sürmek için tarayıcı/API erişimim yok. `scripts/colab_gpu_bench.py`
+      hazırlandı (kullanıcı Colab'de kendi çalıştıracak) ama bu script
+      **bu oturumda gerçek GPU'da test edilmedi** — kodun kendisi zaten
+      doğrulanmış fonksiyonları (`bench/timing.py`, `models.get_embedder`)
+      tekrar kullanıyor ama uçtan uca koşum kanıtlanmadı.
+- [x] 3 yeni saf-mantık testi (`test_mrl_truncate.py`) — toplam 90/90
+      geçiyor (1 gerçek regresyon da düzeltildi: `test_load_clickhouse.py`
+      yeni 4 tabloyu hesaba katmıyordu).
+
+**Çıkış kapısı durumu:** ≥1 yeni video-native model gerçek veride ölçüldü
+ve aynı harness'ta karşılaştırıldı — EVET (Qwen3-VL-Embedding-2B, 4 MRL
+boyutu). Kalite+hız+depolama tek tabloda — EVET (hız CPU-only, GPU eksik).
+TR/EN satırı — Faz 1'in GT setinden geliyor, ayrı ölçülmedi bu fazda.

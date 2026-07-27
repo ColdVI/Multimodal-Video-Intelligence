@@ -35,3 +35,28 @@ hattinda veya ayri bir ClickHouse sunucusunda yapilmalidir.
 Varsayilan **Raporluk 5** smoke kapsami entegrasyon kanitidir. `top_k=10`, bes
 videoyu doyurabildigi icin model zaferi iddiasi icin kullanilamaz. Model
 karsilastirma raporu icin video ve sorgu sayisini artir.
+
+## Faz 4 GPU hiz olcumu (yeni, 27 Temmuz 2026)
+
+Yerel gelistirme makinesi CPU-only; Qwen3-VL-Embedding-2B gibi buyuk
+modellerin gercek GPU hizi bu depoda henuz olculmedi (agent Colab'i canli
+suremiyor - tarayici/API erisimi yok). Bunu siz Colab'de kendiniz
+calistirabilirsiniz:
+
+1. Yerel makinede: `python scripts/package_colab_gpu_bundle.py` — bench
+   subset videolarini, pencereleri, YOLO ozelliklerini ve dedektor
+   checkpoint'lerini `artifacts/colab_gpu_bundle.zip`'e toplar (model
+   agirliklari DAHIL DEGIL - Colab'de internet var, HF'den kendisi iner).
+2. Colab'de GPU runtime ile bu repoyu acin, `colab_gpu_bundle.zip`'i
+   yukleyip repo kokune cikarin.
+3. `!pip install -q sentence-transformers qwen-vl-utils`
+4. `!python scripts/colab_gpu_bench.py`
+5. Cikan `artifacts/colab_gpu_bench.json`'i indirip depoya geri getirin;
+   sonuclari `STATUS.md`/`TASKS.md` Faz 4'e elle ekleyin.
+
+**Not:** `scripts/colab_gpu_bench.py` sadece embedding + YOLO dedeksiyon
+HIZINI olcer (kalite zaten cihazdan bagimsizdir); ClickHouse gerektirmez -
+Colab'de gecici bir ClickHouse kurmak kirilgan olurdu. Bu script yazildi
+ama gercek bir GPU'da test edilmedi - kodun kendisi zaten CPU'da
+dogrulanmis fonksiyonlari (`bench/timing.py`, `models.get_embedder`)
+kullanir, ama uctan uca kosum kanitlanmadi.

@@ -73,6 +73,24 @@ zaten native destekliyor, `sentence-transformers` üzerinden standart
 `model.encode()` ile çalışıyor — vendor kod gerekmiyor). Detay ve gerçek
 ölçüm sonuçları: `STATUS.md` Faz 4, `artifacts/`.
 
+**İki ek gerçek bulgu:**
+1. Qwen'in CPU'da `embed_video` maliyeti (~14.5 dk/pencere, 73 pencerede
+   ölçülen) bu donanımda ingest'i pratik dışı bırakıyor — ama bu CPU'ya
+   özgü, modelin kendisine dair bir hüküm değil. GPU ölçümü bu oturumda
+   yapılamadı (`scripts/colab_gpu_bench.py` hazırlandı, kullanıcı Colab'de
+   çalıştıracak, henüz doğrulanmadı).
+2. MRL boyut taraması (2048→256d, tek gerçek koşumdan türetildi):
+   kalite kaybı <0.02 recall, depolama ~7.4× azalıyor. **Üretim adayı
+   olarak 256d/512d önerilir**, 2048d yalnızca üst-sınır referansıdır —
+   bu ClickHouse tarafında Faz 2'nin "prefilter maliyeti boyutla
+   doğrusal büyür" bulgusuyla doğrudan birleşiyor.
+
+Ayrıca: Qwen-2048, aynı harness'ta X-CLIP'e karşı eşdeğer çıktı (hareket
+kategorisinde bile fark yok) — MMEB-V2 liderliğine rağmen. Bu, mevcut
+28-sorgu/19-sekans bench'in model kalitesini ayırt etme gücünün sınırlı
+olabileceğine işaret ediyor; kesin "model X daha iyi" iddiası öncesi
+sorgu/pencere setinin büyütülmesi düşünülmeli.
+
 ## Kritik teknik notlar
 
 - Hugging Face `microsoft/xclip` modeli ile Ma vd. retrieval-özel AOSM

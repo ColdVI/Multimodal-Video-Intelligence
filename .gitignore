@@ -17,3 +17,4 @@ weights/
 runs/
 datasets/
 *.pt
+artifacts/colab_gpu_bundle.zip
