@@ -95,13 +95,21 @@ def bench_embedding_speed(cfg, windows, queries, out_path, out, n_windows_sample
             _save(out_path, out)
             continue
 
-        for w in sample_windows:
+        for i, w in enumerate(sample_windows):
             video_path = videos_dir / f"{w['video_id']}.mp4"
+            t_read0 = time.perf_counter()
             frames = _read_window(str(video_path), w["t_start"], w["t_end"])
+            read_s = time.perf_counter() - t_read0
             if not frames:
+                print(f"  [{model_name}] pencere {i+1}/{len(sample_windows)}: "
+                     f"{video_path} - 0 kare okundu, atlaniyor", flush=True)
                 continue
             with timer.measure("embed_video"):
                 emb.embed_video(frames)
+            print(f"  [{model_name}] pencere {i+1}/{len(sample_windows)}: "
+                 f"{len(frames)} kare, okuma={read_s:.1f}s, "
+                 f"embed={timer.summary()['embed_video']['mean_s']:.2f}s (kumulatif ort.)",
+                 flush=True)
 
         for q in list(queries)[:10]:
             with timer.measure("embed_text"):
