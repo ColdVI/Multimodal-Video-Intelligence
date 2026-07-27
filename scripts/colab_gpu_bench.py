@@ -69,16 +69,41 @@ def _read_window(video_path, t0, t1, n=32):
     return frames
 
 
-def bench_embedding_speed(cfg, windows, queries, out_path, out, n_windows_sample=10):
-    """Tum pencereleri degil, ilk n_windows_sample'i kullanir - amac hiz
-    olcmek, tam re-embed degil (CPU tarafinda zaten tam koşum var).
+def _read_all_sample_windows(cfg, windows, n_windows_sample=10):
+    """Ornek pencereleri BIR KEZ diskten okur. cv2 rastgele kare-atlama
+    (seek) VisDrone videolarinda cok yavas ve pencere ilerledikce buyuyor
+    (gozlemlendi: ~7s -> ~190s) - muhtemelen video'da seyrek keyframe/
+    index eksikligi, OpenCV her seek'te en yakin keyframe'den itibaren
+    yeniden decode ediyor. Bu maliyet TEK BASINA kabul edilebilir ama 6
+    embedding modeli icin ayni pencereleri 6 kez yeniden okumak (aslinda
+    olan buydu) o maliyeti 6 katina cikariyordu - burada bir kez okuyup
+    bellekte tutuyoruz, tum modeller ayni kareleri yeniden kullanir."""
+    videos_dir = pathlib.Path(cfg["paths"]["videos_dir"])
+    sample_windows = windows[:n_windows_sample]
+    cached = []
+    total_read_s = 0.0
+    for i, w in enumerate(sample_windows):
+        video_path = videos_dir / f"{w['video_id']}.mp4"
+        t0 = time.perf_counter()
+        frames = _read_window(str(video_path), w["t_start"], w["t_end"])
+        read_s = time.perf_counter() - t0
+        total_read_s += read_s
+        cached.append({"window": w, "frames": frames, "read_s": round(read_s, 2)})
+        print(f"  [kare-okuma] pencere {i+1}/{len(sample_windows)}: "
+             f"{video_path.name} - {len(frames)} kare, {read_s:.1f}s "
+             f"(kumulatif {total_read_s:.1f}s)", flush=True)
+    return cached, total_read_s
+
+
+def bench_embedding_speed(cached_windows, queries, out_path, out):
+    """cached_windows: _read_all_sample_windows()'un ciktisi - kareler
+    onceden bir kez okunmus, burada sadece embed_video/embed_text SURESI
+    olculur (video I/O suresi karisimiyor).
 
     Her model bittikce out["embedding_speed"]'e eklenip diske yazilir -
     Drive'daki --out yoluna isaret ederseniz, runtime kopmasi olsa bile
     o ana kadar biten modellerin sonucu kaybolmaz. Zaten out icinde
     bulunan (onceki kosumdan kalma) modeller atlanir."""
-    videos_dir = pathlib.Path(cfg["paths"]["videos_dir"])
-    sample_windows = windows[:n_windows_sample]
     done = {r["model"] for r in out["embedding_speed"] if "error" not in r}
 
     for model_name in EMBED_MODELS:
@@ -95,19 +120,16 @@ def bench_embedding_speed(cfg, windows, queries, out_path, out, n_windows_sample
             _save(out_path, out)
             continue
 
-        for i, w in enumerate(sample_windows):
-            video_path = videos_dir / f"{w['video_id']}.mp4"
-            t_read0 = time.perf_counter()
-            frames = _read_window(str(video_path), w["t_start"], w["t_end"])
-            read_s = time.perf_counter() - t_read0
+        for i, item in enumerate(cached_windows):
+            frames = item["frames"]
             if not frames:
-                print(f"  [{model_name}] pencere {i+1}/{len(sample_windows)}: "
-                     f"{video_path} - 0 kare okundu, atlaniyor", flush=True)
+                print(f"  [{model_name}] pencere {i+1}/{len(cached_windows)}: "
+                     f"0 kare (onceki okumada bulunamadi), atlaniyor", flush=True)
                 continue
             with timer.measure("embed_video"):
                 emb.embed_video(frames)
-            print(f"  [{model_name}] pencere {i+1}/{len(sample_windows)}: "
-                 f"{len(frames)} kare, okuma={read_s:.1f}s, "
+            print(f"  [{model_name}] pencere {i+1}/{len(cached_windows)}: "
+                 f"{len(frames)} kare, "
                  f"embed={timer.summary()['embed_video']['mean_s']:.2f}s (kumulatif ort.)",
                  flush=True)
 
@@ -117,7 +139,7 @@ def bench_embedding_speed(cfg, windows, queries, out_path, out, n_windows_sample
 
         out["embedding_speed"].append({
             "model": model_name, "hardware_profile": HARDWARE_PROFILE,
-            "load_s": round(load_s, 2), "n_windows_sampled": len(sample_windows),
+            "load_s": round(load_s, 2), "n_windows_sampled": len(cached_windows),
             "timing": timer.summary(),
         })
         _save(out_path, out)
@@ -196,7 +218,16 @@ def main():
     windows = json.load(open(cfg["paths"]["windows"]))
     queries = build_queries()
 
-    bench_embedding_speed(cfg, windows, queries, out_path, out)
+    if all(m in {r["model"] for r in out["embedding_speed"] if "error" not in r} for m in EMBED_MODELS):
+        print("Tum embedding modelleri zaten bitmis, kare okuma atlaniyor.")
+        cached_windows = []
+    else:
+        print("Ornek pencereler bir kez okunuyor (tum modeller bu kareleri paylasacak)...")
+        cached_windows, total_read_s = _read_all_sample_windows(cfg, windows)
+        out["frame_read_total_s"] = round(total_read_s, 2)
+        _save(out_path, out)
+
+    bench_embedding_speed(cached_windows, queries, out_path, out)
     bench_detector_speed(cfg, windows, out_path, out)
 
     print(f"Tamamlandi. JSON kanit: {out_path}")
