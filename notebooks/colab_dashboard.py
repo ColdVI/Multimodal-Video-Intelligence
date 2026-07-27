@@ -30,6 +30,13 @@ import numpy as np
 MODEL_LABELS = {
     "xclip_hf_zeroshot": "Microsoft X-CLIP (512d)",
     "siglip2_frameavg": "SigLIP2 frame-average (1152d)",
+    # Faz 4'te eklendi. Dordu de AYNI checkpoint'tir (Qwen3-VL-Embedding-2B);
+    # fark yalnizca MRL cikti boyutudur - kalite karsilastirmasi icin
+    # artifacts/qwen_mrl_comparison.json, hiz icin docs/codex/06_NIHAI_RAPOR.md.
+    "qwen3vl_emb_2048": "Qwen3-VL-Embedding-2B (2048d, MRL tam)",
+    "qwen3vl_emb_1024": "Qwen3-VL-Embedding-2B (1024d, MRL)",
+    "qwen3vl_emb_512": "Qwen3-VL-Embedding-2B (512d, MRL)",
+    "qwen3vl_emb_256": "Qwen3-VL-Embedding-2B (256d, MRL)",
 }
 
 # Ilk besli, mevcut smoke kosusunda nesne/sorgu kapsami icin secilen sekanslar.
