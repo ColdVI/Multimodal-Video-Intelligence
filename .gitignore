@@ -15,6 +15,11 @@ __pycache__/
 .gradio/
 weights/
 runs/
-datasets/
+# datasets/ - ultralytics kendi otomatik indirdigi veri klasoru icin
+# eskiden buraya konmustu; simdi datasets/ ayni zamanda bizim
+# DatasetAdapter kaynak kodumuz (bkz. datasets/base.py) - .py dosyalarini
+# takip et, geri kalanini (ultralytics'in indirdigi gercek veri) yoksay.
+datasets/*
+!datasets/*.py
 *.pt
 artifacts/colab_gpu_bundle.zip
