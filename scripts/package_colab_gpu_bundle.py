@@ -47,8 +47,13 @@ def main():
             zf.write(video, arcname=f"data/raw/videos/{video.name}")
 
     print(f"paket: {out_path} ({out_path.stat().st_size / 1e6:.1f} MB)")
-    print("Colab'de: bu zip'i yukleyip repo kokune cikarin, sonra "
-         "!python scripts/colab_gpu_bench.py calistirin.")
+    print("Bu zip'i BIR KERE Google Drive'a yukleyin (Colab'in yerel /content "
+         "diski her runtime kopusunda silinir, Drive kalicidir). Her Colab "
+         "oturumunda: drive.mount('/content/drive'), sonra zip'i Drive'dan "
+         "yerel /content diskine kopyalayip acin (Drive-FUSE uzerinden dogrudan "
+         "calistirmak cv2 frame-seek icin cok yavastir). Sonuc JSON'u da "
+         "--out ile bir Drive yoluna yazdirin ki kismi sonuc kopma durumunda "
+         "kaybolmasin - detay: scripts/colab_gpu_bench.py docstring'i.")
 
 
 if __name__ == "__main__":

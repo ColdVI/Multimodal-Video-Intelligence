@@ -13,17 +13,27 @@ zaten dogrulanmis parcalari yeniden kullanir, ama uctan uca kosum
 kanitlanmadi. Sonuclari STATUS.md/TASKS.md Faz 4'e elle eklenmeli.
 
 Kullanim (Colab, GPU runtime):
-    1. Bu repoyu (veya en azindan gerekli dosyalari) Colab'e getir.
-    2. `data/raw/videos/*.mp4`, `data/windows.json`, `data/features.json`,
-       `yolo26x.pt`, `weights/yolo_visdrone/best.pt`,
-       `weights/yolo_visdrone_s/best.pt` mevcut olmali (bkz.
-       scripts/package_colab_gpu_bundle.py - bu dosyalari CPU makinesinde
-       tek bir zip'e toplar).
-    3. !pip install -q sentence-transformers qwen-vl-utils
-    4. !python scripts/colab_gpu_bench.py
-    5. Ciktiyi (artifacts/colab_gpu_bench.json) indirip bu depoya geri
-       getir, STATUS.md/TASKS.md Faz 4'e gercek sayilarla ekle.
+    1. `colab_gpu_bundle.zip`'i BIR KERE Google Drive'a yukleyin (Colab'in
+       yerel /content diski her runtime kopusunda/sifirlanmasinda silinir;
+       Drive kalici). Sonra her oturumda:
+       from google.colab import drive; drive.mount('/content/drive')
+       !cp /content/drive/MyDrive/colab_gpu_bundle.zip /content/ && \
+         cd /content && unzip -q colab_gpu_bundle.zip
+       (Drive-mount'lu yoldan DOGRUDAN calistirmayin - cv2 frame-seek FUSE
+       uzerinden cok yavas; zip'i her seferinde yerel /content diskine acin,
+       bu saniyeler surer.)
+    2. !pip install -q sentence-transformers qwen-vl-utils
+    3. Ciktiyi da Drive'a yazdirin ki runtime kopunca kaybolmasin:
+       !python scripts/colab_gpu_bench.py \
+         --out /content/drive/MyDrive/colab_gpu_bench_result.json
+       Script her model/varyant bittikce dosyayi YENIDEN YAZAR (tum is
+       bitmesini beklemez) - kopma olursa o ana kadarki sonuclar Drive'da
+       durur, script tekrar calistirilinca hangi model/varyantlarin zaten
+       bitmis oldugunu okuyup atlar.
+    4. Sonucu (Drive'daki JSON) indirip bu depoya geri getirin, STATUS.md/
+       TASKS.md Faz 4'e gercek sayilarla ekleyin.
 """
+import argparse
 import importlib.util
 import json
 import pathlib
@@ -59,21 +69,30 @@ def _read_window(video_path, t0, t1, n=32):
     return frames
 
 
-def bench_embedding_speed(cfg, windows, queries, n_windows_sample=10):
+def bench_embedding_speed(cfg, windows, queries, out_path, out, n_windows_sample=10):
     """Tum pencereleri degil, ilk n_windows_sample'i kullanir - amac hiz
-    olcmek, tam re-embed degil (CPU tarafinda zaten tam koşum var)."""
+    olcmek, tam re-embed degil (CPU tarafinda zaten tam koşum var).
+
+    Her model bittikce out["embedding_speed"]'e eklenip diske yazilir -
+    Drive'daki --out yoluna isaret ederseniz, runtime kopmasi olsa bile
+    o ana kadar biten modellerin sonucu kaybolmaz. Zaten out icinde
+    bulunan (onceki kosumdan kalma) modeller atlanir."""
     videos_dir = pathlib.Path(cfg["paths"]["videos_dir"])
     sample_windows = windows[:n_windows_sample]
-    results = []
+    done = {r["model"] for r in out["embedding_speed"] if "error" not in r}
 
     for model_name in EMBED_MODELS:
+        if model_name in done:
+            print(f"{model_name}: atlaniyor (onceki kosumdan sonuc mevcut)")
+            continue
         timer = StageTimer()
         try:
             t0 = time.perf_counter()
             emb = get_embedder(model_name, device="cuda")
             load_s = time.perf_counter() - t0
         except Exception as exc:
-            results.append({"model": model_name, "error": f"load basarisiz: {exc}"})
+            out["embedding_speed"].append({"model": model_name, "error": f"load basarisiz: {exc}"})
+            _save(out_path, out)
             continue
 
         for w in sample_windows:
@@ -88,18 +107,19 @@ def bench_embedding_speed(cfg, windows, queries, n_windows_sample=10):
             with timer.measure("embed_text"):
                 emb.embed_text(q)
 
-        results.append({
+        out["embedding_speed"].append({
             "model": model_name, "hardware_profile": HARDWARE_PROFILE,
             "load_s": round(load_s, 2), "n_windows_sampled": len(sample_windows),
             "timing": timer.summary(),
         })
+        _save(out_path, out)
         print(f"{model_name}: load={load_s:.1f}s "
              f"embed_video_mean={timer.summary().get('embed_video', {}).get('mean_s', 0):.2f}s "
-             f"embed_text_mean={timer.summary().get('embed_text', {}).get('mean_s', 0):.2f}s")
-    return results
+             f"embed_text_mean={timer.summary().get('embed_text', {}).get('mean_s', 0):.2f}s "
+             f"[kaydedildi -> {out_path}]")
 
 
-def bench_detector_speed(cfg, windows, n_windows_sample=10):
+def bench_detector_speed(cfg, windows, out_path, out, n_windows_sample=10):
     detect_path = pathlib.Path(__file__).resolve().parents[1] / "ingest" / "04_detect.py"
     spec = importlib.util.spec_from_file_location("ingest_04_detect", detect_path)
     detect_mod = importlib.util.module_from_spec(spec)
@@ -108,9 +128,12 @@ def bench_detector_speed(cfg, windows, n_windows_sample=10):
     videos_dir = pathlib.Path(cfg["paths"]["videos_dir"])
     n_sample = cfg.get("detector", {}).get("n_sample", 6)
     sample_windows = windows[:n_windows_sample]
-    results = []
+    done = {r["variant"] for r in out["detector_speed"]}
 
     for variant_name, variant in cfg["detector"]["variants"].items():
+        if variant_name in done:
+            print(f"{variant_name}: atlaniyor (onceki kosumdan sonuc mevcut)")
+            continue
         class_map = {int(k): v for k, v in variant["class_map"].items()}
         timer = StageTimer()
         for w in sample_windows:
@@ -119,38 +142,56 @@ def bench_detector_speed(cfg, windows, n_windows_sample=10):
                 detect_mod.window_features(
                     str(video_path), w["t_start"], w["t_end"],
                     n_sample=n_sample, checkpoint=variant["checkpoint"], class_map=class_map)
-        results.append({
+        out["detector_speed"].append({
             "variant": variant_name, "hardware_profile": HARDWARE_PROFILE,
             "n_windows_sampled": len(sample_windows), "timing": timer.summary(),
         })
+        _save(out_path, out)
         print(f"{variant_name}: detect_window_mean="
-             f"{timer.summary().get('detect_window', {}).get('mean_s', 0):.2f}s")
-    return results
+             f"{timer.summary().get('detect_window', {}).get('mean_s', 0):.2f}s "
+             f"[kaydedildi -> {out_path}]")
+
+
+def _save(out_path, out):
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp_path.replace(out_path)  # atomik yazma - yaziyorken kopma yarim dosya birakmasin
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default="artifacts/colab_gpu_bench.json",
+                       help="Sonuc JSON yolu - Drive-mount'lu bir yol verin "
+                            "(ör. /content/drive/MyDrive/colab_gpu_bench.json) "
+                            "ki runtime kopunca kismi sonuclar kaybolmasin.")
+    args = parser.parse_args()
+    out_path = pathlib.Path(args.out)
+
     if not torch.cuda.is_available():
         print("UYARI: torch.cuda.is_available() False - bu script GPU olcumu icin "
              "tasarlandi, CPU'da anlamli sonuc uretmez. Colab'de Calisma zamani "
              "turunu GPU yapin.")
 
+    if out_path.exists():
+        out = json.loads(out_path.read_text(encoding="utf-8"))
+        print(f"Onceki kismi sonuc bulundu ({out_path}), kaldigi yerden devam ediliyor.")
+    else:
+        out = {
+            "hardware_profile": HARDWARE_PROFILE,
+            "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+            "embedding_speed": [],
+            "detector_speed": [],
+        }
+
     cfg = load_config()
     windows = json.load(open(cfg["paths"]["windows"]))
     queries = build_queries()
 
-    embed_results = bench_embedding_speed(cfg, windows, queries)
-    detector_results = bench_detector_speed(cfg, windows)
+    bench_embedding_speed(cfg, windows, queries, out_path, out)
+    bench_detector_speed(cfg, windows, out_path, out)
 
-    out = {
-        "hardware_profile": HARDWARE_PROFILE,
-        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
-        "embedding_speed": embed_results,
-        "detector_speed": detector_results,
-    }
-    out_path = pathlib.Path("artifacts/colab_gpu_bench.json")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"JSON kanit: {out_path}")
+    print(f"Tamamlandi. JSON kanit: {out_path}")
 
 
 if __name__ == "__main__":
