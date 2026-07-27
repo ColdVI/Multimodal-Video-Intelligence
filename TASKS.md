@@ -277,3 +277,45 @@ n_sample) yapılmadı — TASKS.md'de açıkça işaretli.
 ve aynı harness'ta karşılaştırıldı — EVET (Qwen3-VL-Embedding-2B, 4 MRL
 boyutu). Kalite+hız+depolama tek tabloda — EVET (hız CPU-only, GPU eksik).
 TR/EN satırı — Faz 1'in GT setinden geliyor, ayrı ölçülmedi bu fazda.
+
+### Faz 5 — Profiller ve nihai rapor
+- [x] `config.yaml: profiles` eklendi (fast/balanced/accurate) — YALNIZCA
+      gerçek ölçülen eksenler (dedektör varyantı, embedding modeli, arama
+      stratejisi) profil başına değişir. window/stride/n_sample TÜM
+      profillerde aynı kaldı çünkü bu oturumda ablate edilmedi (tahminle
+      değer yazılmadı, TASKS.md Faz 3'te açıkça işaretli).
+- [x] Nihai rapor: `docs/codex/06_NIHAI_RAPOR.md` — 5 ana bulgu, gerçek
+      Pareto tablosu (CPU-ölçülü), ClickHouse strateji önerisi, dedektör/
+      model kararı, offline paket içeriği, üretime açık 8 madde.
+- [ ] 3 profilin gerçek uçtan uca koşusu (fast/balanced/accurate ayrı ayrı
+      `make bench` ile) yapılmadı — profiller mevcut Faz 1-4 ölçümlerinden
+      derlendi, profil-özel yeni bir koşu değil. Bu bir eksiklik olarak
+      açıkça işaretlidir.
+- [x] Kare/window ablation'ı — yapılmadı (Faz 3 notu ile aynı, tekrar
+      etmiyor).
+
+**Çıkış kapısı durumu:** 3 profil gerçek Faz 1-4 verisinden türetildi
+(ayrı gerçek koşu değil — dürüstçe işaretli); Pareto raporu tamamlandı;
+TASKS.md bu haliyle kanıtlı/kanıtsız ayrımıyla güncel.
+
+## Genel kabul kriterleri özeti (docs/codex/05 Faz 0-5)
+
+- [x] Faz 0: 90 test + offline-load smoke + weights manifest (6 checkpoint).
+- [x] Faz 1: bench harness, 28 sorguluk GT (≥25 hedefi aşıldı), determinizm
+      kontrolü GEÇTİ, tek rapor (`artifacts/benchmark_report.{html,json}`).
+- [x] Faz 2: 4 strateji × 2 seçicilik EXPLAIN-kanıtlı; 100K ölçek yapıldı
+      (1M/10M yapılmadı, açıkça işaretli); HNSW recall@10 ölçüldü (küçük
+      N'de anlamsız olduğu not edildi); top_k/limit bulgusu R2 olarak
+      düzeltildi (risk bu sürümde zaten canlı değildi).
+- [x] Faz 3: 2 VisDrone-tuned YOLO ölçüldü (hedef ≥2); count-eşik P/R +
+      downstream etki tablosu; varsayılan dedektör kararı sayıyla
+      gerekçelendirildi.
+- [x] Faz 4: 1 yeni video-native model (Qwen3-VL-Embedding-2B, hedef ≥1)
+      aynı harness'ta; kalite+hız(CPU)+depolama tek tabloda; TR/EN satırı
+      Faz 1'den miras (ayrı ölçülmedi).
+- [~] Faz 5: 3 profil **türetildi** (gerçek ayrı koşu değil); Pareto raporu
+      tamamlandı; bu güncelleme kanıtlı kutucuklarla yapıldı.
+
+**Genel durum: "tamamlandı" değil, "kısmen doğrulandı"** — GPU ölçümü,
+1M+ ölçek, `gt_walking` görsel denetimi ve profil-özel gerçek koşular
+açıkça eksik bırakıldı. Detay: `docs/codex/06_NIHAI_RAPOR.md` §10.

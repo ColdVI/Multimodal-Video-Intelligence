@@ -1,3 +1,9 @@
+> **GÜNCELLEME (27 Temmuz 2026):** Bu dosyadaki Faz 4 devam adımları
+> tamamlandı (Qwen embedding, MRL kırpma, karşılaştırma, commit'lendi).
+> Faz 5 de tamamlandı. Güncel durum ve açık kalanlar için:
+> `docs/codex/06_NIHAI_RAPOR.md` (nihai rapor) ve `STATUS.md`/`TASKS.md`
+> (faz bazlı kanıt). Bu dosya artık yalnızca tarihsel/referans amaçlıdır.
+
 # Devir notu — internetsiz devam için (25 Temmuz 2026, oturum sonu)
 
 8 saatlik internet penceresi kapanıyor. Bu dosya, sonraki ~1.5 gün

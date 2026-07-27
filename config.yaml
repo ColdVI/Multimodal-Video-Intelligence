@@ -59,6 +59,28 @@ offline_mode: false
 # smoke sekanslariyla ortak (data/raw/manifest.json) - tam CPU ingest saatler
 # surdugu icin bench raporlari bu subset uzerinde kosar; CUDA'li ortamda
 # tam 56-sekans set'e gecis ayri, olculu bir adimdir.
+# Faz 5: fast/balanced/accurate profilleri. YALNIZCA gercek olculen
+# eksenler (dedektor varyanti: Faz 3 bake-off; embedding modeli: Faz 1/4
+# bench) degisir. window/stride/n_sample profil basina FARKLILASTIRILMADI
+# cunku bu oturumda ablate edilmedi (bkz. TASKS.md Faz 3 "yapilmadi"
+# maddeleri) - tahminle deger yazmamak icin ucu de mevcut ust-seviye
+# window/n_sample degerlerini kullanir.
+profiles:
+  fast:
+    detector_variant: yolov8n_visdrone   # Faz 3: en hizli (1.61 fps CPU)
+    embedding_model: xclip_hf_zeroshot   # Faz 1: en hizli sorgu (512d)
+    search_strategy: auto
+  balanced:
+    detector_variant: yolov8n_visdrone   # Faz 3 kazanani, downstream esdeger/daha iyi
+    embedding_model: siglip2_frameavg    # Faz 1: xclip'e yakin kalite, X-CLIP'ten ~3x yavas ama hala CPU'da pratik
+    search_strategy: auto
+  accurate:
+    detector_variant: yolov8n_visdrone   # truck recall'da yolo26x_coco daha iyi (Faz 3) ama downstream farki kucuk
+    embedding_model: siglip2_frameavg    # Qwen3-VL-Embedding-2B CPU'da pratik degil (Faz 4: ~14.5 dk/pencere);
+                                         # GPU'da dogrulanirsa (bkz. scripts/colab_gpu_bench.py) qwen3vl_emb_512
+                                         # (MRL: 2048d kalitesiyle esdeger, 4x kucuk) bu profile terfi eder
+    search_strategy: prefilter           # Faz 2: secici filtrede tek guvenli strateji
+
 bench:
   subset:
     - uav0000013_01073_v   # en kisa (58 kare), bus/truck yok

@@ -143,6 +143,19 @@
 - Offline mod doğrulandı (`HF_HUB_OFFLINE=1`, gerçek çalıştırma, ağ
   çağrısı yok); `weights_manifest.json`'a eklendi (4271.1 MB).
 
+## Faz 5 profiller ve nihai rapor (docs/codex/05_..., 27 Temmuz 2026)
+
+- `config.yaml: profiles` (fast/balanced/accurate) eklendi — yalnızca
+  gerçek ölçülen eksenler (dedektör, embedding modeli, arama stratejisi)
+  değişir; window/stride/n_sample ablate edilmediği için tüm profillerde
+  sabit kaldı.
+- Nihai rapor: `docs/codex/06_NIHAI_RAPOR.md` — 5 ana bulgu, Pareto tablosu,
+  ClickHouse/dedektör/model kararları, offline paket içeriği, üretime açık
+  8 madde.
+- **Dürüst özet:** plan "tamamlandı" değil "kısmen doğrulandı" durumda.
+  Eksik kalanlar: GPU ölçümü (Colab bundle hazır, koşulmadı), 1M+ ölçek,
+  `gt_walking` görsel denetimi, profil-özel ayrı gerçek koşular.
+
 ## Açık kalanlar
 
 - Tüm 56 sekans üzerinde toplu MP4/YOLO/model ingest henüz koşulmadı; mevcut
