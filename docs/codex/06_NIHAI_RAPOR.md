@@ -186,12 +186,46 @@ qwen3vl_emb_1024/512/256 aynı transformer forward-pass'ini paylaşıyor
 qwen3vl_emb.py`). `scripts/colab_gpu_bench.py` şema v2 artık bunu tek
 `qwen3vl_emb` + `truncate_dims: [2048,1024,512,256]` satırıyla yazıyor.
 
-**Henüz ölçülmedi, sadece çıkarım:** Qwen3-VL-Embedding-2B'nin T4'te
-341.4s/pencere, L4'te 2.44s/pencere olması (139.8×) bf16/Turing
-uyumsuzluğuna bağlandı ama bu ÇIKARIM — doğrudan `torch.cuda.
-get_device_capability()`/dtype introspection ile teyit edilmedi.
-`scripts/dtype_arch_probe.py` (yeni) bunu ölçüme çevirecek şekilde
-yazıldı ama GPU gerektirdiği için bu oturumda çalıştırılamadı.
+**Artık ÖLÇÜLDÜ (önceden çıkarımdı):** Kullanıcı `scripts/
+dtype_arch_probe.py`'yi gerçek T4'te çalıştırdı
+(`artifacts/dtype_arch_probe_Tesla_T4.json`). Sonuç bf16/Turing
+hipotezini net doğruluyor:
+
+| Alan | Değer |
+|---|---|
+| compute_capability | (7, 5) — Turing |
+| `bf16_native_by_capability` | false |
+| model gerçek dtype | `torch.bfloat16` |
+| `attn_implementation` | `sdpa` (varsayılan hipotezdeki gibi `eager` DEĞİL — düzeltme aşağıda) |
+| native (bf16) tek-görüntü encode, medyan | 24.75s |
+| `.half()` (fp16) tek-görüntü encode, medyan | 0.36s |
+| **fp16 hızlanma** | **68.81×** |
+
+Bu, mekanizmayı izole ediyor: `attn_implementation` iki ölçüm arasında
+SABİT (`sdpa`, hiç değişmiyor) — yani asıl orijinal hipotezdeki
+"FlashAttention-2 yokluğu eager attention'a düşürüyor" çerçevesi
+YANLIŞ (model zaten `eager` değil `sdpa` kullanıyor, FA2 kurulu değil
+ama bu SDPA'yı devre dışı bırakmıyor). Fark SADECE dtype'tan geliyor
+(bf16→fp16) — Turing'in fp16 tensor core'ları var ama bf16 yok, bu
+yüzden bf16 yavaş (muhtemelen tensor-core-dışı) bir yola düşüyor, fp16
+aynı SDPA ile ~69× hızlanıyor. **Üretim önerisi:** Turing sınıfı GPU'da
+(T4, RTX 20xx) Qwen3-VL-Embedding-2B kullanılacaksa modeli `.half()`
+ile fp16'ya zorlamak, Ampere/Ada GPU'ya geçmeye neredeyse eşdeğer bir
+kazanç veriyor.
+
+**Düzeltilen iddia 4 — dtype_arch_probe.py'nin kendi bug'u:** Gelen
+JSON'daki `torch_compile_timing` (0.366s) GÜVENİLMEZ ÇIKTI — script'in
+o anki sürümünde `torch.compile()` testi `model.half()`'ten SONRA
+çalışıyordu; `nn.Module.half()` YERİNDE mutasyon yapıp `self` döndürür
+(doğrulandı: `m.half() is m` → `True`), yani compile testi aslında
+"native bf16 + compile" değil "fp16 + compile" ölçüyordu (0.366s'nin
+fp16_timing'e = 0.360s bu kadar yakın olması bunu zaten ele veriyordu).
+Script'te sıralama düzeltildi (compile artık mutasyondan ÖNCE
+çalışıyor) ve regresyon testi eklendi
+(`tests/test_dtype_arch_probe_ordering.py` — eski sıralamaya karşı
+çalıştırıldığında gerçekten FAIL verdiği doğrulandı). Gerçek "native
+bf16 + compile" sayısı için probe'un düzeltilmiş sürümle yeniden
+koşulması gerekiyor — bu henüz yapılmadı.
 
 **Açık kalan (kullanıcı kararı gerektiriyor, bu oturumda başlatılmadı):**
 ClickHouse üçlü strateji bake-off + `dataset_id`, değerlendirme

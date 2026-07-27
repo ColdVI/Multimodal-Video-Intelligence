@@ -372,11 +372,24 @@ olabileceği spekülasyonu) ölçüldüğünde YANLIŞ çıktı.
       doğrulandı: t4/l4/l4_v2).
 - [x] `scripts/dtype_arch_probe.py` (yeni, P0-C): compute capability,
       gerçek model dtype, attn_implementation, flash_attn kurulu mu,
-      native-dtype vs fp16 A/B, torch.compile A/B — GPU gerektirir, bu
-      oturumda YAZILDI ama ÇALIŞTIRILMADI (yerel makine CPU-only).
-      Kullanıcının T4/L4 Colab oturumunda çalıştırması gerekiyor; bf16/
-      Turing hipotezini (139.8× yavaşlama) çıkarımdan ölçüme taşıyacak
-      tek eksik adım budur.
+      native-dtype vs fp16 A/B, torch.compile A/B — yazıldıktan sonra
+      kullanıcı gerçek T4'te çalıştırdı (`artifacts/
+      dtype_arch_probe_Tesla_T4.json`). **bf16/Turing hipotezi ÖLÇÜLEREK
+      doğrulandı:** native bf16 medyan 24.75s, `.half()` (fp16) medyan
+      0.36s → **68.81× hızlanma**, `attn_implementation` iki ölçümde de
+      SABİT (`sdpa`) — yani fark saf dtype kaynaklı, "FlashAttention
+      yokluğu eager'a düşürüyor" çerçevesi yanlıştı (model zaten `sdpa`
+      kullanıyor, `eager` değil). Üretim önerisi: Turing GPU'da (T4,
+      RTX 20xx) Qwen3-VL-Embedding-2B `.half()` ile zorlanmalı.
+      **Ayrıca script'in kendi bug'unu buldu:** `torch_compile_timing`
+      testi `model.half()`'ten SONRA çalışıyordu; `nn.Module.half()`
+      yerinde mutasyon yapıp `self` döndürdüğü için (doğrulandı) bu
+      aslında "fp16 + compile" ölçüyordu, "native bf16 + compile" değil.
+      Sıralama düzeltildi, regresyon testi eklendi (`tests/
+      test_dtype_arch_probe_ordering.py` — eski sıralamaya karşı FAIL
+      verdiği doğrulandı). Gerçek "native bf16 + compile" sayısı için
+      probe'un düzeltilmiş sürümle yeniden koşulması gerekiyor (henüz
+      yapılmadı — düşük öncelik, üretim kararını etkilemiyor).
 - [x] 122 test (106 + P0 testleri sonrası), tümü geçti; `tests/
       test_frame_io.py`, `tests/test_window_features.py`, `tests/
       test_colab_gpu_bench.py`, `tests/test_dtype_arch_probe.py` yeni.

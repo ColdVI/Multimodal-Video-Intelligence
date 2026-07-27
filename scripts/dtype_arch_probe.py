@@ -122,20 +122,13 @@ def probe_model(model_id: str, image_size: int, skip_compile: bool) -> dict:
 
     result["native_dtype_timing"] = _time_calls(encode_once)
 
-    if device == "cuda":
-        try:
-            model_fp16 = model.half()
-            def encode_fp16():
-                model_fp16.encode([{"image": image}], convert_to_numpy=True)
-            result["fp16_timing"] = _time_calls(encode_fp16)
-            if "error" not in result["fp16_timing"] and "error" not in result["native_dtype_timing"]:
-                result["fp16_speedup_x"] = round(
-                    result["native_dtype_timing"]["median_s"] / result["fp16_timing"]["median_s"], 2)
-        except Exception as exc:
-            result["fp16_timing"] = {"error": f"{type(exc).__name__}: {exc}"}
-    else:
-        result["fp16_timing"] = {"skipped": "CUDA yok"}
-
+    # SIRALAMA ONEMLI: nn.Module.half() YERINDE (in-place) mutasyon yapar ve
+    # self dondurur (dogrulandi: `m.half() is m` -> True) - model_fp16 ve
+    # model AYNI nesne. torch.compile testi bu satirdan SONRA calisirsa
+    # aslinda "fp16 + compile" olcer, "native dtype + compile" degil (bu
+    # bug'in kendisi bir Colab kosumunda yakalandi, once compile test edilip
+    # DAHA SONRA fp16'ya donusum yapiliyor, boylece her ikisi de dogru
+    # dtype'ini olcuyor).
     if skip_compile:
         result["torch_compile_timing"] = {"skipped": "--skip-compile"}
     else:
@@ -146,6 +139,20 @@ def probe_model(model_id: str, image_size: int, skip_compile: bool) -> dict:
             result["torch_compile_timing"] = _time_calls(encode_compiled, warmup=1, n=5)
         except Exception as exc:
             result["torch_compile_timing"] = {"error": f"{type(exc).__name__}: {exc}"}
+
+    if device == "cuda":
+        try:
+            model_fp16 = model.half()  # YIKICI: model'i yerinde fp16'ya cevirir
+            def encode_fp16():
+                model_fp16.encode([{"image": image}], convert_to_numpy=True)
+            result["fp16_timing"] = _time_calls(encode_fp16)
+            if "error" not in result["fp16_timing"] and "error" not in result["native_dtype_timing"]:
+                result["fp16_speedup_x"] = round(
+                    result["native_dtype_timing"]["median_s"] / result["fp16_timing"]["median_s"], 2)
+        except Exception as exc:
+            result["fp16_timing"] = {"error": f"{type(exc).__name__}: {exc}"}
+    else:
+        result["fp16_timing"] = {"skipped": "CUDA yok"}
 
     return result
 

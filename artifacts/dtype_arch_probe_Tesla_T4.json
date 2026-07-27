@@ -1,0 +1,73 @@
+{
+  "hardware": {
+    "python_version": "3.12.13",
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "gpu_name": "Tesla T4",
+    "compute_capability": [
+      7,
+      5
+    ],
+    "cuda_version": "12.8",
+    "is_bf16_supported_reported": true,
+    "is_bf16_supported_reported_WARNING": "torch.cuda.is_bf16_supported() Turing/Volta'da (sm<80) da True donebilir - buna guvenmeyin, asagidaki bf16_native_by_capability alanina bakin.",
+    "bf16_native_by_capability": false,
+    "flash_attention_2_supported_by_capability": false,
+    "flash_attn_importable": false,
+    "flash_attn_import_error": "No module named 'flash_attn'"
+  },
+  "model": {
+    "model_id": "Qwen/Qwen3-VL-Embedding-2B",
+    "load_s": 53.6,
+    "native_dtype": "torch.bfloat16",
+    "attn_implementation": "sdpa",
+    "native_dtype_timing": {
+      "median_s": 24.753147516000013,
+      "p95_s": 25.479073201999995,
+      "n": 10,
+      "raw_s": [
+        23.50987490900002,
+        23.692417746000046,
+        24.13668307100005,
+        24.585323105999976,
+        24.597714808999967,
+        24.908580223000058,
+        24.93005158899996,
+        24.947253562000014,
+        25.13816049000002,
+        25.479073201999995
+      ]
+    },
+    "fp16_timing": {
+      "median_s": 0.3597264719999771,
+      "p95_s": 0.37176121000004514,
+      "n": 10,
+      "raw_s": [
+        0.35498026300001584,
+        0.3579700380000759,
+        0.3587424459999511,
+        0.35894923499995457,
+        0.3594567449999886,
+        0.3599961989999656,
+        0.3613221360000125,
+        0.3623848720000069,
+        0.36461610499998187,
+        0.37176121000004514
+      ]
+    },
+    "fp16_speedup_x": 68.81,
+    "torch_compile_timing": {
+      "median_s": 0.36578098699999373,
+      "p95_s": 0.37168812699997034,
+      "n": 5,
+      "raw_s": [
+        0.3634812340000053,
+        0.36422861999994893,
+        0.36578098699999373,
+        0.369659654999964,
+        0.37168812699997034
+      ]
+    },
+    "torch_compile_timing_CAVEAT": "Bu deger scripts/dtype_arch_probe.py'nin duzeltilmeden ONCEKI (bug'li) surumuyle uretildi - model.half() cagrisindan SONRA torch.compile calistirildi, ve half() yerinde mutasyon yaptigi icin bu aslinda 'native bf16 + compile' degil 'fp16 + compile' olcuyor (0.366s'nin fp16_timing 0.360s'ye bu kadar yakin olmasi bunu dogruluyor). Gercek 'native bf16 + compile' sayisi icin script duzeltmesinden sonra yeniden calistirilmali."
+  }
+}
