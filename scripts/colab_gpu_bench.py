@@ -49,7 +49,7 @@ from bench.timing import StageTimer
 from eval.make_groundtruth import build_queries
 from models import get_embedder
 
-HARDWARE_PROFILE = "colab_t4"  # gercek GPU adiyla degistirin (ör. colab_a100)
+HARDWARE_PROFILE = "colab_t4"  # main() --hardware-profile ile degistirilebilir
 EMBED_MODELS = ["xclip_hf_zeroshot", "siglip2_frameavg", "qwen3vl_emb_2048",
                 "qwen3vl_emb_1024", "qwen3vl_emb_512", "qwen3vl_emb_256"]
 QWEN_MRL_GROUP = ["qwen3vl_emb_2048", "qwen3vl_emb_1024", "qwen3vl_emb_512", "qwen3vl_emb_256"]
@@ -220,9 +220,20 @@ def main():
     parser.add_argument("--out", default="artifacts/colab_gpu_bench.json",
                        help="Sonuc JSON yolu - Drive-mount'lu bir yol verin "
                             "(ör. /content/drive/MyDrive/colab_gpu_bench.json) "
-                            "ki runtime kopunca kismi sonuclar kaybolmasin.")
+                            "ki runtime kopunca kismi sonuclar kaybolmasin. FARKLI "
+                            "bir GPU ile kosarken FARKLI bir --out verin (ör. "
+                            "colab_gpu_bench_l4.json) - ayni dosyaya devam edilirse "
+                            "modeller 'zaten kayitli' diye atlanip yeni GPU'da hic "
+                            "olculmez.")
+    parser.add_argument("--hardware-profile", default="colab_t4",
+                       help="Ciktiya etiket olarak yazilacak profil adi "
+                            "(ör. colab_l4, colab_a100). --out'taki dosyayla "
+                            "tutarli olsun diye ayri tutuldu.")
     args = parser.parse_args()
     out_path = pathlib.Path(args.out)
+
+    global HARDWARE_PROFILE
+    HARDWARE_PROFILE = args.hardware_profile
 
     if not torch.cuda.is_available():
         print("UYARI: torch.cuda.is_available() False - bu script GPU olcumu icin "
