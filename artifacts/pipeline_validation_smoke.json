@@ -1,0 +1,30 @@
+{
+  "protocol": "MSR-VTT 1k-A, standart t2v retrieval (video basina tek pencere, IoU/merge_intervals YOK) - MVEB'in filtrelenmis ~879 klip alt kumesiyle DEGIL, tam 1000 klipin klasik protokolüyle karsilastirilabilir.",
+  "n_frames_per_video": 32,
+  "limit": 30,
+  "published_baselines": {
+    "CLIP4Clip (ViT-B/32), t2v - DOGRULANMAMIS, PDF'ten teyit edin": {
+      "R@1": 44.5,
+      "R@5": 71.4,
+      "R@10": 81.6,
+      "MedR": 2.0
+    }
+  },
+  "results": {
+    "xclip_hf_zeroshot": {
+      "measured": {
+        "R@1": 50.0,
+        "R@5": 80.0,
+        "R@10": 90.0,
+        "MedR": 1.5,
+        "MeanR": 3.3333333333333335,
+        "n": 30,
+        "video_embed_total_s": 196.1,
+        "text_embed_total_s": 0.9,
+        "n_videos_embedded": 30,
+        "n_pairs_evaluated": 30
+      },
+      "red_flags": []
+    }
+  }
+}

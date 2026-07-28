@@ -33,15 +33,28 @@ from ingest.frame_io import read_window_frames
 from models import get_embedder
 
 # CLIP4Clip (ViT-B/32), standart 1k-A t2v protokolu - literatur referansi.
-# DIKKAT: bu sayilar CLIP4Clip makalesinden (arXiv:2104.08860) HATIRLANARAK
-# yazildi - bu oturumda paperswithcode.com'a erisim tamamen baska bir
-# sayfaya yonlendirdigi icin (site kapatilmis/tasinmis gibi gorunuyor) ve
-# GitHub README'sinde tablo bulunamadigi icin DOGRUDAN kaynaktan (PDF
-# icindeki tablo) TEKRAR DOGRULANAMADI. Gercek karsilastirma yapmadan
-# once makalenin PDF'indeki Tablo 2'yi (MSR-VTT 1k-A, meanP varyanti)
-# elle kontrol edin.
+#
+# GERCEK KOSUM SONRASI ONEMLI DUZELTME (28 Temmuz 2026): xclip_hf_zeroshot
+# ile tam 1000 videoluk kosum R@1=21.5 verdi, bu baseline'dan (44.5) 23 puan
+# uzak - KIRMIZI BAYRAK tetiklendi. AMA arastirinca CLIP4Clip'in bu sayisi
+# GECERSIZ bir karsilastirma noktasi: CLIP4Clip, MSR-VTT ciftleri uzerinde
+# UCTAN UCA FINE-TUNE EDILMIS bir retrieval modeli (ozel benzerlik-baglantisi
+# katmani + video-metin ciftleriyle egitim). microsoft/xclip-base-patch16-
+# zero-shot ise (dogrulandi: HF model karti) YALNIZCA video SINIFLANDIRMA
+# (HMDB-51/UCF-101/Kinetics-600) icin zero-shot degerlendirilmis; MODEL
+# KARTINDA MSR-VTT RETRIEVAL SAYISI HIC YOK. Yani bu KIRMIZI BAYRAK muhtemelen
+# "boru hattimiz bozuk" degil "yanlis/uygunsuz referans sectim" anlamina
+# geliyor - fine-tune edilmis bir modelin sayisini fine-tune EDILMEMIS bir
+# modelle karsilastirmak bastan adil degildi. Bunu net bir "pipeline dogru"
+# kanitina cevirmek icin CLIP4Clip'in KENDI makalesindeki "CLIP zero-shot/
+# straight" (fine-tune edilmemis) ablasyon satirini PDF'ten bulup buraya
+# eklemek gerekiyor - bu oturumda paperswithcode.com'un tamamen baska bir
+# sayfaya yonlendirmesi ve arXiv ozetinin tablo icermemesi yuzunden
+# BULUNAMADI. Sonuc: bu kosum ne "pipeline bozuk" ne "pipeline dogru"
+# kanitlar - baseline'in kendisi elden gecirilmeden yorumlanamaz.
 PUBLISHED_BASELINES = {
-    "CLIP4Clip (ViT-B/32), t2v - DOGRULANMAMIS, PDF'ten teyit edin": {
+    "CLIP4Clip (ViT-B/32), t2v - DOGRULANMAMIS + xclip_hf_zeroshot icin "
+    "UYGUNSUZ (fine-tuned vs zero-shot karsilastirmasi, yukaridaki notu okuyun)": {
         "R@1": 44.5, "R@5": 71.4, "R@10": 81.6, "MedR": 2.0},
 }
 FLAG_THRESHOLD_PCT = 10.0  # bu kadar sapma KIRMIZI BAYRAK

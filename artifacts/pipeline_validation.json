@@ -1,0 +1,39 @@
+{
+  "protocol": "MSR-VTT 1k-A, standart t2v retrieval (video basina tek pencere, IoU/merge_intervals YOK) - MVEB'in filtrelenmis ~879 klip alt kumesiyle DEGIL, tam 1000 klipin klasik protokolüyle karsilastirilabilir.",
+  "n_frames_per_video": 32,
+  "limit": null,
+  "published_baselines": {
+    "CLIP4Clip (ViT-B/32), t2v - DOGRULANMAMIS, PDF'ten teyit edin": {
+      "R@1": 44.5,
+      "R@5": 71.4,
+      "R@10": 81.6,
+      "MedR": 2.0
+    }
+  },
+  "results": {
+    "xclip_hf_zeroshot": {
+      "measured": {
+        "R@1": 21.5,
+        "R@5": 42.4,
+        "R@10": 52.300000000000004,
+        "MedR": 8.5,
+        "MeanR": 75.056,
+        "n": 1000,
+        "video_embed_total_s": 5438.9,
+        "text_embed_total_s": 27.9,
+        "n_videos_embedded": 1000,
+        "n_pairs_evaluated": 1000
+      },
+      "red_flags": [
+        {
+          "baseline": "CLIP4Clip (ViT-B/32), t2v - DOGRULANMAMIS, PDF'ten teyit edin",
+          "flags": [
+            "R@1: olculen=21.5 yayinlanan=44.5 (fark 23.0 puan > 10.0 esigi) - olasi sebep: kare sayisi, cozunurluk, normalize, prompt sablonu, split farki",
+            "R@5: olculen=42.4 yayinlanan=71.4 (fark 29.0 puan > 10.0 esigi) - olasi sebep: kare sayisi, cozunurluk, normalize, prompt sablonu, split farki",
+            "R@10: olculen=52.3 yayinlanan=81.6 (fark 29.3 puan > 10.0 esigi) - olasi sebep: kare sayisi, cozunurluk, normalize, prompt sablonu, split farki"
+          ]
+        }
+      ]
+    }
+  }
+}
