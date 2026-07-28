@@ -6,6 +6,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+from bench.gpu_gate import require_gpu_for_qwen_windows
 from common import load_config
 from ingest.frame_io import read_window_frames
 from models import available_models, get_embedder
@@ -26,9 +27,12 @@ def main():
         print(f"HATA: {windows_path} yok. Once 02_windowing.py calistirin.")
         raise SystemExit(1)
 
-    emb = get_embedder(args.model)
     videos_dir = pathlib.Path(cfg["paths"]["videos_dir"])
     windows = json.load(open(windows_path))
+
+    if args.model.startswith("qwen3vl_emb"):
+        require_gpu_for_qwen_windows(f"ingest/03_embed.py --model {args.model}", len(windows))
+    emb = get_embedder(args.model)
 
     out = []
     for i, w in enumerate(windows):

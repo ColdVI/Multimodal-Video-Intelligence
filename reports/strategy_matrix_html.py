@@ -23,7 +23,7 @@ def _rows_to_table(rows: list[dict], columns: list[str]) -> str:
 
 
 def render_strategy_report(small_scale: dict, scale_100k: dict = None,
-                           memory_projection: dict = None) -> str:
+                           memory_projection: dict = None, scale_corpus_size: int = None) -> str:
     matrix_cols = ["strategy", "selectivity", "table", "row_count", "rows_read",
                    "vector_index_in_plan", "p50_ms", "p95_ms"]
     matrix_html = _rows_to_table(small_scale["matrix"], matrix_cols)
@@ -35,15 +35,34 @@ def render_strategy_report(small_scale: dict, scale_100k: dict = None,
     recall_html = _rows_to_table(
         small_scale["hnsw_recall_at_10"],
         ["table", "k", "recall_at_k", "n_overlap", "n_exact"])
+    recall_note = ("<p class=\"note\">Bu satır <b>uyum</b> ölçer (HNSW'nin aynı embedding "
+                   "üzerinde exact brute-force ile ne kadar örtüştüğü) — gerçek sorgu "
+                   "kalitesi/ground-truth <b>DEĞİL</b>. HNSW kendi exact'ini sadakatle "
+                   "taklit ediyor olabilir, exact'in kendisi kötü olsa bile bu satır "
+                   "yüksek çıkar (bkz. bench/report.py kalite metrikleri ayrı rapor).</p>")
 
     scale_section = ""
     if scale_100k:
         scale_cols = ["strategy", "selectivity", "row_count", "rows_read", "p50_ms", "p95_ms"]
         scale_html = _rows_to_table(scale_100k["matrix"], scale_cols)
         r = scale_100k["hnsw_recall_at_10"]
+        # scale_100k'nin kendisinde satir sayisi yok (bkz. scale_table_build.json) -
+        # caller (scripts/build_strategy_matrix_html.py) gercek n_rows'u gecirmeli;
+        # gecirmezse belirsiz oldugunu acikca yaz, sessizce 100K varsaymayalim.
+        n_rows = scale_corpus_size
+        pb_windows = 419_430_400
+        if n_rows:
+            gap_note = (f"Ölçek testi {n_rows:,} satırda yapıldı - hedef 1 PB "
+                       f"(~{pb_windows:,} pencere) davranışı ÖLÇÜLMEDİ, buradan "
+                       f"ekstrapolasyondur ({pb_windows / n_rows:,.0f}x boşluk var).")
+        else:
+            gap_note = ("Bu ölçek katmanının satır sayısı bilinmiyor (scale_corpus_size "
+                       "geçilmedi) - hedef 1 PB davranışı ÖLÇÜLMEDİ, ekstrapolasyondur.")
         scale_section = f"""
         <section class="card"><h2>100K sentetik ölçek (bench_scale_512)</h2>
-        <p>HNSW recall@10: {r['recall_at_k']:.3f} ({r['n_overlap']}/{r['n_exact']})</p>
+        <p class="warn">{gap_note} Bu bölümdeki
+        sayılar PB ölçeğinde bir garanti değil, tek bir ölçüm noktasıdır.</p>
+        <p>HNSW-exact uyumu@10: {r['recall_at_k']:.3f} ({r['n_overlap']}/{r['n_exact']}) - yukarıdaki not aynen geçerli</p>
         {scale_html}</section>"""
 
     memory_section = ""
@@ -61,13 +80,15 @@ body{{font-family:Arial,sans-serif;max-width:1100px;margin:32px auto;padding:0 2
 table{{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}}
 th,td{{border:1px solid #ddd;padding:6px;text-align:left}} th{{background:#f4f4f4}}
 .card{{border:1px solid #ddd;border-radius:8px;padding:16px;margin:16px 0}}
+.note{{color:#555;font-size:13px;background:#f4f4f4;border-radius:6px;padding:8px 10px}}
+.warn{{color:#7a4a00;font-size:13px;background:#fff4e0;border-left:4px solid #e0a500;padding:8px 10px}}
 </style></head><body>
 <h1>Faz 2: ClickHouse arama katmanı — strateji matrisi</h1>
 <section class="card"><h2>4 strateji × 2 seçicilik × 2 tablo (73 satır, gerçek smoke veri)</h2>
 {matrix_html}</section>
 <section class="card"><h2>fetch_multiplier sweep</h2>{fetch_html}</section>
 <section class="card"><h2>ef_search (hnsw_candidate_list_size_for_search) sweep</h2>{ef_html}</section>
-<section class="card"><h2>HNSW recall@10 (73 satır)</h2>{recall_html}</section>
+<section class="card"><h2>HNSW-exact uyumu@10 (73 satır)</h2>{recall_note}{recall_html}</section>
 {scale_section}
 {memory_section}
 </body></html>"""

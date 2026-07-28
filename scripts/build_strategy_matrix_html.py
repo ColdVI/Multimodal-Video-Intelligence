@@ -19,8 +19,10 @@ def main():
 
     build_path = ARTIFACTS / "scale_table_build.json"
     memory_projection = None
+    scale_corpus_size = None
     if build_path.exists():
         build = json.loads(build_path.read_text(encoding="utf-8"))
+        scale_corpus_size = build["n_rows"]
         per_row_bytes = build["indices"][0]["size_bytes"] / build["n_rows"]
         memory_projection = {
             "1M satır 512d (ölçülen)": round(per_row_bytes * 1_000_000 / 1e9, 2),
@@ -32,7 +34,8 @@ def main():
         }
 
     html = render_strategy_report(small_scale, scale_100k=scale_100k,
-                                  memory_projection=memory_projection)
+                                  memory_projection=memory_projection,
+                                  scale_corpus_size=scale_corpus_size)
     out_path = ARTIFACTS / "strategy_matrix_report.html"
     out_path.write_text(html, encoding="utf-8")
     print(f"HTML rapor: {out_path}")

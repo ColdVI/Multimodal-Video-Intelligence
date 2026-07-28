@@ -29,6 +29,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from bench.gpu_gate import require_gpu_for_qwen_windows
 from ingest.frame_io import read_window_frames
 from models import get_embedder
 
@@ -168,6 +169,11 @@ def red_flag_check(measured: dict, baseline: dict) -> list:
 def run_validation(model_name: str, entries: list, videos_dir: pathlib.Path,
                    n_frames: int, limit: int) -> dict:
     print(f"=== {model_name} ===")
+    if model_name.startswith("qwen3vl_emb"):
+        n_items = len(entries[:limit] if limit else entries)
+        # VisDrone pencere hizindan turetilen kaba tahmin - MSR-VTT klip
+        # uzunlugu/kare sayisi farkli olabilir, sadece kapiyi tetiklemeye yeter.
+        require_gpu_for_qwen_windows(f"validate_msrvtt.py --models {model_name}", n_items)
     t0 = time.perf_counter()
     video_embs = embed_all_videos(entries, videos_dir, model_name, n_frames, limit)
     video_s = time.perf_counter() - t0
