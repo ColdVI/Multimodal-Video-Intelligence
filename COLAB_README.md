@@ -18,10 +18,17 @@ rapor disari aktarma icin hazirlandi.
   indirmesini dogrular.
 - **Pipeline:** 5/10/20/56 video ve model secimiyle frames-to-video, windowing,
   YOLO, embedding ve ground truth adimlarini calistirir.
-- **Query:** Turkce sorguyu, cikan filtreleri, aday sayisini, skoru, zaman
-  araligini ve uc karelik gorsel onizlemeyi birlikte gosterir.
-- **Accuracy:** Model x filtre icin sorgu-bazli ve toplu precision@k/recall@k
-  tablosu ile grafik uretir.
+- **Query:** Turkce sorguyu, parser'in urettigi SQL-benzeri filtre ifadesini,
+  asama-bazli gecikmeyi (parse/metin-embed/siralama/merge), aday hunisini
+  (toplam -> filtre sonrasi -> gosterilen), aday havuzunun skor dagilim
+  histogramini, ve her sonuc icin (bilinen bir degerlendirme sorgusuyla
+  eslesirse) GT isabet/degil rozetini birlikte gosterir.
+- **Accuracy:** Model x filtre icin precision@k/recall@k'nin yaninda
+  MRR/nDCG@10/MAP de hesaplar; kategori kirilimi (hareket/tekli/bilesik/
+  kosul + ortalama n_gt) ayri tablo olarak gelir; sorgu sayisi 150'nin
+  altindaysa gercek verilerden hesaplanmis bir saptanabilir-minimum-fark
+  (MDE) uyarisi ve en dusuk precision'li 2 GERCEK basarisiz ornek gosterilir
+  (yalniz basarili ornek gostermek demo degil reklamdir).
 - **Rapor:** HTML ozet, CSV/JSON kanitlari, kosu manifesti ve metodolojik
   uyarilari tek ZIP'e koyar; isterse Google Drive'a kopyalar.
 

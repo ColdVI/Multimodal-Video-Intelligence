@@ -83,6 +83,12 @@ class QueryRun:
     filtered_windows: int
     elapsed_ms: float
     results: list[dict] = field(default_factory=list)
+    # Sekme A genisletmesi (gozlemlenebilirlik): asama-bazli gecikme,
+    # SQL-benzeri filtre metni, aday havuzunun TAM skor dagilimi (yalniz
+    # top-k degil - "ayrisma var mi" sorusu icin gerekli).
+    stage_ms: dict = field(default_factory=dict)
+    sql_filter_text: str = ""
+    candidate_scores: list = field(default_factory=list)
 
 
 def _read_json(path: pathlib.Path):
@@ -208,6 +214,35 @@ def load_records(repo_root: pathlib.Path, model_name: str) -> list[dict]:
     return records
 
 
+def filters_to_sql(filters: Iterable[tuple]) -> str:
+    """Yapilandirilmis filtreyi ClickHouse'daki gercek kolon adlariyla
+    okunabilir bir WHERE ifadesine cevirir - parser'in ne urettigini
+    kullaniciya SQL'e yakin, chip'lerden daha teknik bir bicimde gostermek
+    icin (bkz. Sekme A: "ham sorgu VE SQL filtresi yan yana")."""
+    filters = list(filters)
+    if not filters:
+        return "(filtre yok - yalniz semantik arama)"
+    return "WHERE " + " AND ".join(f"{c} {op} {v}" for c, op, v in filters)
+
+
+def histogram_bins(values: Iterable[float], n_bins: int = 10,
+                   lo: float = 0.0, hi: float = 1.0) -> list:
+    """Skor dagilimi icin basit sabit-genislikli bin sayaci - "ayrisma var mi,
+    yoksa hepsi mi benzer" sorusunu gorsellestirmek icin (Sekme A). Araligin
+    disindaki degerler en yakin uc bine tikilir (skorlar teorik olarak
+    [0,1] disina cok az tasabilir - kirpma sessizce veri kaybettirmesin)."""
+    values = list(values)
+    counts = [0] * n_bins
+    if not values or hi <= lo:
+        return counts
+    width = (hi - lo) / n_bins
+    for v in values:
+        idx = int((v - lo) / width)
+        idx = max(0, min(n_bins - 1, idx))
+        counts[idx] += 1
+    return counts
+
+
 def record_matches(record: dict, filters: Iterable[tuple]) -> bool:
     for column, operator, expected in filters:
         actual = record[column]
@@ -312,18 +347,32 @@ class InMemorySearchSession:
         from common import load_config
         from search.parser import parse
 
+        stage_ms = {}
         started = time.perf_counter()
+
+        t0 = time.perf_counter()
         parsed = parse(query)
         filters = parsed.filters if use_filters else []
+        stage_ms["parse"] = (time.perf_counter() - t0) * 1000
+
+        t0 = time.perf_counter()
         query_vector = self.embedder.embed_text(parsed.semantic)
+        stage_ms["metin-embed"] = (time.perf_counter() - t0) * 1000
+
+        t0 = time.perf_counter()
         filtered_count = sum(record_matches(row, filters) for row in self.records)
         # Once genis aday havuzu, sonra interval merge, en son arayuz top-k.
         candidate_limit = min(len(self.records), max(200, top_k))
         ranked = rank_records(
             self.records, query_vector, filters=filters, top_k=candidate_limit
         )
+        stage_ms["siralama"] = (time.perf_counter() - t0) * 1000
+
+        t0 = time.perf_counter()
         cfg = load_config()
         merged = _merge_ranked(ranked, cfg["merge"]["gap_tolerance_s"])
+        stage_ms["merge"] = (time.perf_counter() - t0) * 1000
+
         elapsed_ms = (time.perf_counter() - started) * 1000
         return QueryRun(
             query=query,
@@ -336,6 +385,9 @@ class InMemorySearchSession:
             filtered_windows=filtered_count,
             elapsed_ms=elapsed_ms,
             results=merged[:top_k],
+            stage_ms={k: round(v, 3) for k, v in stage_ms.items()},
+            sql_filter_text=filters_to_sql(filters),
+            candidate_scores=[r["score"] for r in ranked],
         )
 
 
@@ -345,8 +397,15 @@ def evaluate_models(
     top_k: int,
     progress: Callable[[int, int, str], None] | None = None,
 ) -> list[dict]:
+    """precision@k/recall@k UST DUZEYDE tutulur (geriye-uyum: aggregate_metrics
+    ve mevcut testler bunu bekliyor) AMA artik bench.metrics.evaluate_multi_k
+    kullanilir - mrr/ndcg@10/map/by_k(1,5,10) de her satirda mevcut (Sekme E:
+    "nDCG@10, MAP, P@1, MRR, R@10 hepsi birden"). Kullanicinin top_k'si
+    k=1/5/10 setine dahil edilir (farkli bir deger secildiyse); degerlendirme
+    icin en az 10 sonuc getirilir (top_k<10 secilse bile recall@10 dogru
+    hesaplanabilsin diye)."""
     from common import load_config
-    from eval.metrics import evaluate
+    from bench.metrics import evaluate_multi_k
     from eval.run_eval import category_of
 
     repo_root = pathlib.Path(repo_root)
@@ -359,21 +418,21 @@ def evaluate_models(
     done = 0
     rows = []
     cfg = load_config()
+    ks = tuple(sorted({1, 5, 10, int(top_k)}))
+    retrieve_k = max(int(top_k), 10)
     for model_name in models:
         session = InMemorySearchSession(repo_root, model_name)
         for use_filters in (True, False):
             for query, gt_by_video in groundtruth.items():
-                run = session.search(query, top_k=top_k, use_filters=use_filters)
+                run = session.search(query, top_k=retrieve_k, use_filters=use_filters)
                 pred = [
                     (r["video_id"], r["t_start"], r["t_end"], r["score"])
                     for r in run.results
                 ]
-                metrics = evaluate(
-                    pred,
-                    gt_by_video,
-                    k=top_k,
-                    iou_thr=cfg["eval"]["iou_threshold"],
+                metrics = evaluate_multi_k(
+                    pred, gt_by_video, ks=ks, iou_thr=cfg["eval"]["iou_threshold"],
                 )
+                by10 = metrics["by_k"][10]
                 rows.append(
                     {
                         "model": model_name,
@@ -381,7 +440,15 @@ def evaluate_models(
                         "query": query,
                         "category": category_of(query),
                         "latency_ms": round(run.elapsed_ms, 2),
-                        **metrics,
+                        "precision@k": by10["precision@k"],
+                        "recall@k": by10["recall@k"],
+                        "n_hits": by10["n_hits"],
+                        "n_gt": by10["n_gt"],
+                        "n_pred": by10["n_pred"],
+                        "mrr": metrics["mrr"],
+                        "ndcg@10": metrics["ndcg@10"],
+                        "map": metrics["map"],
+                        "by_k": metrics["by_k"],
                     }
                 )
                 done += 1
@@ -408,22 +475,69 @@ def aggregate_metrics(rows: list[dict]) -> list[dict]:
                 "total_hits": int(sum(row["n_hits"] for row in values)),
                 "total_gt": int(sum(row["n_gt"] for row in values)),
                 "mean_latency_ms": float(np.mean([row["latency_ms"] for row in values])),
+                # .get(...,0.0): eski satir sekli (mrr/ndcg/map yok) de calissin -
+                # geriye uyum, bkz. evaluate_models() docstring'i.
+                "mean_mrr": float(np.mean([row.get("mrr", 0.0) for row in values])),
+                "mean_ndcg@10": float(np.mean([row.get("ndcg@10", 0.0) for row in values])),
+                "mean_map": float(np.mean([row.get("map", 0.0) for row in values])),
             }
         )
     return output
 
 
+def category_breakdown(rows: list[dict]) -> list[dict]:
+    """Kategori (hareket/tekli/bilesik/kosul/negatif-kontrol) bazinda
+    ortalama metrikler - bench.report.aggregate_by_category'yi dogrudan
+    kullanir (ayni row semasi: category + by_k + mrr, bkz. evaluate_models()).
+    n_gt ortalamasi da doner - recall@10 tavaninin (10/n_gt) hangi
+    kategoride gercek bir kisit oldugunu gormek icin (bkz. bench/metrics.py
+    modul docstring'i)."""
+    from bench.report import aggregate_by_category
+
+    agg = aggregate_by_category(rows)
+    return [
+        {"category": cat, **metrics}
+        for cat, metrics in sorted(agg.items())
+    ]
+
+
+def worst_queries(rows: list[dict], metric: str = "precision@k", n: int = 2) -> list[dict]:
+    """En dusuk performansli n sorguyu dondurur - "sistemin yanildigi ornek"
+    gostermek icin zorunlu durustluk ogesi. Yalnizca basarili ornekler
+    gostermek demo degil reklamdir."""
+    if not rows:
+        return []
+    return sorted(rows, key=lambda r: r.get(metric, 0.0))[:n]
+
+
 def report_warnings(metrics: list[dict], manifest: dict | None, top_k: int) -> list[str]:
     warnings = []
     query_count = len({row["query"] for row in metrics})
-    if query_count < 30:
+    if query_count < 150:
+        from bench.stats import minimum_detectable_effect
+
+        precisions = [row["precision@k"] for row in metrics if "precision@k" in row]
+        std = float(np.std(precisions)) if len(precisions) > 1 else 0.2
+        mde = minimum_detectable_effect(n=query_count, std=std) if query_count > 0 else float("inf")
         warnings.append(
-            f"Yalnizca {query_count} sorgu var; sonuc kesifseldir, istatistiksel model zaferi olarak sunulamaz."
+            f"Yalnizca {query_count} sorgu var (onerilen: 150+); bu set yaklasik "
+            f"{mde:.2f} altindaki farklari guvenilir ayirt edemez (saptanabilir "
+            f"minimum fark - gozlenen precision@k std={std:.2f} ile hesaplandi, "
+            "n buyudukce kuculur)."
         )
     selected_videos = int((manifest or {}).get("selected_videos", 0))
     if selected_videos and top_k >= selected_videos:
         warnings.append(
             f"top_k={top_k}, video sayisi={selected_videos}; adaylar doygunlasabilir ve model farklari metrikte gorunmeyebilir."
+        )
+    n_gt_values = [row["n_gt"] for row in metrics if "n_gt" in row]
+    real_queries = [n for n in n_gt_values if n > 0]
+    capped = sum(1 for n in real_queries if n <= top_k)
+    if real_queries and capped:
+        warnings.append(
+            f"{capped}/{len(real_queries)} sorgu-satırında n_gt<=top_k={top_k}: bu satırlarda "
+            f"recall@{top_k}=1.00 'mükemmel' değil 'tavan' (n_gt tarafından belirlenen matematiksel "
+            "üst sınır) anlamına gelebilir - model kalitesinden bağımsız."
         )
     warnings.append(
         "Colab aramasi exact bellek-ici cosine kullanir; bu rapor ClickHouse gecikme benchmark'i degildir."
@@ -695,11 +809,40 @@ def _preview_data_uri(video_path: pathlib.Path, t_start: float, t_end: float) ->
     return "data:image/jpeg;base64," + base64.b64encode(encoded).decode("ascii")
 
 
-def query_run_html(repo_root: pathlib.Path, run: QueryRun) -> str:
+def query_run_html(repo_root: pathlib.Path, run: QueryRun, gt_by_video: dict | None = None) -> str:
+    """gt_by_video: kullanicinin yazdigi serbest sorgu, bilinen ground-truth
+    kumesindeki bir sorguyla BIREBIR eslesirse verilir (bkz. search_ui) -
+    verilirse her sonuc karti GT isabet/degil rozeti tasir; verilmezse
+    "GT yok (serbest sorgu)" notu gosterilir - sessizce atlanmaz."""
     filter_html = "".join(
         f'<span class="chip">{html.escape(FILTER_LABELS.get(c, c))} {html.escape(str(op))} {html.escape(str(v))}</span>'
         for c, op, v in run.filters
     ) or '<span class="chip muted">yapilandirilmis filtre yok</span>'
+
+    stage_html = "".join(
+        f'<span class="stage-chip">{html.escape(stage)}: {ms:.1f}ms</span>'
+        for stage, ms in run.stage_ms.items()
+    ) or '<span class="chip muted">ölçülmedi</span>'
+
+    n_shown = len(run.results)
+    funnel_max = max(run.total_windows, 1)
+    funnel_html = "".join(
+        f'<div class="funnel-row"><span>{label}</span>'
+        f'<div class="bar {cls}" style="width:{100 * count / funnel_max:.0f}%"></div><b>{count}</b></div>'
+        for label, count, cls in (
+            ("toplam pencere", run.total_windows, ""),
+            ("filtre sonrası", run.filtered_windows, "bar-mid"),
+            (f"gösterilen (top-{run.top_k})", n_shown, "bar-end"),
+        )
+    )
+
+    bins = histogram_bins(run.candidate_scores, n_bins=10, lo=0.0, hi=1.0)
+    max_bin = max(bins) if bins else 1
+    hist_html = "".join(
+        f'<div class="hbar" style="height:{100 * c / max(max_bin, 1):.0f}%" title="{c} pencere"></div>'
+        for c in bins
+    ) or '<span class="chip muted">aday yok</span>'
+
     cards = []
     videos_dir = pathlib.Path(repo_root) / "data" / "raw" / "videos"
     for item in run.results:
@@ -707,13 +850,21 @@ def query_run_html(repo_root: pathlib.Path, run: QueryRun) -> str:
             videos_dir / f"{item['video_id']}.mp4", item["t_start"], item["t_end"]
         )
         image = f'<img src="{preview}" />' if preview else '<div class="noimg">onizleme yok</div>'
+        gt_badge = ""
+        if gt_by_video is not None:
+            from eval.metrics import t_iou
+
+            ivs = gt_by_video.get(item["video_id"], [])
+            hit = any(t_iou((item["t_start"], item["t_end"]), tuple(iv)) >= 0.5 for iv in ivs)
+            gt_badge = ('<span class="gt-hit">✓ GT</span>' if hit
+                       else '<span class="gt-miss">✗ GT-dışı</span>')
         cards.append(
             f"""
             <article class="result-card">
               <div class="rank">#{item['rank']}</div>
               {image}
               <div class="result-body">
-                <strong>{html.escape(item['video_id'])}</strong>
+                <strong>{html.escape(item['video_id'])}</strong> {gt_badge}
                 <div>{item['t_start']:.2f}s – {item['t_end']:.2f}s · skor {item['score']:.3f}</div>
                 <small>insan {item['person_count']} · araba {item['car_count']} · otobüs {item['bus_count']} · kamyon {item['truck_count']}</small>
               </div>
@@ -721,12 +872,29 @@ def query_run_html(repo_root: pathlib.Path, run: QueryRun) -> str:
         )
     if not cards:
         cards.append('<div class="empty">Bu sorgu/filtre için sonuç bulunamadı.</div>')
+
+    gt_note = ("" if gt_by_video is not None else
+              '<div class="chip muted">GT yok — bu sorgu bilinen değerlendirme '
+              'kümesiyle (eval/make_groundtruth.py) birebir eşleşmiyor, serbest sorgu</div>')
+
     return f"""
     <style>
       .vs-wrap {{font-family:Inter,Arial,sans-serif;color:#172033}}
       .query-meta {{background:#f3f6fb;border:1px solid #dce4f2;border-radius:12px;padding:14px;margin:8px 0 14px}}
       .chip {{display:inline-block;background:#e4edff;color:#174a9c;padding:5px 9px;border-radius:999px;margin:4px;font-size:12px}}
       .muted {{background:#eceff3;color:#5e6673}}
+      .stage-chip {{display:inline-block;background:#eef2f8;color:#334;padding:3px 8px;border-radius:6px;margin:2px;font-size:11px;font-family:monospace}}
+      .sql-box {{background:#0d1117;color:#7ee787;font-family:Consolas,monospace;padding:10px 14px;border-radius:8px;margin:8px 0;font-size:13px;overflow-x:auto}}
+      .funnel {{margin:10px 0}}
+      .funnel-row {{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px}}
+      .funnel-row span {{width:130px;color:#556}}
+      .bar {{height:14px;background:#8fb4e8;border-radius:4px;min-width:2px}}
+      .bar-mid {{background:#5f93d6}}
+      .bar-end {{background:#174a9c}}
+      .hist {{display:flex;align-items:flex-end;gap:2px;height:50px;margin:8px 0}}
+      .hbar {{flex:1;background:#5f93d6;border-radius:2px 2px 0 0;min-height:2px}}
+      .gt-hit {{color:#067647;font-weight:600;font-size:11px}}
+      .gt-miss {{color:#b42318;font-weight:600;font-size:11px}}
       .result-card {{border:1px solid #dce4f2;border-radius:14px;margin:12px 0;overflow:hidden;background:white;position:relative}}
       .result-card img {{width:100%;display:block;background:#111}}
       .result-body {{padding:12px 16px;line-height:1.55}}
@@ -737,10 +905,16 @@ def query_run_html(repo_root: pathlib.Path, run: QueryRun) -> str:
       <div class="query-meta">
         <strong>Sorgu:</strong> {html.escape(run.query)}<br/>
         <strong>Model:</strong> {html.escape(MODEL_LABELS.get(run.model, run.model))} ·
-        <strong>Backend:</strong> exact in-memory cosine ·
-        <strong>Süre:</strong> {run.elapsed_ms:.1f} ms<br/>
-        <strong>Aday:</strong> {run.total_windows} → {run.filtered_windows} pencere
-        <div>{filter_html}</div>
+        <strong>Backend:</strong> exact in-memory cosine (ClickHouse DEĞİL) ·
+        <strong>Toplam süre:</strong> {run.elapsed_ms:.1f} ms
+        <div class="sql-box">{html.escape(run.sql_filter_text)}</div>
+        {filter_html}
+        {gt_note}
+        <div style="margin-top:8px"><b>Aşama gecikmesi:</b><br/>{stage_html}</div>
+        <div style="margin-top:8px"><b>Aday hunisi:</b><div class="funnel">{funnel_html}</div></div>
+        <div style="margin-top:8px"><b>Skor dağılımı</b> (aday havuzu, n={len(run.candidate_scores)}):
+          <div class="hist">{hist_html}</div>
+        </div>
       </div>
       {''.join(cards)}
     </div>"""
@@ -1236,10 +1410,19 @@ def create_gradio_app(repo_root: str | pathlib.Path):
         "query_history": [],
         "sessions": {},
         "top_k": 10,
+        "groundtruth": None,
     }
     manifest_path = repo_root / "artifacts" / "run_manifest.json"
     if manifest_path.exists():
         state["manifest"] = _read_json(manifest_path)
+
+    def _groundtruth_cached() -> dict:
+        if state["groundtruth"] is None:
+            from common import load_config
+
+            gt_path = repo_root / load_config()["paths"]["groundtruth"]
+            state["groundtruth"] = _read_json(gt_path) if gt_path.exists() else {}
+        return state["groundtruth"]
 
     def prepare_ui(uploaded_zip, drive_zip, official_download, progress=gr.Progress()):
         source = uploaded_zip or (drive_zip.strip() if drive_zip else None)
@@ -1296,11 +1479,16 @@ def create_gradio_app(repo_root: str | pathlib.Path):
             session = InMemorySearchSession(repo_root, model_name)
             state["sessions"][model_name] = session
         progress(0.65, desc="Exact cosine arama calisiyor")
-        run = session.search(query.strip(), top_k=int(top_k), use_filters=use_filters)
+        stripped = query.strip()
+        run = session.search(stripped, top_k=int(top_k), use_filters=use_filters)
         state["top_k"] = int(top_k)
         state["query_history"].append(asdict(run))
         progress(1.0, desc="Sonuclar hazir")
-        return query_run_html(repo_root, run)
+        # Serbest sorgu bilinen degerlendirme kumesiyle (eval/make_groundtruth.py)
+        # birebir eslesirse GT rozeti gosterilir; eslesmezse query_run_html
+        # bunu acikca "GT yok" diye isaretler, sessizce atlamaz.
+        gt_by_video = _groundtruth_cached().get(stripped)
+        return query_run_html(repo_root, run, gt_by_video=gt_by_video)
 
     def accuracy_ui(models, top_k, progress=gr.Progress()):
         if not models:
@@ -1314,7 +1502,10 @@ def create_gradio_app(repo_root: str | pathlib.Path):
         state["top_k"] = int(top_k)
         aggregates = aggregate_metrics(metrics)
         aggregate_df = pd.DataFrame(aggregates)
-        detail_df = pd.DataFrame(metrics)
+        detail_df = pd.DataFrame(
+            [{k: v for k, v in row.items() if k != "by_k"} for row in metrics]
+        )
+        category_df = pd.DataFrame(category_breakdown(metrics))
 
         import matplotlib.pyplot as plt
 
@@ -1350,10 +1541,31 @@ def create_gradio_app(repo_root: str | pathlib.Path):
         figure.tight_layout()
 
         warnings = report_warnings(metrics, state["manifest"], int(top_k))
-        warning_md = "### Metodolojik uyarılar\n\n" + "\n".join(
-            f"- ⚠️ {item}" for item in warnings
+        query_count = len({row["query"] for row in metrics})
+        if query_count < 150:
+            warning_md = (
+                f"### ⚠️ Sorgu sayısı yetersiz ({query_count}/150+)\n\n"
+                "### Metodolojik uyarılar\n\n"
+            )
+        else:
+            warning_md = "### Metodolojik uyarılar\n\n"
+        warning_md += "\n".join(f"- ⚠️ {item}" for item in warnings)
+
+        # Zorunlu durustluk ogesi: en az 2 BASARISIZ ornek (sadece basarili
+        # ornek gostermek demo degil reklamdir). Gercek sonuclardan turer,
+        # uydurulmaz - bu kosunun en dusuk precision@k'li 2 satiridir.
+        worst = worst_queries(metrics, metric="precision@k", n=2)
+        worst_lines = [
+            f"- **{MODEL_LABELS.get(row['model'], row['model'])}** · "
+            f"filtre={'açık' if row['filter'] else 'kapalı'} · "
+            f"*\"{row['query']}\"* → precision@10={row['precision@k']:.2f}, "
+            f"recall@10={row['recall@k']:.2f}, n_gt={row['n_gt']}"
+            for row in worst
+        ]
+        worst_md = "### Sistemin yanıldığı örnekler (en düşük precision@10)\n\n" + (
+            "\n".join(worst_lines) if worst_lines else "Henüz veri yok."
         )
-        return aggregate_df, detail_df, figure, warning_md
+        return aggregate_df, detail_df, category_df, figure, worst_md, warning_md
 
     def report_ui(title, author, notes, copy_to_drive, drive_dir):
         archive = export_report_bundle(
@@ -1470,6 +1682,11 @@ def create_gradio_app(repo_root: str | pathlib.Path):
                 )
 
             with gr.Tab("4 · Accuracy"):
+                gr.Markdown(
+                    "Toplu sonuç artık **P@k/R@k'nin yanında MRR/nDCG@10/MAP** de içerir "
+                    "(recall@1 tek başına n_gt tarafından domine edilir - bkz. kategori "
+                    "tablosundaki n_gt sütunu ve aşağıdaki tavan uyarısı)."
+                )
                 accuracy_models = gr.CheckboxGroup(
                     choices=model_choices,
                     value=list(MODEL_LABELS),
@@ -1477,14 +1694,23 @@ def create_gradio_app(repo_root: str | pathlib.Path):
                 )
                 accuracy_top_k = gr.Slider(1, 50, value=10, step=1, label="Top-k")
                 accuracy_button = gr.Button("Accuracy hesapla", variant="primary")
-                aggregate_table = gr.Dataframe(label="Toplu sonuç", interactive=False)
+                aggregate_table = gr.Dataframe(
+                    label="Toplu sonuç (P@k/R@k/MRR/nDCG@10/MAP)", interactive=False
+                )
                 detail_table = gr.Dataframe(label="Sorgu bazlı sonuç", interactive=False)
+                category_table = gr.Dataframe(
+                    label="Kategori kırılımı (hareket/tekli/bileşik/koşul/negatif-kontrol) "
+                         "+ ortalama n_gt",
+                    interactive=False,
+                )
                 accuracy_plot = gr.Plot(label="Model × filtre karşılaştırması")
+                worst_examples = gr.Markdown()
                 accuracy_warnings = gr.Markdown()
                 accuracy_button.click(
                     accuracy_ui,
                     inputs=[accuracy_models, accuracy_top_k],
-                    outputs=[aggregate_table, detail_table, accuracy_plot, accuracy_warnings],
+                    outputs=[aggregate_table, detail_table, category_table,
+                            accuracy_plot, worst_examples, accuracy_warnings],
                 )
 
             with gr.Tab("5 · Rapor"):
@@ -1518,11 +1744,14 @@ __all__ = [
     "QueryRun",
     "aggregate_metrics",
     "build_report_html",
+    "category_breakdown",
     "choose_sequences",
     "create_colab_app",
     "create_gradio_app",
     "evaluate_models",
     "export_report_bundle",
+    "filters_to_sql",
+    "histogram_bins",
     "load_records",
     "prepare_dataset",
     "rank_records",
@@ -1530,4 +1759,5 @@ __all__ = [
     "report_findings",
     "report_warnings",
     "run_pipeline",
+    "worst_queries",
 ]
