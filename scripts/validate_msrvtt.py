@@ -32,29 +32,44 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from ingest.frame_io import read_window_frames
 from models import get_embedder
 
-# CLIP4Clip (ViT-B/32), standart 1k-A t2v protokolu - literatur referansi.
+# DUZELTME (28 Temmuz 2026): onceki surumde kirmizi bayrak CLIP4Clip'in
+# FINE-TUNE EDILMIS sayisina (44.5/71.4/81.6) karsi kosuluyordu - bu
+# checkpoint'imiz (zero-shot) icin adil bir kiyas degildi (bkz. asagidaki
+# REFERENCE_ONLY_BASELINES notu). Yerine, GERCEK zero-shot CLIP baseline'i
+# iki BAGIMSIZ kaynaktan dogrulanarak bulundu:
+#   - Birincil kaynak: Portillo-Quintero ve ark. 2021, arXiv:2102.12443
+#     ("A Straightforward Framework For Video Retrieval Using CLIP"), Tablo 2
+#   - Capraz dogrulama: CLIP4Clip (Luo ve ark. 2021, arXiv:2104.08860),
+#     Tablo 1(b) AYNI sayiyi "CLIP-straight" adiyla tekrar yayinliyor
 #
-# GERCEK KOSUM SONRASI ONEMLI DUZELTME (28 Temmuz 2026): xclip_hf_zeroshot
-# ile tam 1000 videoluk kosum R@1=21.5 verdi, bu baseline'dan (44.5) 23 puan
-# uzak - KIRMIZI BAYRAK tetiklendi. AMA arastirinca CLIP4Clip'in bu sayisi
-# GECERSIZ bir karsilastirma noktasi: CLIP4Clip, MSR-VTT ciftleri uzerinde
-# UCTAN UCA FINE-TUNE EDILMIS bir retrieval modeli (ozel benzerlik-baglantisi
-# katmani + video-metin ciftleriyle egitim). microsoft/xclip-base-patch16-
-# zero-shot ise (dogrulandi: HF model karti) YALNIZCA video SINIFLANDIRMA
-# (HMDB-51/UCF-101/Kinetics-600) icin zero-shot degerlendirilmis; MODEL
-# KARTINDA MSR-VTT RETRIEVAL SAYISI HIC YOK. Yani bu KIRMIZI BAYRAK muhtemelen
-# "boru hattimiz bozuk" degil "yanlis/uygunsuz referans sectim" anlamina
-# geliyor - fine-tune edilmis bir modelin sayisini fine-tune EDILMEMIS bir
-# modelle karsilastirmak bastan adil degildi. Bunu net bir "pipeline dogru"
-# kanitina cevirmek icin CLIP4Clip'in KENDI makalesindeki "CLIP zero-shot/
-# straight" (fine-tune edilmemis) ablasyon satirini PDF'ten bulup buraya
-# eklemek gerekiyor - bu oturumda paperswithcode.com'un tamamen baska bir
-# sayfaya yonlendirmesi ve arXiv ozetinin tablo icermemesi yuzunden
-# BULUNAMADI. Sonuc: bu kosum ne "pipeline bozuk" ne "pipeline dogru"
-# kanitlar - baseline'in kendisi elden gecirilmeden yorumlanamaz.
-PUBLISHED_BASELINES = {
-    "CLIP4Clip (ViT-B/32), t2v - DOGRULANMAMIS + xclip_hf_zeroshot icin "
-    "UYGUNSUZ (fine-tuned vs zero-shot karsilastirmasi, yukaridaki notu okuyun)": {
+# ONEMLI - Portillo-Quintero Tablo 2 IKI YON rapor eder, KARISTIRILMAMALI:
+#   T2V (metin sorgu -> video ariyor):  R@1=31.2 R@5=53.7 R@10=64.2 MdR=4
+#   V2T (video sorgu -> metin ariyor):  R@1=27.2 R@5=51.7 R@10=62.6 MdR=5
+# Asagidaki compute_retrieval_metrics()'te sim[i,j] = caption_i . video_j;
+# HER CAPTION SATIRI icin videolar siralaniyor - yani olcumumuz T2V'dir.
+# T2V satiri kullanilmali (V2T ~4 puan farkli, yanlis yon olurdu).
+#
+# CHECKPOINT SOYU NOTU: microsoft/xclip-base-patch16-zero-shot, Ni ve ark.
+# (video SINIFLANDIRMA icin on-egitilmis) X-CLIP soyundandir - Ma ve ark.
+# (2022, ACM MM, retrieval icin uctan uca egitilmis) X-CLIP'i DEGIL (bkz.
+# models/xclip_hf.py docstring'i). Zero-shot CLIP-straight'e gore de biraz
+# geride kalmasi KISMEN BEKLENEN: siniflandirma-soylu on-egitim, "duz" CLIP
+# gorsel-metin hizalamasindan farkli bir hedefe optimize eder. Bu bug degil,
+# checkpoint secimi. Ma ve ark. X-CLIP'i (github.com/xuguohai/X-CLIP) HF Hub
+# ustunden AutoModel ile YUKLENEMIYOR (dogrulandi) - yalniz kendi ozel model
+# koduyla (custom checkpoint format, pip paketi yok) calisiyor; entegrasyonu
+# bu scriptin kapsamini asan ayri bir is oldugundan simdilik atlandi.
+ZERO_SHOT_BASELINE_NAME = (
+    "CLIP-straight zero-shot (Portillo-Quintero ve ark. 2021, T2V, MSR-VTT 1k-A, "
+    "fine-tune yok) - iki bagimsiz kaynaktan dogrulandi, kirmizi bayrak buna karsi kosulur")
+ZERO_SHOT_BASELINE = {"R@1": 31.2, "R@5": 53.7, "R@10": 64.2, "MedR": 4.0}
+
+# Yalniz REFERANS icin JSON ciktisinda tutulur (fine-tuning ile ne kadar
+# yukselinebilecegine dair ust sinir gostergesi) - fine-tune edilmis bir
+# retrieval modelini zero-shot checkpoint'imizle DOGRUDAN KIYASLAMAK adil
+# degil, bu yuzden kirmizi bayrak kontrolu BUNA KARSI KOSULMAZ.
+REFERENCE_ONLY_BASELINES = {
+    "CLIP4Clip (ViT-B/32), fine-tuned t2v - ust sinir referansi, red bayrak icin KULLANILMIYOR": {
         "R@1": 44.5, "R@5": 71.4, "R@10": 81.6, "MedR": 2.0},
 }
 FLAG_THRESHOLD_PCT = 10.0  # bu kadar sapma KIRMIZI BAYRAK
@@ -125,6 +140,18 @@ def compute_retrieval_metrics(sim_matrix: np.ndarray) -> dict:
     }
 
 
+def mean_rank_vs_chance(mean_r: float, n: int) -> str:
+    """MeanR'yi rastgele siralamanin beklenen ortalama sirasina (n+1)/2 karsi
+    ifade eder. Hangi baseline'in "adil" oldugu tartismali olsa bile, bu
+    satir HER ZAMAN hesaplanabilir ve boru hattinin en azindan rastgele
+    oneriden anlamli farkli oldugunu SAYISAL olarak dogrular - model
+    kalitesinden bagimsiz bir asgari saglamlik kontrolu (GOREV maddesi 3,
+    28 Temmuz 2026)."""
+    chance = (n + 1) / 2
+    ratio = chance / mean_r if mean_r > 0 else float("inf")
+    return f"MeanR={mean_r:.1f}, rastgele sans ~{chance:.1f} -> {ratio:.1f}x daha iyi"
+
+
 def red_flag_check(measured: dict, baseline: dict) -> list:
     flags = []
     for key in ("R@1", "R@5", "R@10"):
@@ -159,6 +186,7 @@ def run_validation(model_name: str, entries: list, videos_dir: pathlib.Path,
     sim = caption_mat @ video_mat.T  # L2-normalize varsayimi - modeller zaten normalize donuyor
 
     metrics = compute_retrieval_metrics(sim)
+    metrics["mean_rank_vs_chance"] = mean_rank_vs_chance(metrics["MeanR"], metrics["n"])
     metrics["video_embed_total_s"] = round(video_s, 1)
     metrics["text_embed_total_s"] = round(text_s, 1)
     metrics["n_videos_embedded"] = len(video_embs)
@@ -184,14 +212,14 @@ def main():
     for model_name in args.models:
         measured = run_validation(model_name, entries, videos_dir, args.n_frames, args.limit)
         red_flags = []
-        for baseline_name, baseline in PUBLISHED_BASELINES.items():
-            flags = red_flag_check(measured, baseline)
-            if flags:
-                red_flags.append({"baseline": baseline_name, "flags": flags})
+        flags = red_flag_check(measured, ZERO_SHOT_BASELINE)
+        if flags:
+            red_flags.append({"baseline": ZERO_SHOT_BASELINE_NAME, "flags": flags})
         results[model_name] = {"measured": measured, "red_flags": red_flags}
         print(f"  R@1={measured['R@1']:.1f} R@5={measured['R@5']:.1f} "
              f"R@10={measured['R@10']:.1f} MedR={measured['MedR']:.1f} "
              f"(n={measured['n_pairs_evaluated']})")
+        print(f"  {measured['mean_rank_vs_chance']}")
         for rf in red_flags:
             for f in rf["flags"]:
                 print(f"  [!] {f}")
@@ -202,7 +230,8 @@ def main():
                     "kumesiyle DEGIL, tam 1000 klipin klasik protokolüyle karsilastirilabilir.",
         "n_frames_per_video": args.n_frames,
         "limit": args.limit,
-        "published_baselines": PUBLISHED_BASELINES,
+        "zero_shot_baseline": {"name": ZERO_SHOT_BASELINE_NAME, "values": ZERO_SHOT_BASELINE},
+        "reference_only_baselines": REFERENCE_ONLY_BASELINES,
         "results": results,
     }
     out_path = pathlib.Path(args.out)
