@@ -48,6 +48,28 @@ gercek IHA verisi olmadan, acik drone veri setleriyle sinamak icin var.
 - **PostgreSQL yok**: yalnizca `platform` sabit deger, gercek bir katalog
   join'i yok (docker-compose.yml'de bilerek yok — kullanilmayan servis
   eklemek yeni bir "olu referans" olurdu).
+  **YENIDEN DOGRULANDI (28 Temmuz 2026)**: bir dis plan (Codex "Unified
+  Search Harness") Postgres'i "authoritative segment_features + ClickHouse
+  materyalize kopya + parity/checksum" olarak onerdi. Sorunun kendisini
+  (iliskisel butunluk gercekten gerekli mi) inceledik, varsayimla
+  gecistirmedik:
+  - Model -> tablo eslemesi zaten depolama gerektirmeyen bir isimlendirme
+    kurali: `search/query.py:76`, `table = f"clips_{model_name}"`.
+  - Segment kimligi zaten `(video_id, t_start)` demeti ile calisiyor ve
+    tablolar-arasi karsilastirma icin YETERLI - `reports/
+    strategy_matrix_report.py::hnsw_recall_at_k()` bunu FK/UUID olmadan,
+    duz Python kumesi kesisimiyle yapiyor.
+  - `brightness`/`camera_motion` gibi "segment_features" zaten ClickHouse
+    satirinin kendisinde (`schema.sql`) - ayri bir authoritative kaynak
+    yok, dolayisiyla senkronize edilecek/parity'si bozulacak iki kopya
+    da yok.
+  - MSR-VTT (bu oturumda eklenen ikinci veri seti) BILEREK ClickHouse'a
+    hic yazmiyor (`scripts/validate_msrvtt.py` docstring'i) - coklu-dataset
+    genislemesi bile yeni bir katalog-join ihtiyaci DOGURMADI.
+  Sonuc: mevcut ihtiyaç tek-ClickHouse-tablosuyla (duz, join'siz) cozuluyor;
+  Postgres eklenmedi (schema/ephemeral-test dahil hicbir kod yazilmadi).
+  Karar hala gecerli - "henuz ele alinmamis" degil, "yeniden incelenip
+  teyit edilmis".
 - **Kafka/Temporal yok**: orkestrasyon dayanikliligi uretim problemi,
   POC'un sorusu "retrieval calisiyor mu". `make ingest` yeterli.
 
