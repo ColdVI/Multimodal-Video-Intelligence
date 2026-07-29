@@ -14,6 +14,10 @@
       "purpose": "MSR-VTT 1k-A test video'lari",
       "expected_files": ["msrvtt_test_1k.json", "videos/*.mp4"]
     },
+    "datasets/visdrone": {
+      "purpose": "VisDrone-MOT bench subset (19 sekans, config.yaml: bench.subset) - manifest.json (video sure/fps), videos/*.mp4 (ingest/01_frames_to_video.py ciktisi, ONCEDEN mp4'e donusturulmus), annotations/*.txt (MOT format). Bu depoda data/raw/ gitignore'lu oldugu icin ZIP'in icinde GELMEZ - KULLANICI TARAFINDAN buraya yerlestirilir.",
+      "expected_files": ["manifest.json", "videos/*.mp4", "annotations/*.txt"]
+    },
     "checkpoints": {
       "purpose": "notebook 02'nin embedding checkpoint'leri (resume icin) - her 100 item'da yazilir",
       "expected_files": ["auair_qwen2048.ndjson", "capera_qwen2048.ndjson", "msrvtt_qwen2048.ndjson"]

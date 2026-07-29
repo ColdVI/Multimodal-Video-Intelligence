@@ -56,5 +56,26 @@
         "present_locally": true
       }
     ]
+  },
+  "visdrone": {
+    "source": "VisDrone2019-MOT-train (AISKYEYE/Tianjin University, resmi Task 4 Google Drive) - bu depoda onceki is paketinde indirilip SHA-256 dogrulandi (bkz. TASKS.md); ingest/01_frames_to_video.py ile 19-sekans bench subset'i (config.yaml: bench.subset) mp4'e donusturuldu - Colab'a bu donusturulmus haliyle Drive uzerinden TASINMALI, bu depoda data/raw/ gitignore'lu",
+    "license": "CC BY-NC-SA 3.0 (AISKYEYE/Tianjin University aiskyeye.com)",
+    "download_method": "manual_drive_copy",
+    "resume_supported": false,
+    "files": [
+      {
+        "name": "manifest.json",
+        "present_locally": true
+      },
+      {
+        "name": "videos/ (19 mp4, bench subset)",
+        "present_locally": true
+      },
+      {
+        "name": "annotations/ (MOT .txt)",
+        "present_locally": true
+      }
+    ],
+    "raw_video_status": "NOT_PRESENT_IN_ZIP - data/raw/ gitignore'lu, Colab GPU asamasinda Drive'dan saglanmali"
   }
 }

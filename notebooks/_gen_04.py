@@ -58,7 +58,7 @@ print(_json.dumps(backend_versions, indent=2, ensure_ascii=False))
 
 ("code", """EMB_ROOT = colab_paths.embeddings_root()
 DIMS = (2048, 1024, 512, 256)
-DATASETS = ("auair", "capera", "msrvtt")
+DATASETS = ("auair", "capera", "msrvtt", "visdrone")
 
 available_embeddings = {}
 for ds in DATASETS:

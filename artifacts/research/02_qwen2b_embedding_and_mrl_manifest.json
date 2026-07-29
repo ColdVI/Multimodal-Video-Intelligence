@@ -12,7 +12,8 @@
     "embedding_ready": {
       "auair": false,
       "capera": false,
-      "msrvtt": false
+      "msrvtt": false,
+      "visdrone": false
     },
     "mrl_summary": {
       "auair": {
@@ -23,13 +24,17 @@
       },
       "msrvtt": {
         "status": "ATLANDI - 2048d checkpoint yok"
+      },
+      "visdrone": {
+        "status": "ATLANDI - 2048d checkpoint yok"
       }
     },
     "checkpoint_paths": {
       "auair": "artifacts\\research\\checkpoints\\auair_qwen2048.ndjson",
       "capera": "artifacts\\research\\checkpoints\\capera_qwen2048.ndjson",
-      "msrvtt": "artifacts\\research\\checkpoints\\msrvtt_qwen2048.ndjson"
+      "msrvtt": "artifacts\\research\\checkpoints\\msrvtt_qwen2048.ndjson",
+      "visdrone": "artifacts\\research\\checkpoints\\visdrone_qwen2048.ndjson"
     }
   },
-  "generated_at": "2026-07-29T13:51:45.334964+00:00"
+  "generated_at": "2026-07-29T14:18:50.691518+00:00"
 }

@@ -58,12 +58,12 @@
   },
   "ram": {
     "total_mb": 16824,
-    "available_mb": 1991
+    "available_mb": 1597
   },
   "disk_content": {
     "path": ".",
     "total_gb": 511.1,
-    "free_gb": 100.2
+    "free_gb": 101.2
   },
   "drive": {
     "mount_point_exists": false,
@@ -82,7 +82,7 @@
   "qdrant_binary_url_reachable": {
     "reachable": true,
     "status_code": 200,
-    "final_url": "https://release-assets.githubusercontent.com/github-production-release-asset/268163609/d51abff4-9361-46dd-933e-9a571b55db0d?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-07-29T11%3A57%3A15Z&rscd=attachment%3B+filename%3Dqdrant-x86_64-unknown-linux-gnu.tar.gz&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-07-29T10%3A56%3A38Z&ske=2026-07-29T11%3A57%3A15Z&sks=b&skv=2018-11-09&sig=csqHooD%2FNSzUV6WC82b37VKhI4dJbLmHhJCJ0Nid8Oc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc4NTMyNDYxNiwibmJmIjoxNzg1MzIyODE2LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.-NAvzxCQDwf-aIaORqjVjI_FvTImAbU2VydFk5D9NyE&response-content-disposition=attachment%3B%20filename%3Dqdrant-x86_64-unknown-linux-gnu.tar.gz&response-content-type=application%2Foctet-stream"
+    "final_url": "https://release-assets.githubusercontent.com/github-production-release-asset/268163609/d51abff4-9361-46dd-933e-9a571b55db0d?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-07-29T15%3A01%3A32Z&rscd=attachment%3B+filename%3Dqdrant-x86_64-unknown-linux-gnu.tar.gz&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-07-29T14%3A01%3A03Z&ske=2026-07-29T15%3A01%3A32Z&sks=b&skv=2018-11-09&sig=NcY4lfapGBtImpPNfKCGVwRRkmj2GzsgAUWVkN8tBe4%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc4NTMzNjU2MCwibmJmIjoxNzg1MzM0NzYwLCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.UxQdN5GMMnHViBdiOPJWVTTk-mJotUAUG7-GyI5eL9g&response-content-disposition=attachment%3B%20filename%3Dqdrant-x86_64-unknown-linux-gnu.tar.gz&response-content-type=application%2Foctet-stream"
   },
   "postgres_pgvector_installable": {
     "checked": false,

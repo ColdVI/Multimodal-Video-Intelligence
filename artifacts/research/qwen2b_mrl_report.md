@@ -7,7 +7,8 @@ gpu_available=False (hardware_profile=local-cpu)
 {
   "auair": false,
   "capera": false,
-  "msrvtt": false
+  "msrvtt": false,
+  "visdrone": false
 }
 
 ## MRL turetme ozeti
@@ -20,6 +21,9 @@ gpu_available=False (hardware_profile=local-cpu)
   },
   "msrvtt": {
     "status": "ATLANDI - 2048d checkpoint yok"
+  },
+  "visdrone": {
+    "status": "ATLANDI - 2048d checkpoint yok"
   }
 }
 
@@ -27,3 +31,4 @@ gpu_available=False (hardware_profile=local-cpu)
 - AU-AIR: artifacts\research\checkpoints\auair_qwen2048.ndjson
 - CapERA: artifacts\research\checkpoints\capera_qwen2048.ndjson
 - MSR-VTT: artifacts\research\checkpoints\msrvtt_qwen2048.ndjson
+- VisDrone: artifacts\research\checkpoints\visdrone_qwen2048.ndjson

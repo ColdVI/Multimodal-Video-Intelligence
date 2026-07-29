@@ -1,6 +1,6 @@
 # AU-AIR indirme ve dogrulama - denetim raporu (GERCEK calistirmadan)
 
-Uretim zamani: 2026-07-29T10:59:26.879582+00:00
+Uretim zamani: 2026-07-29T14:20:13.012877+00:00
 
 ## Lisans duzeltmesi
 Spec SS2.1: "CC BY 4.0" (YANLIS). Gercek veri: **CC BY-NC-SA** (Attribution-

@@ -66,14 +66,22 @@ Ayni GPU runtime'inda, sirayla:
      `/content/ERA_Dataset`'e acar** (Drive'a degil, hizli olsun diye).
      Elle extract etmenize GEREK YOK. Bu 3 dosyadan biri eksikse CapERA
      hucresi sadece atlanir, AU-AIR/MSR-VTT etkilenmez.
+   - **VisDrone-MOT (bench subset, 19 sekans):** Bu depoda YOK
+     (`data/raw/` gitignore'lu). Drive'da AYNI kok altinda su klasore atin:
+     `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/visdrone/`
+     - `manifest.json` (bu depodaki `data/raw/manifest.json` ile ayni)
+     - `videos/` (bu depodaki `data/raw/videos/*.mp4`, 19 dosya, ~830 MB -
+       zaten mp4'e donusturulmus, elle bir sey yapmaniza gerek yok)
+     - `annotations/` (bu depodaki `data/raw/VisDrone2019-MOT-train/annotations/*.txt`, ~34 MB)
+     - Eksikse notebook 02'nin VisDrone hucresi sadece atlanir, digerlerini etkilemez.
    - `scripts/verify_drive_inputs.py`'yi calistirarak (bir hucrede
      `!python scripts/verify_drive_inputs.py`) hangi dataset'lerin hazir
      oldugunu kontrol edebilirsiniz.
 3. **`02_qwen2b_embedding_and_mrl.ipynb`** - GPU kapisi GERCEKTEN kontrol
    eder (GPU yoksa acikca durur, sahte sonuc URETMEZ). GPU varsa:
-   AU-AIR + CapERA (varsa) + MSR-VTT icin 2048d Qwen embedding uretir,
-   **her 100 item'da Drive'a checkpoint yazar** (kesilirse hucreyi tekrar
-   calistirmak KALDIGI YERDEN devam eder - checkpoint'ler
+   AU-AIR + CapERA (varsa) + MSR-VTT + VisDrone (varsa) icin 2048d Qwen
+   embedding uretir, **her 100 item'da Drive'a checkpoint yazar** (kesilirse
+   hucreyi tekrar calistirmak KALDIGI YERDEN devam eder - checkpoint'ler
    `.../checkpoints/*.ndjson`), sonra 1024/512/256 boyutlarini turetir.
 
 Faz 1 sonunda Drive'da: `checkpoints/*.ndjson`, `embeddings/*_qwen*.json`,

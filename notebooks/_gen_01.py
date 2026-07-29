@@ -477,6 +477,23 @@ dataset_download_manifest = {
             {"name": "MSRVTT_Videos.zip", "present_locally": (msrvtt_dir / "MSRVTT_Videos.zip").exists()},
         ],
     },
+    "visdrone": {
+        "source": "VisDrone2019-MOT-train (AISKYEYE/Tianjin University, resmi Task 4 Google Drive) - "
+                 "bu depoda onceki is paketinde indirilip SHA-256 dogrulandi (bkz. TASKS.md); "
+                 "ingest/01_frames_to_video.py ile 19-sekans bench subset'i (config.yaml: bench.subset) "
+                 "mp4'e donusturuldu - Colab'a bu donusturulmus haliyle Drive uzerinden TASINMALI, "
+                 "bu depoda data/raw/ gitignore'lu",
+        "license": "CC BY-NC-SA 3.0 (AISKYEYE/Tianjin University aiskyeye.com)",
+        "download_method": "manual_drive_copy",
+        "resume_supported": False,
+        "files": [
+            {"name": "manifest.json", "present_locally": pathlib.Path("data/raw/manifest.json").exists()},
+            {"name": "videos/ (19 mp4, bench subset)", "present_locally": pathlib.Path("data/raw/videos").exists()},
+            {"name": "annotations/ (MOT .txt)",
+             "present_locally": pathlib.Path("data/raw/VisDrone2019-MOT-train/annotations").exists()},
+        ],
+        "raw_video_status": "NOT_PRESENT_IN_ZIP - data/raw/ gitignore'lu, Colab GPU asamasinda Drive'dan saglanmali",
+    },
 }
 dl_manifest_path = OUT / "dataset_download_manifest.json"
 dl_manifest_path.write_text(json.dumps(dataset_download_manifest, indent=2, ensure_ascii=False), encoding="utf-8")

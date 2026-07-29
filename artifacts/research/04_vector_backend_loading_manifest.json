@@ -68,9 +68,15 @@
         "1024": false,
         "512": false,
         "256": false
+      },
+      "visdrone": {
+        "2048": false,
+        "1024": false,
+        "512": false,
+        "256": false
       }
     },
     "no_two_backends_simultaneously": true
   },
-  "generated_at": "2026-07-29T11:00:17.859392+00:00"
+  "generated_at": "2026-07-29T14:19:43.216574+00:00"
 }

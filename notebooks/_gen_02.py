@@ -72,46 +72,81 @@ else:
     print("[ATLANDI] Model yuklenmedi (GPU yok).")
 """),
 
-("md", "## AU-AIR embedding (notebook 01'in GERCEK pencerelerinden)"),
+("md", "## AU-AIR embedding (notebook 01'in GERCEK pencerelerinden)\n\n"
+      "`images.zip`'i ELLE ACMANIZA GEREK YOK - asagidaki hucre Drive'daki "
+      "`datasets/auair/images.zip`'i (notebook 01'in indirdigi) OTOMATIK bulup "
+      "`/content`'e acar (Drive'a degil - hizli)."),
 
-("code", """import numpy as np
+("code", """import zipfile
+
+import cv2
+import numpy as np
 import pandas as pd
 
 from src.research.embedding_checkpoint import CheckpointWriter, remaining_items
 
 auair_seg_path = OUT / "auair_segments.parquet"
 auair_ckpt = CKPT_ROOT / "auair_qwen2048.ndjson"
-auair_frames_dir = colab_paths.dataset_root("auair") / "extracted" / "images"
+AUAIR_IMAGES_DIR = pathlib.Path("/content/auair_images")
+AUAIR_IMAGES_ZIP = colab_paths.dataset_root("auair") / "images.zip"
+
+def _ensure_auair_images_extracted():
+    if AUAIR_IMAGES_DIR.exists() and any(AUAIR_IMAGES_DIR.rglob("*.jpg")):
+        print(f"AU-AIR resimleri zaten acik: {AUAIR_IMAGES_DIR}")
+        return True
+    if not AUAIR_IMAGES_ZIP.exists():
+        print(f"[ATLANDI] {AUAIR_IMAGES_ZIP} Drive'da yok - AU-AIR embedding atlaniyor "
+             "(once notebook 01'i GPU runtime'inda calistirip images.zip'i indirtin).")
+        return False
+    print(f"AU-AIR resimleri aciliyor: {AUAIR_IMAGES_ZIP} -> {AUAIR_IMAGES_DIR} "
+         "(2.2 GB, birkac dakika surebilir) ...")
+    with zipfile.ZipFile(AUAIR_IMAGES_ZIP) as z:
+        z.extractall(AUAIR_IMAGES_DIR)
+    print("Acildi.")
+    return True
 
 auair_embedding_ready = False
 if not auair_seg_path.exists():
     print(f"[ATLANDI] {auair_seg_path} yok - once notebook 01'i calistirin.")
 elif not gpu_available:
     print("[ATLANDI] AU-AIR embedding uretimi (GPU yok).")
+elif not _ensure_auair_images_extracted():
+    pass
 else:
+    # zip'in ic klasor yapisi onceden bilinmiyor (AU-AIR'in kendi paketlemesi) -
+    # dosya adina gore rglob ile bulup harita cikariyoruz, sabit bir alt-yol VARSAYMIYORUZ.
+    _auair_image_index = {p.name: p for p in AUAIR_IMAGES_DIR.rglob("*") if p.is_file()}
+    print(f"AU-AIR resim indeksi: {len(_auair_image_index)} dosya.")
+
     seg_df = pd.read_parquet(auair_seg_path)
     all_ids = seg_df["segment_id"].tolist()
     todo = remaining_items(all_ids, auair_ckpt)
     print(f"AU-AIR: {len(all_ids)} pencere, {len(all_ids) - len(todo)} zaten tamamlanmis (resume), "
          f"{len(todo)} kaldi.")
     seg_by_id = seg_df.set_index("segment_id")
+    n_missing_frames = 0
     with CheckpointWriter(auair_ckpt, flush_every=cfg.embedding_checkpoint_every) as writer:
         for i, seg_id in enumerate(todo):
             row = seg_by_id.loc[seg_id]
-            video_dir = auair_frames_dir  # Colab'da images.zip buraya acilmis olmali
-            frame_paths = [video_dir / name for name in row["frame_names"]]
             frames = []
-            for p in frame_paths:
-                if p.exists():
-                    img = __import__("cv2").imread(str(p))
-                    if img is not None:
-                        frames.append(__import__("cv2").cvtColor(img, __import__("cv2").COLOR_BGR2RGB))
+            for name in row["frame_names"]:
+                p = _auair_image_index.get(name)
+                if p is None:
+                    continue
+                img = cv2.imread(str(p))
+                if img is not None:
+                    frames.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
             if not frames:
+                n_missing_frames += 1
                 continue
             vec = embedder.embed_video(frames)
             writer.add(seg_id, vec.tolist())
             if (i + 1) % cfg.embedding_checkpoint_every == 0:
-                print(f"  AU-AIR {i+1}/{len(todo)} ({writer.n_flushed} Drive'a yazildi)")
+                print(f"  AU-AIR {i+1}/{len(todo)} ({writer.n_flushed} Drive'a yazildi, "
+                     f"{n_missing_frames} pencere kare bulamadi)")
+    if n_missing_frames:
+        print(f"UYARI: {n_missing_frames} AU-AIR penceresi icin hic kare bulunamadi "
+             "(image_name/zip icerigi uyusmuyor olabilir).")
     auair_embedding_ready = len(remaining_items(all_ids, auair_ckpt)) == 0
     print(f"AU-AIR embedding_ready={auair_embedding_ready} -> {auair_ckpt}")
 """),
@@ -223,6 +258,70 @@ else:
              f"(embedding_ready={msrvtt_embedding_ready}) -> {msrvtt_ckpt}")
 """),
 
+("md", "## VisDrone-MOT embedding (bench subset - ingest/02_windowing.py ile AYNI pencereleme formulu)\n\n"
+      "Ham video/annotasyon bu depoda YOK (`data/raw/` gitignore'lu) - Drive'da "
+      "`datasets/visdrone/` altina `manifest.json`, `videos/*.mp4` (ingest/01_frames_to_video.py "
+      "ciktisi, 19 sekans bench subset - config.yaml: bench.subset), `annotations/*.txt` "
+      "KULLANICI TARAFINDAN yerlestirilmeli. Yoksa hucre sadece atlanir."),
+
+("code", """from common import load_config as _load_raw_config
+from ingest.frame_io import read_window_frames
+
+visdrone_ckpt = CKPT_ROOT / "visdrone_qwen2048.ndjson"
+visdrone_embedding_ready = False
+
+VISDRONE_DIR = colab_paths.dataset_root("visdrone")
+visdrone_manifest_path = VISDRONE_DIR / "manifest.json"
+
+if not gpu_available:
+    print("[ATLANDI] VisDrone embedding uretimi (GPU yok).")
+elif not visdrone_manifest_path.exists():
+    print(f"[ATLANDI] {visdrone_manifest_path} Drive'da yok - VisDrone atlaniyor.")
+else:
+    visdrone_manifest = json.loads(visdrone_manifest_path.read_text(encoding="utf-8"))
+
+    # ingest/02_windowing.py ile AYNI formul. window_size_s/stride_s research
+    # cfg'de config.yaml'daki degerlerle AYNI (kilitli sabit) - min_window_s
+    # ResearchConfig'te yok, ham config.yaml'dan okunuyor.
+    _min_win = _load_raw_config()["window"]["min_window_s"]
+    visdrone_windows = []
+    for vid, m in visdrone_manifest.items():
+        t = 0.0
+        while t < m["duration_s"]:
+            t_end = min(t + cfg.window_size_s, m["duration_s"])
+            if t_end - t >= _min_win:
+                visdrone_windows.append({"video_id": vid, "t_start": round(t, 2), "t_end": round(t_end, 2)})
+            t += cfg.stride_s
+
+    def _visdrone_window_id(w):
+        return f"{w['video_id']}__{w['t_start']:.2f}_{w['t_end']:.2f}"
+
+    windows_by_id = {_visdrone_window_id(w): w for w in visdrone_windows}
+    all_ids = list(windows_by_id)
+    todo = remaining_items(all_ids, visdrone_ckpt)
+    print(f"VisDrone: {len(visdrone_manifest)} video, {len(all_ids)} pencere, "
+         f"{len(all_ids) - len(todo)} zaten tamamlanmis, {len(todo)} kaldi.")
+    n_missing_video = 0
+    with CheckpointWriter(visdrone_ckpt, flush_every=cfg.embedding_checkpoint_every) as writer:
+        for i, win_id in enumerate(todo):
+            w = windows_by_id[win_id]
+            video_path = VISDRONE_DIR / "videos" / f"{w['video_id']}.mp4"
+            if not video_path.exists():
+                n_missing_video += 1
+                continue
+            frames = read_window_frames(str(video_path), w["t_start"], w["t_end"], n=cfg.frames_per_item)
+            if not frames:
+                continue
+            vec = embedder.embed_video(frames)
+            writer.add(win_id, vec.tolist())
+            if (i + 1) % cfg.embedding_checkpoint_every == 0:
+                print(f"  VisDrone {i+1}/{len(todo)} ({writer.n_flushed} Drive'a yazildi, {n_missing_video} video eksik)")
+    if n_missing_video:
+        print(f"UYARI: {n_missing_video} VisDrone videosu Drive'da bulunamadi.")
+    visdrone_embedding_ready = len(remaining_items(all_ids, visdrone_ckpt)) == 0
+    print(f"VisDrone embedding_ready={visdrone_embedding_ready} -> {visdrone_ckpt}")
+"""),
+
 ("md", "## MRL turetme (SS3.3) - GPU GEREKTIRMEZ, mevcut 2048d checkpoint'lerden herhangi biri varsa calisir"),
 
 ("code", """from src.research.mrl import derive_all_dims, validate_mrl_derivation
@@ -231,7 +330,8 @@ from src.research.embedding_checkpoint import load_cached
 MRL_DIMS = (1024, 512, 256)
 mrl_summary = {}
 
-for dataset_id, ckpt_path in [("auair", auair_ckpt), ("capera", capera_ckpt), ("msrvtt", msrvtt_ckpt)]:
+for dataset_id, ckpt_path in [("auair", auair_ckpt), ("capera", capera_ckpt), ("msrvtt", msrvtt_ckpt),
+                              ("visdrone", visdrone_ckpt)]:
     if not ckpt_path.exists():
         mrl_summary[dataset_id] = {"status": "ATLANDI - 2048d checkpoint yok"}
         print(f"{dataset_id}: [ATLANDI] {ckpt_path} yok.")
@@ -267,6 +367,7 @@ print(json.dumps(mrl_summary, indent=2, ensure_ascii=False))
     "auair": auair_embedding_ready,
     "capera": capera_embedding_ready,
     "msrvtt": msrvtt_embedding_ready,
+    "visdrone": visdrone_embedding_ready,
 }
 report_md = f'''# Notebook 02 - Qwen3-VL-Embedding-2B GPU asamasi sonucu
 
@@ -283,6 +384,7 @@ gpu_available={gpu_available} (hardware_profile={hw["hardware_profile"]})
 - AU-AIR: {auair_ckpt}
 - CapERA: {capera_ckpt}
 - MSR-VTT: {msrvtt_ckpt}
+- VisDrone: {visdrone_ckpt}
 '''
 (OUT / "qwen2b_mrl_report.md").write_text(report_md, encoding="utf-8")
 print(report_md)
@@ -294,7 +396,8 @@ manifest = RunManifest(
         "gpu_available": gpu_available,
         "embedding_ready": embedding_status,
         "mrl_summary": mrl_summary,
-        "checkpoint_paths": {"auair": str(auair_ckpt), "capera": str(capera_ckpt), "msrvtt": str(msrvtt_ckpt)},
+        "checkpoint_paths": {"auair": str(auair_ckpt), "capera": str(capera_ckpt), "msrvtt": str(msrvtt_ckpt),
+                            "visdrone": str(visdrone_ckpt)},
     },
 )
 manifest_path = write_manifest(manifest, OUT)
