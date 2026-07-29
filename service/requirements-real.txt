@@ -1,0 +1,8 @@
+torch==2.4.1
+torchvision==0.19.1
+transformers==4.46.0
+accelerate==0.34.2
+qwen-vl-utils==0.0.8
+huggingface-hub[cli]==0.25.2
+decord==0.6.0
+scipy==1.16.1

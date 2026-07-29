@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.db import clickhouse, postgres, qdrant
+from app.embedding.router import mode_info
 from app.search.engine import search as run_search
 from app.search.strategies import STRATEGIES
 
@@ -71,6 +72,11 @@ def facets(dataset_id: str) -> dict:
 @app.get("/strategies")
 def strategies() -> dict:
     return {key:list(value) for key,value in STRATEGIES.items()}
+
+
+@app.get("/embedding-mode/{dataset_id}")
+def embedding_mode(dataset_id: str) -> dict:
+    return mode_info(dataset_id)
 
 
 @app.post("/search")

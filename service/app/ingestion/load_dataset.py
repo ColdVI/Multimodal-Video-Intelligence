@@ -59,7 +59,7 @@ def load_auair(root: Path) -> tuple[dict, list[dict]]:
 
 
 def load_capera(root: Path) -> tuple[dict, list[dict]]:
-    candidates = list((root.parent.parent / "data/downloads").glob("**/*caption*.json"))
+    candidates = list((settings.data_dir / "downloads").glob("**/*caption*.json"))
     if not candidates:
         raise FileNotFoundError("CapERA caption JSON not found under data/downloads")
     path = candidates[0]
@@ -75,7 +75,7 @@ def load_capera(root: Path) -> tuple[dict, list[dict]]:
 
 
 def load_seadronessee(root: Path) -> tuple[dict, list[dict]]:
-    candidates = list((root.parent.parent / "data/downloads").glob("**/*SeaDronesSee*.json"))
+    candidates = list((settings.data_dir / "downloads").glob("**/*SeaDronesSee*.json"))
     if not candidates: raise FileNotFoundError("SeaDronesSee annotation JSON not found under data/downloads")
     path = candidates[0]; raw = json.loads(path.read_text(encoding="utf-8")); images = raw.get("images", [])
     rows = []

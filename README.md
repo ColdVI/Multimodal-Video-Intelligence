@@ -1,3 +1,20 @@
+# Faz 7: çalışan çoklu-backend arama sistemi
+
+GPU olmadan bütün DB/API/UI/gecikme yolunu dürüstçe doğrulayan sentetik mod varsayılandır:
+
+```bash
+cp .env.faz7.example .env.faz7
+docker compose -f docker-compose.faz7.yml up -d --build
+docker compose -f docker-compose.faz7.yml exec -T api python -m app.ingestion.load_dataset --dataset auair
+```
+
+- UI: http://localhost:7860
+- API/OpenAPI: http://localhost:8000/docs
+- Tek komut doğrulama: `bash scripts/verify_faz7.sh`
+- İşletim ve cached/real embedding geçişi: [`docs/RUNBOOK.md`](docs/RUNBOOK.md)
+
+UI üstündeki kapatılamayan banner ve her API/CSV kaydındaki `embedding_mode`, sentetik ölçümün gerçek kalite sonucu sanılmasını engeller. Mevcut araştırma Compose'u değişmedi; Faz 7 yalnız `docker-compose.faz7.yml` kullanır.
+
 # Hibrit video arama — POC
 
 > Codex ile devam edecekseniz önce `CODEX_START_HERE.md` dosyasını açın.

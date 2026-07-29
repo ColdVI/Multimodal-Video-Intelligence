@@ -37,3 +37,18 @@ def cached_embedding(dataset_id: str, segment_id: str) -> np.ndarray:
 
 def cached_count(dataset_id: str) -> int:
     return int(_dataset_cache(dataset_id)[0].shape[0])
+
+
+@lru_cache(maxsize=8)
+def _query_cache(dataset_id: str):
+    path=settings.artifacts_dir/"embeddings"/f"{dataset_id}_queries.npz"
+    if not path.exists(): raise FileNotFoundError(f"cached query embeddings missing: {path}; use EMBEDDING_MODE=real for arbitrary text")
+    return np.load(path)
+
+
+def cached_query(dataset_id: str, query: str) -> np.ndarray:
+    cache=_query_cache(dataset_id)
+    if query not in cache.files: raise KeyError(f"query is not in cached Qwen text embeddings: {query!r}; use EMBEDDING_MODE=real")
+    value=np.asarray(cache[query],dtype=np.float32)
+    if value.shape!=(2048,) or not np.isfinite(value).all(): raise ValueError(f"invalid cached query embedding: {query!r}")
+    return value/np.linalg.norm(value)

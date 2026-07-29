@@ -1,0 +1,2 @@
+faz7_verify_started=2026-07-29T21:13:46Z
+Cannot connect to the Docker daemon at unix:///Users/anil/.docker/run/docker.sock. Is the docker daemon running?

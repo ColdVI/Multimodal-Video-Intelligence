@@ -54,14 +54,20 @@ def empty_row(backend,strategy,dimension,selectivity,dataset_id,corpus_size):
 
 def run_configuration(api_url,backend,strategy,dimension,selectivity,dataset_id,corpus_size):
     row=empty_row(backend,strategy,dimension,selectivity,dataset_id,corpus_size); totals=[]; cold=None; last=None
+    telemetry_filter={}
+    thresholds_path=settings.artifacts_dir/"research/selectivity_thresholds_v2.json"
+    if selectivity < 1.0 and thresholds_path.exists():
+        thresholds=json.loads(thresholds_path.read_text(encoding="utf-8")); info=thresholds.get("altitude_m",{}).get("levels",{}).get(str(selectivity),{})
+        if info.get("threshold") is not None: telemetry_filter={"altitude_m":[None,info["threshold"]]}
     for query in QUERIES:
         body={"query":query,"dataset_id":dataset_id,"backend":backend,"strategy":strategy,"dimension":dimension,
-            "adaptive_mrl":{"enabled":False,"base_dim":256,"top_n":100},"metadata_filters":{},"telemetry_filters":{},"pattern":"A","top_k":10,"repeats":10}
+            "adaptive_mrl":{"enabled":False,"base_dim":256,"top_n":100},"metadata_filters":{},"telemetry_filters":telemetry_filter,"pattern":"A","top_k":10,"repeats":10}
         started=time.perf_counter()
         response=httpx.post(api_url+"/search",json=body,timeout=300); response.raise_for_status(); last=response.json()
         elapsed=(time.perf_counter()-started)*1000; cold=elapsed if cold is None else cold; totals.append(last["timings_stats"]["p50"])
     diag=last["diagnostics"]
-    row.update({"filter_selectivity_actual":selectivity,"returned_count":diag["returned_count"],"underfilled":diag["underfilled"],
+    actual=diag.get("candidate_count",corpus_size)/corpus_size if corpus_size else None
+    row.update({"filter_selectivity_actual":actual,"returned_count":diag["returned_count"],"underfilled":diag["underfilled"],
         "filter_correctness":diag["filter_correctness"],"topk_agreement":diag.get("topk_agreement"),"ann_recall_vs_exact":diag.get("ann_recall_at_k"),
         "p50_ms":float(np.percentile(totals,50)),"p95_ms":float(np.percentile(totals,95)),"p99_ms":float(np.percentile(totals,99)),
         "cold_ms":cold,"plan_used_vector_index":diag.get("plan_used_vector_index"),"indexed_vectors_count":diag.get("indexed_vectors_count"),

@@ -56,7 +56,7 @@ def _run_once(request: dict[str,Any]) -> dict:
     if request["backend"]=="clickhouse" and request["top_k"]>100: notes.append("top_k>100: max_limit_for_vector_search_queries query-level yükseltildi")
     else: notes.append("top_k<=100: max_limit ayarı değiştirilmedi")
     if settings.embedding_mode=="synthetic": notes.append("sentetik embedding: sıralama semantik kaliteyi temsil etmez")
-    if settings.embedding_mode=="cached": notes.append("item vektörleri gerçek cached; serbest metin query vektörü cache yoksa sentetiktir")
+    if settings.embedding_mode=="cached": notes.append("item ve query vektörleri gerçek Qwen cache'inden okundu")
     returned=len(hydrated)
     diag.update({"candidate_count":postgres.count(dataset_id) if candidates is None else len(candidates),"returned_count":returned,"underfilled":returned<request["top_k"],"filter_correctness":True,"notes":notes})
     timings={"filter":filter_ms,"embed":embed_ms,"vector_search":vector_ms,"hydrate":hydrate_ms,"total":(time.perf_counter()-start)*1000}

@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 
 from app.config import settings
-from app.embedding.cache import cached_count, cached_embedding
+from app.embedding.cache import cached_count, cached_embedding, cached_query
 from app.embedding.synthetic import synthetic_embedding
 from app.mrl import truncate_and_normalize
 
@@ -26,9 +26,9 @@ def embed_query(query: str, dataset_id: str, dim: int = 2048) -> np.ndarray:
     if settings.embedding_mode == "real":
         from app.embedding.qwen import process
         base = process({"text": query})
+    elif settings.embedding_mode == "cached":
+        base = cached_query(dataset_id,query)
     else:
-        # Cached mode contains item vectors only; real query vectors can be added as
-        # {dataset}_queries.npz. Until then, deterministic query embedding is explicit.
         base = synthetic_embedding(f"query:{dataset_id}:{query}", settings.embedding_dim)
     return truncate_and_normalize(base, dim)
 
@@ -40,5 +40,12 @@ def mode_info(dataset_id: str | None = None) -> dict[str, Any]:
         result["dataset_id"] = dataset_id
         result["count"] = cached_count(dataset_id)
     elif mode == "real":
-        result.update({"model": settings.qwen_model, "dtype": settings.torch_dtype, "gpu": os.getenv("GPU_NAME", "runtime-detected")})
+        gpu=os.getenv("GPU_NAME")
+        if not gpu:
+            try:
+                import torch
+                gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else "GPU unavailable"
+            except ImportError:
+                gpu="torch unavailable"
+        result.update({"model": settings.qwen_model, "dtype": settings.torch_dtype, "gpu": gpu})
     return result

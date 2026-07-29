@@ -14,6 +14,7 @@ class Settings:
     embedding_mode: str = _env("EMBEDDING_MODE", "synthetic")
     embedding_dim: int = int(_env("EMBEDDING_DIM", "2048"))
     artifacts_dir: Path = Path(_env("ARTIFACTS_DIR", "/workspace/artifacts"))
+    data_dir: Path = Path(_env("DATA_DIR", "/workspace/data"))
     pg_dsn: str = _env("PG_DSN", "postgresql://faz7:faz7@pg:5432/faz7")
     ch_host: str = _env("CH_HOST", "ch")
     ch_port: int = int(_env("CH_PORT", "8123"))

@@ -53,6 +53,7 @@ services:
       ARTIFACTS_DIR: /workspace/artifacts
     volumes:
       - ./artifacts:/workspace/artifacts
+      - ./data:/workspace/data:ro
     ports: ["8000:8000"]
     depends_on:
       pg: {condition: service_healthy}

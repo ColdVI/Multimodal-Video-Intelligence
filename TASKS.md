@@ -2,6 +2,17 @@
 
 Güncel kanıt ve ölçümler: `STATUS.md`.
 
+## Faz 7 — çalışan servis/API/UI
+
+- [x] Ayrı `docker-compose.faz7.yml`, sentetik/cached/real embedding router'ı ve pinli servis imajları
+- [x] PostgreSQL/pgvector, ClickHouse ve Qdrant idempotent şema + ingestion adapter'ları
+- [x] AU-AIR parquet loader, MRL 2048/1024/512/256, norm/NaN kontrolleri ve seçicilik artifact'i
+- [x] FastAPI `/health`, `/stats`, `/facets`, `/search`; exact/ANN/pre/post/iterative strateji sözleşmeleri
+- [x] Gradio arama + Karşılaştır UI'ı, zorunlu embedding banner'ı, latency ve diagnostics panelleri
+- [x] 150 satırlı benchmark matrisi ve gerçek Qwen üretim Colab notebook'u
+- [x] `scripts/verify_faz7.sh`, RUNBOOK, mentor özeti ve gerçek UI render screenshot'ı
+- [ ] Canlı üç-DB ingest/search kabul kapısı — bu oturumda host Docker daemon kapalı (`docs/BLOCKERS.md`)
+
 ## Faz 0 — ortam (insan + agent birlikte)
 - [x] `.venv` içinde `pip install -r requirements.txt` (Windows/Python 3.14)
 - [x] Docker Compose + gerçek ClickHouse schema — iki tablo `SHOW CREATE`

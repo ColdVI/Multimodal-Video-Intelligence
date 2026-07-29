@@ -1,7 +1,11 @@
 services:
   api:
+    build:
+      context: .
+      dockerfile: service/Dockerfile.gpu
     environment:
       EMBEDDING_MODE: real
+      QWEN_MODEL: /weights/Qwen3-VL-Embedding-2B
     volumes:
       - ./Qwen3-VL-Embedding:/opt/Qwen3-VL-Embedding:ro
       - ./weights:/weights:ro

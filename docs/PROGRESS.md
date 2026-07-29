@@ -7,3 +7,4 @@
 - 2026-07-30 00:55 TRT — Aşama 5 UI tamamlandı: zorunlu embedding banner'ı, dinamik facet/telemetri kontrolleri, latency/diagnostics/CSV ve Karşılaştır sekmesi import-smoke'tan geçti.
 - 2026-07-30 01:20 TRT — Aşama 6 tamamlandı: 150 satırlık L2 CSV üretildi; Docker/API kapalı olduğundan ölçümler açıkça `blocked`, latency/kalite alanları NULL bırakıldı.
 - 2026-07-30 01:35 TRT — Aşama 7 tamamlandı: GPU kapısı, T4/Ampere dtype-attention seçimi, 200 öğelik checkpoint/resume, doğrulama ve Drive ZIP akışlı Colab notebook'u JSON/AST kontrolünden geçti.
+- 2026-07-30 02:15 TRT — Aşama 8 tamamlandı: README/RUNBOOK/verify/mentor özeti yazıldı; gerçek Gradio render'ı HTTP 200 verdi ve headless Chrome ile `artifacts/ui_smoke.png` üretildi; canlı DB kapısı Docker daemon blokerinde kaldı.

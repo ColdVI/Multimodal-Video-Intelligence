@@ -23,10 +23,12 @@ def banner(dataset_id: str | None=None) -> str:
     if MODE=="cached":
         count="?"
         if dataset_id:
-            try: count=next(x["segments"] for x in api("GET","/stats")["datasets"] if x["dataset_id"]==dataset_id)
+            try: count=api("GET",f"/embedding-mode/{dataset_id}")["count"]
             except Exception: pass
         return f'<div class="mode-banner success">GERÇEK EMBEDDING (Qwen3-VL-2B, cached) — {dataset_id or "dataset"}: {count} vektör</div>'
-    return f'<div class="mode-banner success">GERÇEK EMBEDDING — Qwen3-VL-2B / {os.getenv("TORCH_DTYPE","float16")} / {os.getenv("GPU_NAME","GPU runtime")}</div>'
+    try: info=api("GET",f"/embedding-mode/{dataset_id or 'runtime'}")
+    except Exception: info={"dtype":os.getenv("TORCH_DTYPE","float16"),"gpu":os.getenv("GPU_NAME","GPU runtime")}
+    return f'<div class="mode-banner success">GERÇEK EMBEDDING — Qwen3-VL-2B / {info["dtype"]} / {info["gpu"]}</div>'
 
 
 def initial_data():
@@ -83,7 +85,7 @@ def compare(query,dataset,backends,dimensions,top_k):
                 try:
                     body=payload(query,dataset,backend,strategy,dimension,False,256,100,"A",top_k,10,None,None,None,None,None,None,None,None,None)
                     data=api("POST","/search",json=body); d=data["diagnostics"]
-                    rows.append([backend,strategy,dimension,data["timings_stats"]["p50"],data["timings_stats"]["p95"],d.get("ann_recall_at_k"),d["returned_count"],d["underfilled"]])
+                    rows.append([backend,strategy,dimension,data["timings_stats"]["p50"],data["timings_stats"]["p95"],d.get("ann_recall_at_k"),d["returned_count"],d["underfilled"],None])
                 except Exception as exc: rows.append([backend,strategy,dimension,None,None,None,0,True,str(exc)])
     return rows
 
