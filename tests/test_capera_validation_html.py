@@ -46,3 +46,32 @@ def test_scope_badge_html_absent_by_default_matches_no_badge_output():
     with_default = render_capera_report(_fake_evidence())
     with_explicit_empty = render_capera_report(_fake_evidence(), scope_badge_html="")
     assert with_default == with_explicit_empty
+
+
+def test_render_shows_manifest_and_evaluated_counts_separately():
+    evidence = _fake_evidence()
+    evidence["counts"] = {
+        "manifest_video_count": 2864, "manifest_query_count": 14320,
+        "evaluated_video_count": 2863, "evaluated_query_count": 14315,
+        "failed_video_count": 0,
+    }
+    out = render_capera_report(evidence)
+    assert "2864" in out and "14320" in out  # manifest
+    assert "2863" in out and "14315" in out  # evaluated
+    assert "ayrı tutulur" in out.lower() or "Ayrı" in out
+
+
+def test_render_shows_unknown_when_counts_missing_rather_than_omitting_silently():
+    evidence = _fake_evidence()
+    evidence["counts"] = {
+        "manifest_video_count": 2864, "manifest_query_count": 14320,
+        "evaluated_video_count": "unknown", "evaluated_query_count": "unknown",
+        "failed_video_count": "unknown",
+    }
+    out = render_capera_report(evidence)
+    assert "unknown" in out
+
+
+def test_render_omits_counts_section_when_absent():
+    out = render_capera_report(_fake_evidence())  # counts anahtari yok
+    assert "ayrı tutulur" not in out.lower()

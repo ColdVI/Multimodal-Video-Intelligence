@@ -54,3 +54,10 @@ def test_count_is_thousands_separated():
     out = render_scope_badge(kind="SYNTHETIC", dataset="x", count=100000,
                              count_label="satır", purpose="x", can_claim=[], cannot_claim=[])
     assert "100,000" in out
+
+
+def test_count_accepts_unknown_string_without_crashing():
+    # gercek sayi desteklenmiyorsa 'unknown' UYDURULMADAN oldugu gibi gosterilir
+    out = render_scope_badge(kind="REAL", dataset="x", count="unknown",
+                             count_label="video", purpose="x", can_claim=[], cannot_claim=[])
+    assert "unknown video" in out

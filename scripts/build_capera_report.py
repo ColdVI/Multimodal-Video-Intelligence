@@ -19,17 +19,24 @@ def main():
         raise SystemExit(1)
     evidence = json.loads(path.read_text(encoding="utf-8"))
     dm = evidence["dataset_manifest"]
+    counts = evidence.get("counts", {})
+    eval_videos = counts.get("evaluated_video_count", "unknown")
+    eval_queries = counts.get("evaluated_query_count", "unknown")
+    eval_failed = counts.get("failed_video_count", "unknown")
 
     badge = render_scope_badge(
         kind="REAL",
-        dataset=f"CapERA (ERA aerial event captioning, {dm['item_count']} video)",
-        count=dm["query_count"], count_label="sorgu (video başına 5 caption)",
+        dataset=(f"CapERA (ERA aerial event captioning) - manifest {dm['item_count']} video, "
+                f"değerlendirilen {eval_videos} video"),
+        count=eval_queries, count_label="değerlendirilmiş sorgu (all_results.json - "
+                                        f"manifest'te {dm['query_count']} sorgu var, tamamı değil)",
         purpose=("3 embedding modelinin (Qwen3-VL-Embedding-2B/8B, VideoCLIP-XL) CapERA "
                  "üzerinde zero-shot T2V retrieval kalitesini karşılaştırmak - kullanıcı "
                  "tarafından Google Drive'dan kopyalanan, önceden üretilmiş GERÇEK sonuçlar "
                  "(bu depoda yeniden üretilmedi/koşulmadı)."),
         can_claim=[
-            "3 modelin R@1/R@5/R@10/MRR karşılaştırması (aynı 2863 video/14315 sorguya karşı)",
+            f"3 modelin R@1/R@5/R@10/MRR karşılaştırması (aynı {eval_videos} video/"
+            f"{eval_queries} sorguya karşı, {eval_failed} başarısız)",
             "Qwen3-VL-Embedding-8B'nin bu 3 model içinde en yüksek recall'a sahip olduğu "
             "(2B'ye göre küçük fark, VideoCLIP-XL'e göre belirgin fark)",
             "Model başına GPU bellek/gecikme karşılaştırması",

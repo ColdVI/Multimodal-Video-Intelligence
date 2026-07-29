@@ -19,15 +19,19 @@ _KIND_STYLES = {
 }
 
 
-def render_scope_badge(kind: str, dataset: str, count: int, count_label: str,
+def render_scope_badge(kind: str, dataset: str, count, count_label: str,
                        purpose: str, can_claim: list, cannot_claim: list,
                        generated_at: str = None) -> str:
     """kind: 'SMOKE_TEST' | 'REAL' | 'SYNTHETIC' | 'PILOT'.
+    count: int (bindelik ayraciyla bicimlendirilir) VEYA 'unknown' gibi bir
+    string (bicimlendirilmeden oldugu gibi gosterilir - gercek sayi
+    desteklenmiyorsa UYDURULMAZ, bkz. scripts/migrate_capera_results.py).
     can_claim/cannot_claim: kisa cumle listeleri - bu rapordan hangi
     sonuclarin cikarilabilecegi/cikarilamayacagi acikca yazilir."""
     if kind not in _KIND_STYLES:
         raise ValueError(f"bilinmeyen kind {kind!r}. Gecerli: {sorted(_KIND_STYLES)}")
     s = _KIND_STYLES[kind]
+    count_str = f"{count:,}" if isinstance(count, int) else html.escape(str(count))
     can_html = "".join(f"<li>{html.escape(c)}</li>" for c in can_claim)
     cannot_html = "".join(f"<li>{html.escape(c)}</li>" for c in cannot_claim)
     date_html = (f'<span style="font-size:12px;opacity:.75">{html.escape(generated_at)}</span>'
@@ -38,7 +42,7 @@ border-radius:10px;padding:14px 18px;margin:0 0 18px;font-family:Arial,sans-seri
     <span style="font-weight:700;letter-spacing:.04em;font-size:13px">{html.escape(s['label'])}</span>
     {date_html}
   </div>
-  <div style="margin-top:6px;font-size:14px"><b>{html.escape(dataset)}</b> &middot; {count:,} {html.escape(count_label)}</div>
+  <div style="margin-top:6px;font-size:14px"><b>{html.escape(dataset)}</b> &middot; {count_str} {html.escape(count_label)}</div>
   <div style="margin-top:6px;font-size:13px">{html.escape(purpose)}</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;font-size:12.5px">
     <div><b>Bu rapordan çıkarılabilir:</b><ul style="margin:4px 0 0;padding-left:18px">{can_html}</ul></div>

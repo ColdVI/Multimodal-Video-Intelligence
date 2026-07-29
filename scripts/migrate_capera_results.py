@@ -38,8 +38,48 @@ KNOWN_GAPS = [
 ]
 
 
+def _consistent_or_unknown(raw_results: list, field: str):
+    """Tum model satirlari ayni {field} degerini raporluyorsa o degeri,
+    alan eksikse VEYA modeller arasinda anlasmiyorsa 'unknown' doner -
+    all_results.json'un gercekten desteklemedigi bir sayiyi UYDURMAMAK
+    icin (2864/14320 manifest toplaminin TAMAMININ degerlendirildigini
+    varsaymak yerine)."""
+    if not raw_results:
+        return "unknown"
+    values = set()
+    for row in raw_results:
+        if field not in row:
+            return "unknown"
+        values.add(row[field])
+    if len(values) != 1:
+        return "unknown"
+    return values.pop()
+
+
+def evaluated_counts(raw_results: list) -> dict:
+    """all_results.json'dan GERCEKTEN degerlendirilen video/sorgu/basarisiz
+    sayilarini cikarir - manifest (caption JSON) toplamlarindan AYRI
+    tutulur (bkz. build_migrated_artifact)."""
+    return {
+        "evaluated_video_count": _consistent_or_unknown(raw_results, "n_videos"),
+        "evaluated_query_count": _consistent_or_unknown(raw_results, "n_queries"),
+        "failed_video_count": _consistent_or_unknown(raw_results, "n_failed_videos"),
+    }
+
+
 def build_migrated_artifact(raw_results: list, dataset_manifest: dict) -> dict:
-    """Saf fonksiyon - dosya I/O yok, testte dogrudan cagrilabilir."""
+    """Saf fonksiyon - dosya I/O yok, testte dogrudan cagrilabilir.
+
+    counts: manifest_* (caption JSON'larindan, adapter.manifest()) ile
+    evaluated_*/failed_video_count (all_results.json'dan, GERCEKTEN
+    kosulmus) AYRI tutulur - 2864/14320'nin TAMAMININ degerlendirildigi
+    VARSAYILMAZ, all_results.json ne diyorsa o okunur (uyusmazlik/eksik
+    alan varsa 'unknown')."""
+    counts = {
+        "manifest_video_count": dataset_manifest["item_count"],
+        "manifest_query_count": dataset_manifest["query_count"],
+        **evaluated_counts(raw_results),
+    }
     return {
         "protocol": ("CapERA aerial-video captioning T2V retrieval - video basina 5 "
                     "caption, her caption AYRI sorgu, video 5sn (alt-pencere YOK, "
@@ -49,6 +89,7 @@ def build_migrated_artifact(raw_results: list, dataset_manifest: dict) -> dict:
                   "capera_dataset_model_test klasorunden kopyalandi - bu script "
                   "HICBIR embedding/model YENIDEN URETMEDI, yalniz mevcut "
                   "sonuclari ortak semaya tasidi)."),
+        "counts": counts,
         "dataset_manifest": dataset_manifest,
         "known_gaps": KNOWN_GAPS,
         "results": {row["model"]: row for row in raw_results},
@@ -67,6 +108,11 @@ def main():
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Tasindi: {len(raw_results)} model sonucu -> {OUT_PATH}")
+    c = out["counts"]
+    print(f"  manifest: {c['manifest_video_count']} video / {c['manifest_query_count']} sorgu "
+         f"(caption JSON'lari)")
+    print(f"  evaluated: {c['evaluated_video_count']} video / {c['evaluated_query_count']} sorgu "
+         f"/ {c['failed_video_count']} basarisiz (all_results.json)")
     for row in raw_results:
         print(f"  {row['model']}: R@1={row['recall_at_1']:.3f} R@5={row['recall_at_5']:.3f} "
              f"R@10={row['recall_at_10']:.3f} MRR={row['mrr']:.3f} "

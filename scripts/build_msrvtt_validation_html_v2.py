@@ -22,12 +22,18 @@ def main():
         dataset="MSR-VTT 1k-A test split (standart yayınlanmış benchmark)",
         count=measured["n_pairs_evaluated"], count_label="video/caption çifti (tam split, alt küme değil)",
         purpose=("xclip_hf_zeroshot checkpoint'inin gerçek text-to-video retrieval kalitesini, "
-                 "yayınlanmış bir literatür baseline'ına karşı ölçmek - bu depodaki TEK gerçek "
-                 "model-kalite benchmarkı (diğer raporlar gecikme/plan ölçer, kalite değil)."),
+                 "yayınlanmış bir literatür baseline'ına karşı ölçmek. CapERA'da da gerçek "
+                 "agregatif sonuç var (bkz. capera_validation_v2.html) - MSR-VTT'yi ayıran şey "
+                 "'tek gerçek' olması değil, per-query/raw artifact'ın bu depoda mevcut olması "
+                 "ve video dosyaları + boru hattının burada durduğu için TAM YENİDEN "
+                 "ÜRETİLEBİLİR olması (CapERA'nın aksine - orada yalnız agregatif sonuç "
+                 "kopyalandı, ham video/embedding bu depoda yok)."),
         can_claim=[
             "R@1/R@5/R@10/MedR/MeanR - standart 1k-A protokolüyle karşılaştırılabilir",
             "MeanR'nin rastgele şanstan kaç kat iyi olduğu (baseline tartışmasından bağımsız)",
             "Zero-shot CLIP-straight baseline'ına karşı hangi metriklerin bayraklı kaldığı",
+            "Bu depoda video dosyaları + boru hattı mevcut olduğu için sonucun tam yeniden "
+            "üretilebilir olduğu (python scripts/validate_msrvtt.py)",
         ],
         cannot_claim=[
             "VisDrone'daki arama kalitesi (farklı domain/görev - drone görüntüsü vs. genel video, "

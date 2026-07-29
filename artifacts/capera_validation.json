@@ -1,6 +1,13 @@
 {
   "protocol": "CapERA aerial-video captioning T2V retrieval - video basina 5 caption, her caption AYRI sorgu, video 5sn (alt-pencere YOK, MSR-VTT'ye benzer whole-clip retrieval). ClickHouse'a YAZILMAZ (retrieval_backend=artifact_matrix).",
   "source": "data\\downloads\\capera\\all_results.json (kullanici tarafindan Google Drive'daki capera_dataset_model_test klasorunden kopyalandi - bu script HICBIR embedding/model YENIDEN URETMEDI, yalniz mevcut sonuclari ortak semaya tasidi).",
+  "counts": {
+    "manifest_video_count": 2864,
+    "manifest_query_count": 14320,
+    "evaluated_video_count": 2863,
+    "evaluated_query_count": 14315,
+    "failed_video_count": 0
+  },
   "dataset_manifest": {
     "dataset_id": "capera",
     "dataset_version": "CapERA (Bashmal ve ark. 2023) train+test caption release",
