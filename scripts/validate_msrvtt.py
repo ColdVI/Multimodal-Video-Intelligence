@@ -30,8 +30,14 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from bench.gpu_gate import require_gpu_for_qwen_windows
+from bench.manifest import torch_info
+from datasets.msrvtt import MSRVTTAdapter
 from ingest.frame_io import read_window_frames
 from models import get_embedder
+from scripts.mrl_truncate_embeddings import truncate_and_renormalize
+from scripts.msrvtt_embedding_cache import append_cached, cache_key, cache_path, load_cached
+
+FRAME_SAMPLING_VERSION = "read_window_frames_v1"  # ingest/frame_io.py'nin ornekleme mantigi degisirse artir
 
 # DUZELTME (28 Temmuz 2026): onceki surumde kirmizi bayrak CLIP4Clip'in
 # FINE-TUNE EDILMIS sayisina (44.5/71.4/81.6) karsi kosuluyordu - bu
@@ -90,14 +96,27 @@ def probe_video_duration(video_path: str) -> float:
 
 
 def embed_all_videos(entries: list, videos_dir: pathlib.Path, model_name: str,
-                     n_frames: int = 32, limit: int = None) -> dict:
+                     n_frames: int = 32, limit: int = None,
+                     cache_file: pathlib.Path = None) -> dict:
     """video_id -> L2-normalize embedding. Her klip TEK pencere (0, sure) -
     VisDrone'daki 8s/4s kayan pencereleme burada YOK, standart t2v
-    protokolu tum klibi tek birim olarak ele alir."""
+    protokolu tum klibi tek birim olarak ele alir.
+
+    cache_file verilirse (Faz 6 GPU-hazirlik): onceden tamamlanmis
+    video_id'ler ATLANIR (resume - yarim kalan bir kosumda bastan
+    baslanmaz), her yeni video TAMAMLANDIKCA diske yazilir (crash sonrasi
+    ilerleme kaybolmaz). cache_file=None ise mevcut davranis birebir ayni
+    (bellek-ici, kalici yazma yok) - X-CLIP/SigLIP2 gibi ucuz CPU
+    modellerinde onbellek gereksiz karmasiklik olurdu."""
     emb = get_embedder(model_name)
-    out = {}
+    out = dict(load_cached(cache_file)) if cache_file else {}
+    if out:
+        print(f"  onbellekten devam: {len(out)} video zaten tamamlanmis ({cache_file})")
     items = entries[:limit] if limit else entries
     for i, e in enumerate(items):
+        vid = e["video_id"]
+        if vid in out:
+            continue
         video_path = videos_dir / e["video"]
         if not video_path.exists():
             continue
@@ -108,7 +127,9 @@ def embed_all_videos(entries: list, videos_dir: pathlib.Path, model_name: str,
         if not frames:
             continue
         vec = emb.embed_video(frames)
-        out[e["video_id"]] = vec
+        out[vid] = vec
+        if cache_file:
+            append_cached(cache_file, vid, vec.tolist())
         if (i + 1) % 100 == 0:
             print(f"  {i+1}/{len(items)} video embed edildi")
     return out
@@ -166,16 +187,36 @@ def red_flag_check(measured: dict, baseline: dict) -> list:
     return flags
 
 
+def qwen_cache_file(model_name: str, split_path: str, n_frames: int,
+                    cache_dir: pathlib.Path = pathlib.Path("data/downloads/msrvtt/embedding_cache")) -> pathlib.Path:
+    """Faz 6 GPU-hazirlik: qwen3vl_emb ailesi icin dataset+model kimligine
+    baglanmis onbellek yolu. Herhangi bir alan (dataset hash, split, kare
+    sayisi...) degisirse FARKLI dosya - eski/gecersiz sonuclarla sessizce
+    karismaz."""
+    dataset_manifest = MSRVTTAdapter().manifest()
+    key = cache_key(
+        dataset_id=dataset_manifest.dataset_id, split=dataset_manifest.split,
+        dataset_hash=dataset_manifest.source_hash, model_id="Qwen/Qwen3-VL-Embedding-2B",
+        model_revision="unknown", n_sample=n_frames,
+        frame_sampling_version=FRAME_SAMPLING_VERSION, dtype="unknown",
+        dimension_source="native" if model_name == "qwen3vl_emb_2048" else "truncated_from_2048",
+    )
+    return cache_path(cache_dir, model_name, key)
+
+
 def run_validation(model_name: str, entries: list, videos_dir: pathlib.Path,
-                   n_frames: int, limit: int) -> dict:
+                   n_frames: int, limit: int, split_path: str = None) -> dict:
     print(f"=== {model_name} ===")
+    cache_file = None
     if model_name.startswith("qwen3vl_emb"):
         n_items = len(entries[:limit] if limit else entries)
         # VisDrone pencere hizindan turetilen kaba tahmin - MSR-VTT klip
         # uzunlugu/kare sayisi farkli olabilir, sadece kapiyi tetiklemeye yeter.
         require_gpu_for_qwen_windows(f"validate_msrvtt.py --models {model_name}", n_items)
+        cache_file = qwen_cache_file(model_name, split_path, n_frames)
     t0 = time.perf_counter()
-    video_embs = embed_all_videos(entries, videos_dir, model_name, n_frames, limit)
+    video_embs = embed_all_videos(entries, videos_dir, model_name, n_frames, limit,
+                                  cache_file=cache_file)
     video_s = time.perf_counter() - t0
 
     t0 = time.perf_counter()
@@ -197,6 +238,8 @@ def run_validation(model_name: str, entries: list, videos_dir: pathlib.Path,
     metrics["text_embed_total_s"] = round(text_s, 1)
     metrics["n_videos_embedded"] = len(video_embs)
     metrics["n_pairs_evaluated"] = len(common_ids)
+    metrics["compute_environment"] = torch_info()  # GPU adi/VRAM, cuda_available - artifact'ta nerede uretildigi belli olsun
+    metrics["embedding_cache_file"] = str(cache_file) if cache_file else None
     return metrics
 
 
@@ -216,7 +259,8 @@ def main():
 
     results = {}
     for model_name in args.models:
-        measured = run_validation(model_name, entries, videos_dir, args.n_frames, args.limit)
+        measured = run_validation(model_name, entries, videos_dir, args.n_frames, args.limit,
+                                  split_path=args.split)
         red_flags = []
         flags = red_flag_check(measured, ZERO_SHOT_BASELINE)
         if flags:
