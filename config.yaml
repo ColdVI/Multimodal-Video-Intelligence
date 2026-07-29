@@ -74,12 +74,11 @@ datasets:
     dataset_version: "CapERA (Bashmal ve ark. 2023) train+test caption release"
     train_split: data/downloads/capera/CapERA_DATASET_train.json
     test_split: data/downloads/capera/CapERA_DATASET_test.json
-    # Colab handoff: ERA_Dataset.zip'in cikarilmasiyla olusan 'Videos/'
-    # klasorunun KENDISI buraya konmali (drive_manifest.json ile ayni yol).
-    # Yerel makinede bu klasor yoksa (bu depo, sadece caption JSON'lari var)
-    # CapERAAdapter.load_video() var-olmayan bir yol dondurur - caller
-    # .exists() ile kontrol eder (bkz. notebook 02).
-    videos_dir: /content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/capera/videos
+    # Colab handoff: ERA_Dataset.zip Colab'in KENDI lokal diskine (/content,
+    # Drive DEGIL) acilir - Drive'dan Drive'a acmak 6GB'da 15-30dk surer,
+    # /content'e acmak 2-5dk. CapERAAdapter.load_video() var-olmayan bir
+    # yol dondurur - caller .exists() ile kontrol eder (bkz. notebook 02).
+    videos_dir: /content/ERA_Dataset/Videos
     license: "UNKNOWN (CapERA makalesi/MDPI sayfasinda acik bir veri lisansi bulunamadi - web aramasiyla dogrulanamadi)"
 
 # Faz 3: dedektor varyant registry'si. class_map, o checkpoint'in kendi
