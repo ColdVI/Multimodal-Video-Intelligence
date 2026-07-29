@@ -14,16 +14,27 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.research.nb_build import build_and_execute
+from src.research.colab_paths import COLAB_BOOTSTRAP_CELL
 
 CELLS = [
-("md", """# 03 - PostgreSQL metadata + telemetri
+("code", COLAB_BOOTSTRAP_CELL),
+("md", """# 03 - PostgreSQL metadata + telemetri (CPU/high-RAM asamasi)
 
 Spec SS4.4. Notebook 02'nin GPU kapisindan ETKILENMEZ - bu adim yalniz
 notebook 01'in GERCEK AU-AIR segment/telemetri ciktisini yukler, embedding
-gerektirmez. Gecici arastirma-amacli Postgres konteyneri: `research_postgres_faz6`
-(port 5433) - ana `docker-compose.yml` DEGISTIRILMEDI."""),
+gerektirmez. Veritabani calisma dizini YEREL/ephemeral'dir (Drive'a DEGIL -
+Colab handoff madde 5); sonuc CSV/rapor Drive'a yazilir.
+
+**Yerel test/gelistirme (bu depo):** gecici docker container
+`research_postgres_faz6` (port 5433) - ana `docker-compose.yml`
+DEGISTIRILMEDI.
+**Colab:** `bash scripts/install_pgvector_colab.sh install && bash scripts/install_pgvector_colab.sh start`
+ile ayni temel Postgres kurulur (vector extension bu notebook icin
+gerekmez, zarasiz) - asagidaki `DSN` degiskenini o script'in port/db
+degerleriyle guncelleyin (varsayilan port 5432, db phase6_vector_bench)."""),
 
 ("code", """import json
+import os
 import pathlib
 import sys
 
@@ -31,13 +42,19 @@ import pandas as pd
 import psycopg
 
 sys.path.insert(0, str(pathlib.Path.cwd()))
+from src.research import colab_paths
 from src.research.config import DEFAULT as cfg
 from src.research.manifest import RunManifest, detect_hardware_profile, write_manifest
 
-OUT = cfg.research_root
+OUT = colab_paths.research_root()
 hw = detect_hardware_profile()
 
-DSN = "host=localhost port=5433 dbname=research user=postgres password=research"
+# Colab'da: DSN ortam degiskeniyle scripts/install_pgvector_colab.sh'nin
+# ac tigi instance'a yonlendirin (ör. PHASE6_PG_DSN="host=127.0.0.1 port=5432
+# dbname=phase6_vector_bench user=postgres"). Yerel test/gelistirme icin
+# varsayilan, mevcut docker container'a isaret eder.
+DSN = os.environ.get("PHASE6_PG_DSN",
+                     "host=localhost port=5433 dbname=research user=postgres password=research")
 conn = psycopg.connect(DSN, autocommit=True)
 print("Postgres baglantisi kuruldu:", conn.info.server_version)
 """),

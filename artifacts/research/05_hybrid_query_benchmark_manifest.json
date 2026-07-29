@@ -1,0 +1,18 @@
+{
+  "notebook": "05_hybrid_query_benchmark",
+  "hardware_profile": "local-cpu",
+  "dataset_id": "",
+  "model_id": "",
+  "model_revision": "",
+  "dtype": "",
+  "attn_implementation": "",
+  "frames_per_item": null,
+  "extra": {
+    "can_run_real_benchmark": false,
+    "healthy_backends": [],
+    "common_exact_ready": false,
+    "n_bench_rows": 0,
+    "status": "KANIT_YOK"
+  },
+  "generated_at": "2026-07-29T11:00:21.722644+00:00"
+}

@@ -1,0 +1,37 @@
+{
+  "_note": "Faz 6 Colab handoff - Drive klasor yapisi. Tek kok: /content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend (src/research/colab_paths.py::DRIVE_ROOT). scripts/verify_drive_inputs.py bu manifesti okuyup GERCEK Drive icerigiyle karsilastirir.",
+  "drive_root": "/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend",
+  "folders": {
+    "datasets/auair": {
+      "purpose": "AU-AIR ham indirme (notebook 01 ciktisi) - buyuk/kalici",
+      "expected_files": ["annotations_raw.zip", "extracted/annotations.json", "images.zip"]
+    },
+    "datasets/capera": {
+      "purpose": "CapERA ham video - KULLANICI TARAFINDAN Drive'a ONCEDEN yerlestirilmeli (bu depoda ham video yok, sadece caption JSON'lari)",
+      "expected_files": ["videos/*.mp4 (kullanici tarafindan yerlestirilir)"]
+    },
+    "datasets/msrvtt": {
+      "purpose": "MSR-VTT 1k-A test video'lari",
+      "expected_files": ["msrvtt_test_1k.json", "videos/*.mp4"]
+    },
+    "checkpoints": {
+      "purpose": "notebook 02'nin embedding checkpoint'leri (resume icin) - her 100 item'da yazilir",
+      "expected_files": ["auair_qwen2048.ndjson", "capera_qwen2048.ndjson", "msrvtt_qwen2048.ndjson"]
+    },
+    "embeddings": {
+      "purpose": "notebook 02'nin MRL-turetilmis nihai embedding dosyalari (2048/1024/512/256)",
+      "expected_files": ["{dataset}_qwen{dim}.json (dataset in auair/capera/msrvtt, dim in 2048/1024/512/256)"]
+    },
+    ".": {
+      "purpose": "notebook 00-06'nin bitmis sonuc CSV/Parquet/Markdown dosyalari - DRIVE_ROOT'un KENDISINE yazilir (ayri bir results/ alt klasoru YOK - src/research/manifest.py ve tum notebook generator'lari colab_paths.research_root() KOKUNU dogrudan kullanir)",
+      "expected_files": ["auair_segments.parquet", "auair_telemetry.parquet", "selectivity_thresholds.json",
+                         "ingest_report.csv", "vector_database_results.csv", "mentor_summary.md",
+                         "dataset_recommendation.md", "decision_report_answers.json"]
+    }
+  },
+  "explicitly_not_on_drive": {
+    "reason": "spec madde 5 - database calisma dizinleri Drive'da TUTULMAZ",
+    "paths": ["/content/vector_bench/clickhouse", "/content/vector_bench/qdrant",
+             "/content/vector_bench/pgvector"]
+  }
+}

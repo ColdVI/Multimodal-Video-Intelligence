@@ -1,0 +1,91 @@
+{
+  "os_arch": {
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "python_version": "3.14.6"
+  },
+  "user": {
+    "uid": null,
+    "is_root": "unknown (Windows)"
+  },
+  "apt_get": {
+    "available": false,
+    "reason": "apt-get PATH'te yok (Linux/Colab disinda beklenir)"
+  },
+  "docker": {
+    "cli_found": true,
+    "daemon_reachable": true,
+    "detail": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "Client:\n Version:    29.6.1\n Context:    desktop-linux\n Debug Mode: false\n Plugins:\n  agent: Docker AI Agent Runner (Docker Inc.)\n    Version:  v1.88.1\n    Path:     C:\\Program Files\\Docker\\cli-plugins\\docker-agent.exe\n  ai: Docker AI Agent - Ask Gordon (Docker Inc.)\n    Version:  v1.27.0\n    Path:     C:\\Program Files\\Docker\\cli-plugins\\docker-ai.exe\n  buildx: Docker Buildx (Docker Inc.)\n    Version:  v0.35.0-desktop.2\n    Path:     C:\\Program Files\\Docker\\cli-plugins\\docker-buildx.exe\n  compos",
+      "stderr": "WARNING: No blkio throttle.read_bps_device support\nWARNING: No blkio throttle.write_bps_device support\nWARNING: No blkio throttle.read_iops_device support\nWARNING: No blkio throttle.write_iops_device support\nWARNING: Support for cgroup v1 is deprecated and planned to be removed by no later than May 2029 (https://github.com/moby/moby/issues/51111)"
+    }
+  },
+  "binaries": {
+    "curl": {
+      "found": true,
+      "path": "C:\\Users\\PC_5812_YD26\\AppData\\Local\\Programs\\Git\\mingw64\\bin\\curl.EXE"
+    },
+    "wget": {
+      "found": false,
+      "path": null
+    },
+    "tar": {
+      "found": true,
+      "path": "C:\\Users\\PC_5812_YD26\\AppData\\Local\\Programs\\Git\\usr\\bin\\tar.EXE"
+    },
+    "git": {
+      "found": true,
+      "path": "C:\\Users\\PC_5812_YD26\\AppData\\Local\\Programs\\Git\\mingw64\\bin\\git.EXE"
+    },
+    "make": {
+      "found": false,
+      "path": null
+    },
+    "gcc": {
+      "found": false,
+      "path": null
+    }
+  },
+  "ports_free": {
+    "8123": false,
+    "9000": false,
+    "6333": true,
+    "6334": true,
+    "5432": false
+  },
+  "ram": {
+    "total_mb": 16824,
+    "available_mb": 1991
+  },
+  "disk_content": {
+    "path": ".",
+    "total_gb": 511.1,
+    "free_gb": 100.2
+  },
+  "drive": {
+    "mount_point_exists": false,
+    "colab_detected": false
+  },
+  "github_releases_reachable": {
+    "reachable": true,
+    "status_code": 200,
+    "final_url": "https://github.com/"
+  },
+  "clickhouse_binary_url_reachable": {
+    "reachable": true,
+    "status_code": 200,
+    "final_url": "https://packages.clickhouse.com/tgz/stable/clickhouse-common-static-24.8.4.13-amd64.tgz"
+  },
+  "qdrant_binary_url_reachable": {
+    "reachable": true,
+    "status_code": 200,
+    "final_url": "https://release-assets.githubusercontent.com/github-production-release-asset/268163609/d51abff4-9361-46dd-933e-9a571b55db0d?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-07-29T11%3A57%3A15Z&rscd=attachment%3B+filename%3Dqdrant-x86_64-unknown-linux-gnu.tar.gz&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-07-29T10%3A56%3A38Z&ske=2026-07-29T11%3A57%3A15Z&sks=b&skv=2018-11-09&sig=csqHooD%2FNSzUV6WC82b37VKhI4dJbLmHhJCJ0Nid8Oc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc4NTMyNDYxNiwibmJmIjoxNzg1MzIyODE2LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.-NAvzxCQDwf-aIaORqjVjI_FvTImAbU2VydFk5D9NyE&response-content-disposition=attachment%3B%20filename%3Dqdrant-x86_64-unknown-linux-gnu.tar.gz&response-content-type=application%2Foctet-stream"
+  },
+  "postgres_pgvector_installable": {
+    "checked": false,
+    "reason": "apt-cache yok (Linux/Colab disinda beklenir)"
+  }
+}

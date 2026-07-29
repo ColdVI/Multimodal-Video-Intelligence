@@ -1,9 +1,12 @@
 """Faz 6 arastirma spec'i (07_MRL_VE_VECTOR_BACKEND_ARASTIRMA_SPEC.md), SS8:
 tum notebook'larin okudugu TEK config. Buradaki degerler spec'te "degisim
 adaleti - sabitler" olarak kilitlendi; notebook'lar bunu import eder, kendi
-sabitlerini tanimlamaz."""
+sabitlerini tanimlamaz.
+
+NOT: dosya YOLLARI burada DEGIL - src/research/colab_paths.py'de (Drive
+kokunu TEK config degiskeni yapma gereksinimi icin tek kaynak orasi).
+Bu modul yalniz ALGORITMIK sabitleri tasir."""
 import dataclasses
-import pathlib
 
 
 @dataclasses.dataclass(frozen=True)
@@ -21,12 +24,7 @@ class ResearchConfig:
     adaptive_top_n_sweep: tuple = (20, 50, 100, 200)
     statistical_power_threshold: int = 150  # SS12: 150 sorguya ulasana kadar baglayici degil
     query_instruction: str = "Retrieve the aerial video segment described by the query."
-
-    research_root: pathlib.Path = pathlib.Path("artifacts/research")
-    data_root: pathlib.Path = pathlib.Path("data/research")
-
-    def artifact_path(self, name: str) -> pathlib.Path:
-        return self.research_root / name
+    embedding_checkpoint_every: int = 100  # Colab handoff: her 100 item'da Drive'a checkpoint
 
 
 DEFAULT = ResearchConfig()

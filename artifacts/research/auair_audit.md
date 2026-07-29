@@ -1,6 +1,6 @@
 # AU-AIR indirme ve dogrulama - denetim raporu (GERCEK calistirmadan)
 
-Uretim zamani: 2026-07-29T08:23:43.537120+00:00
+Uretim zamani: 2026-07-29T10:59:26.879582+00:00
 
 ## Lisans duzeltmesi
 Spec SS2.1: "CC BY 4.0" (YANLIS). Gercek veri: **CC BY-NC-SA** (Attribution-
@@ -48,11 +48,9 @@ Sonuc: GECTI
 - artifacts\research\selectivity_thresholds.json
 - artifacts\research\auair_errors.jsonl (81 hata/uyari - atilmadi)
 
-## Bilinen sinirlama
-Goruntu piksel verisi (images.zip, ~2.2 GB) bu oturumda TAMAMEN indirilemedi
-(gozlenen baglanti hizi ~0.1-0.3 MB/s). Bu, YUKARIDAKI DOGRULAMALARIN
-HICBIRINI ETKILEMEDI (hepsi annotations.json metadata'sindan calisti).
-Piksel verisi yalnizca notebook 02'nin Qwen embedding uretiminde gerekli
-olurdu - o adim zaten bu makinede GPU kapisinda ayri bir nedenle duruyor
-(bkz. notebook 02). "images.zip KISMI (indirme arka planda devam ediyor/yarim kaldi)" olarak isaretlendi,
-"tamamlandi" DENMEDI.
+## Uc durum bayragi (bagimsiz - biri digerini varsaymaz)
+- `annotation_validation_complete=True`
+- `image_download_complete=False` (347 MB / ~2200 MB)
+- `embedding_ready=False` (notebook 02'nin GPU asamasi bu oturumda calismadi -
+  Colab'da notebook 02 basariyla bitince BU BAYRAK oradan True yazilacak,
+  burada ONCEDEN True YAZILMAZ)

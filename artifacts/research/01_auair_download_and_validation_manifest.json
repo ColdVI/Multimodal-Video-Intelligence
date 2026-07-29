@@ -9,8 +9,10 @@
   "frames_per_item": null,
   "extra": {
     "annotations_sha256": "5cef55c2717b5fca01d2423cead29ba00913c3c12aa4590d04108d71a12b2f46",
-    "images_download_status": "KISMI (indirme arka planda devam ediyor/yarim kaldi)",
-    "images_bytes_downloaded": 608174080,
+    "annotation_validation_complete": true,
+    "image_download_complete": false,
+    "embedding_ready": false,
+    "images_bytes_downloaded": 347078656,
     "n_videos_dt_method": 90,
     "n_videos_filename_method": 8,
     "video_grouping_method_used": "filename_prefix_14digit_x_xx_merged",
@@ -21,5 +23,5 @@
     "gap_factor": 10,
     "license_correction": "spec said CC BY 4.0, real license is CC BY-NC-SA"
   },
-  "generated_at": "2026-07-29T08:23:43.537787+00:00"
+  "generated_at": "2026-07-29T10:59:26.881584+00:00"
 }

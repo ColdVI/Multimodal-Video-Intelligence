@@ -8,13 +8,17 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.research.nb_build import build_and_execute
+from src.research.colab_paths import COLAB_BOOTSTRAP_CELL
 
 CELLS = [
+("code", COLAB_BOOTSTRAP_CELL),
 ("md", """# 01 - AU-AIR indirme ve dogrulama
 
-Spec SS4.2. Ortam notu: bu oturum Colab degil, yerel Windows makine - "Drive
-mount" adimi yerel diske indirme ile degistirildi (SS11: iki makul default
-varsa birini sec, manifest'e yaz - bu o karar)."""),
+Spec SS4.2. Colab handoff: dosya yollari `src/research/colab_paths.py`'den
+gelir (Drive mount edilmisse Drive'da, yerel test/gelistirmede
+`artifacts/research/` fallback'inde - SS11: iki makul default varsa birini
+sec, tek yerden coz). Bu notebook GPU GEREKTIRMEZ - indirme+dogrulama
+GPU'suz da tamamlanabilir, embedding uretimi notebook 02'de."""),
 
 ("code", """import datetime
 import hashlib
@@ -30,16 +34,17 @@ import pandas as pd
 import requests
 
 sys.path.insert(0, str(pathlib.Path.cwd()))
+from src.research import colab_paths
 from src.research.config import DEFAULT as cfg
 from src.research.manifest import RunManifest, detect_hardware_profile, write_manifest
 from src.research.selectivity import derive_thresholds
 
-DATA_DIR = pathlib.Path("data/research/auair")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-OUT = cfg.research_root
+DATA_DIR = colab_paths.dataset_root("auair")
+OUT = colab_paths.research_root()
 
 hw = detect_hardware_profile()
 print(json.dumps(hw, indent=2, ensure_ascii=False))
+print(f"DATA_DIR={DATA_DIR}  OUT={OUT}  drive_mounted={colab_paths.drive_mounted()}")
 """),
 
 ("md", "## Indirme (gdown, resume acik)\n\n**Not:** `bozcani.github.io/auairdataset` orijinal sayfasi artik "
@@ -52,11 +57,8 @@ ANNOTATIONS_ZIP = DATA_DIR / "annotations_raw.zip"
 IMAGES_ZIP = DATA_DIR / "images.zip"
 ANNOTATIONS_ID = "1boGF0L6olGe_Nu7rd1R8N7YmQErCb0xA"
 IMAGES_ID = "1pJ3xfKtHiTdysX5G3dxqKTdGESOBYCxJ"
-
-if not ANNOTATIONS_ZIP.exists():
-    gdown.download(id=ANNOTATIONS_ID, output=str(ANNOTATIONS_ZIP), quiet=False)
-else:
-    print(f"{ANNOTATIONS_ZIP} zaten var, tekrar indirilmedi (resume/skip).")
+EXPECTED_IMAGES_BYTES = 2_200_000_000  # spec SS2.1: ~2.2 GB
+EXPECTED_ANNOTATION_RECORDS = 32823    # notebook 01'in onceki gercek kosumundan dogrulandi
 
 def sha256_of(path: pathlib.Path) -> str:
     h = hashlib.sha256()
@@ -65,35 +67,31 @@ def sha256_of(path: pathlib.Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+if not ANNOTATIONS_ZIP.exists():
+    gdown.download(id=ANNOTATIONS_ID, output=str(ANNOTATIONS_ZIP), quiet=False)
+else:
+    print(f"{ANNOTATIONS_ZIP} zaten var, tekrar indirilmedi (resume/skip).")
+
 annotations_sha256 = sha256_of(ANNOTATIONS_ZIP)
 print(f"annotations_raw.zip: {ANNOTATIONS_ZIP.stat().st_size} bytes, sha256={annotations_sha256}")
 
-# Resmi SHA-256 yayinlanmadigi icin (spec SS4.2 adim 2) ilk indirmede
-# hesaplanip manifest'e yaziliyor; SONRAKI kosularda karsilastirilacak.
-sha_record_path = DATA_DIR / "annotations_sha256.txt"
-if sha_record_path.exists():
-    previous = sha_record_path.read_text().strip()
-    match = previous == annotations_sha256
-    print(f"onceki kayitli sha256 ile karsilastirma: {'AYNI' if match else 'FARKLI - DIKKAT'}")
-else:
-    sha_record_path.write_text(annotations_sha256)
-    print("ilk indirme - sha256 kayda alindi.")
+# gdown, Drive'in kendi resume/parcali indirme mekanizmasini kullanir (.part
+# dosyasi) - burada sadece tamamlanma DURUMUNU raporluyoruz, kendi resume
+# mantigimizi yazmiyoruz (gdown zaten yapar).
+# Colab DISINDA (bu depo, yerel gelistirme/test) 2.2 GB'lik indirmeyi
+# BASLATMIYORUZ - kullanicinin acik talimati: yerel makinede agir/uzun
+# suren islemlerle zaman harcanmayacak, gercek indirme Colab'da olacak.
+if not IMAGES_ZIP.exists() and colab_paths.in_colab():
+    print("images.zip indiriliyor (gdown resume destekli, buyuk dosya)...")
+    gdown.download(id=IMAGES_ID, output=str(IMAGES_ZIP), quiet=False, resume=True)
+elif not IMAGES_ZIP.exists():
+    print("Colab DISINDA calisiyoruz - 2.2 GB images.zip indirmesi BASLATILMADI "
+          "(kasitli - bkz. hucre notu). Colab'da bu hucre gercek indirmeyi yapar.")
 
-images_partial = list(DATA_DIR.glob("images.zip*.part")) + ([IMAGES_ZIP] if IMAGES_ZIP.exists() else [])
-images_status = "TAMAMLANMADI"
-images_bytes = 0
-if IMAGES_ZIP.exists():
-    images_bytes = IMAGES_ZIP.stat().st_size
-    images_status = "TAMAMLANDI" if images_bytes > 2_000_000_000 else "KISMI (dosya var ama kucuk)"
-elif images_partial:
-    images_bytes = images_partial[0].stat().st_size
-    images_status = "KISMI (indirme arka planda devam ediyor/yarim kaldi)"
-print(f"images.zip durumu: {images_status}, mevcut boyut: {images_bytes/1e6:.1f} MB / ~2200 MB hedef")
-print("NOT: bu oturumda gozlenen indirme hizi ~0.1-0.3 MB/s (kisitli baglanti) - "
-      "2.2 GB'nin tamami TEK oturumda GERCEKCI SURE ICINDE tamamlanamadi. "
-      "Asagidaki tum dogrulama adimlari SADECE annotations.json (tam indirildi) "
-      "uzerinden calisir - goruntu piksel verisi bu adimlarin HICBIRINDE gerekmiyor "
-      "(sadece notebook 02'nin embedding uretiminde gerekir, o adim zaten GPU kapisinda duracak).")
+image_download_complete = IMAGES_ZIP.exists() and IMAGES_ZIP.stat().st_size >= EXPECTED_IMAGES_BYTES * 0.98
+images_bytes = IMAGES_ZIP.stat().st_size if IMAGES_ZIP.exists() else sum(
+    p.stat().st_size for p in DATA_DIR.glob("images.zip*.part"))
+print(f"image_download_complete={image_download_complete}  boyut={images_bytes/1e6:.1f} MB / ~{EXPECTED_IMAGES_BYTES/1e6:.0f} MB hedef")
 """),
 
 ("md", "## Sema kesfi (SS4.2 adim 3) - gercek anahtar isimleri, VARSAYILMADI"),
@@ -119,6 +117,13 @@ print("ilk kayit (GERCEK alan adlari):")
 print(json.dumps(raw["annotations"][0], indent=2, ensure_ascii=False))
 print()
 print("toplam annotation sayisi:", len(raw["annotations"]))
+
+annotation_validation_complete = (
+    len(raw["annotations"]) == EXPECTED_ANNOTATION_RECORDS
+    and set(raw.keys()) >= {"info", "licenses", "categories", "annotations"}
+)
+print(f"\\nannotation_validation_complete={annotation_validation_complete} "
+     f"(beklenen {EXPECTED_ANNOTATION_RECORDS} kayit, bulunan {len(raw['annotations'])})")
 """),
 
 ("md", """## LISANS DUZELTMESI - spec ile gercek veri CELISIYOR
@@ -391,14 +396,12 @@ Sonuc: {"BASARISIZ - UAVDT yedegine gecilmeli" if HARD_STOP else "GECTI"}
 - {sel_path}
 - {errors_path} ({n_errors} hata/uyari - atilmadi)
 
-## Bilinen sinirlama
-Goruntu piksel verisi (images.zip, ~2.2 GB) bu oturumda TAMAMEN indirilemedi
-(gozlenen baglanti hizi ~0.1-0.3 MB/s). Bu, YUKARIDAKI DOGRULAMALARIN
-HICBIRINI ETKILEMEDI (hepsi annotations.json metadata'sindan calisti).
-Piksel verisi yalnizca notebook 02'nin Qwen embedding uretiminde gerekli
-olurdu - o adim zaten bu makinede GPU kapisinda ayri bir nedenle duruyor
-(bkz. notebook 02). "images.zip {images_status}" olarak isaretlendi,
-"tamamlandi" DENMEDI.
+## Uc durum bayragi (bagimsiz - biri digerini varsaymaz)
+- `annotation_validation_complete={annotation_validation_complete}`
+- `image_download_complete={image_download_complete}` ({images_bytes/1e6:.0f} MB / ~{EXPECTED_IMAGES_BYTES/1e6:.0f} MB)
+- `embedding_ready=False` (notebook 02'nin GPU asamasi bu oturumda calismadi -
+  Colab'da notebook 02 basariyla bitince BU BAYRAK oradan True yazilacak,
+  burada ONCEDEN True YAZILMAZ)
 '''
 
 (OUT / "auair_audit.md").write_text(audit_md, encoding="utf-8")
@@ -410,7 +413,9 @@ manifest = RunManifest(
     dataset_id="auair",
     extra={
         "annotations_sha256": annotations_sha256,
-        "images_download_status": images_status,
+        "annotation_validation_complete": annotation_validation_complete,
+        "image_download_complete": image_download_complete,
+        "embedding_ready": False,
         "images_bytes_downloaded": images_bytes,
         "n_videos_dt_method": n_videos_dt_method,
         "n_videos_filename_method": n_videos,
@@ -423,6 +428,60 @@ manifest = RunManifest(
 )
 manifest_path = write_manifest(manifest, OUT)
 print(f"\\nmanifest -> {manifest_path}")
+"""),
+
+("md", "## dataset_download_manifest.json (spec madde 11) - AU-AIR + CapERA/MSR-VTT provenance"),
+
+("code", """capera_dir = pathlib.Path("data/downloads/capera")
+msrvtt_dir = pathlib.Path("data/downloads/msrvtt")
+
+dataset_download_manifest = {
+    "auair": {
+        "source": f"https://drive.google.com/uc?id={ANNOTATIONS_ID} (annotations), "
+                 f"https://drive.google.com/uc?id={IMAGES_ID} (images) - web aramasiyla dogrulanan "
+                 "GUNCEL Drive ID'leri, orijinal bozcani.github.io/auairdataset artik erisilemiyor",
+        "license": "CC BY-NC-SA 2.0 (spec'in dedigi CC BY 4.0 DEGIL - notebook 01'de gercek "
+                  "veriden dogrulandi)",
+        "download_method": "gdown",
+        "resume_supported": True,
+        "files": [
+            {"name": "annotations_raw.zip", "sha256": annotations_sha256,
+             "size_bytes": ANNOTATIONS_ZIP.stat().st_size, "expected_record_count": EXPECTED_ANNOTATION_RECORDS},
+            {"name": "images.zip", "size_bytes": images_bytes,
+             "expected_size_bytes": EXPECTED_IMAGES_BYTES, "complete": image_download_complete},
+        ],
+    },
+    "capera": {
+        "source": "Kullanici tarafindan Google Drive klasorunden (capera_dataset_model_test) "
+                 "yerel depoya kopyalandi (onceki is paketi - bkz. CONTEXT.md); ham video Colab'a "
+                 "Drive uzerinden TASINMALI, bu depoda ham video YOK",
+        "license": "CC BY 4.0 (MDPI)",
+        "download_method": "manual_drive_copy",
+        "resume_supported": False,
+        "files": [
+            {"name": "CapERA_DATASET_train.json", "present_locally": (capera_dir / "CapERA_DATASET_train.json").exists()},
+            {"name": "CapERA_DATASET_test.json", "present_locally": (capera_dir / "CapERA_DATASET_test.json").exists()},
+            {"name": "all_results.json", "present_locally": (capera_dir / "all_results.json").exists(),
+             "note": "onceki AGREGATIF sonuclar - ham 2048d embedding DEGIL, notebook 02 hicbir "
+                    "sekilde bunu 'mevcut embedding' olarak kabul ETMEMELI"},
+        ],
+        "raw_video_status": "NOT_PRESENT_LOCALLY - Colab GPU asamasinda Drive'dan saglanmali",
+    },
+    "msrvtt": {
+        "source": "HuggingFace friedrichor/MSR-VTT (1k-A test split, JSFusion protokolu)",
+        "license": "akademik (MSR sartlari)",
+        "download_method": "huggingface datasets.load_dataset (onceki is paketinde zaten yapildi)",
+        "resume_supported": False,
+        "files": [
+            {"name": "msrvtt_test_1k.json", "present_locally": (msrvtt_dir / "msrvtt_test_1k.json").exists()},
+            {"name": "MSRVTT_Videos.zip", "present_locally": (msrvtt_dir / "MSRVTT_Videos.zip").exists()},
+        ],
+    },
+}
+dl_manifest_path = OUT / "dataset_download_manifest.json"
+dl_manifest_path.write_text(json.dumps(dataset_download_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(dataset_download_manifest, indent=2, ensure_ascii=False))
+print(f"\\n-> {dl_manifest_path}")
 """),
 ]
 

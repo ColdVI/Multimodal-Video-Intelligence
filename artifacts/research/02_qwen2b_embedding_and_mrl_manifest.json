@@ -8,35 +8,28 @@
   "attn_implementation": "",
   "frames_per_item": null,
   "extra": {
-    "gpu_gate_triggered": true,
-    "gpu_gate_message": "[GPU KAPISI] notebook 02: Qwen3-VL-Embedding-2B 2048d uretimi (AU-AIR+CapERA+MSR-VTT) GPU gerektiriyor.\n  GPU'da tahmini : 233 dk\n  CPU'da tahmini : 1389.3 saat -> IPTAL\n  Colab GPU oturumu acip tekrar deneyin.",
-    "cost_table": [
-      {
-        "workload": "AU-AIR (notebook 01 gercek pencere sayisi)",
-        "n_items": 1866,
-        "cpu_estimate_h": 452.4,
-        "gpu_estimate_min": 76.0
+    "gpu_available": false,
+    "embedding_ready": {
+      "auair": false,
+      "capera": false,
+      "msrvtt": false
+    },
+    "mrl_summary": {
+      "auair": {
+        "status": "ATLANDI - 2048d checkpoint yok"
       },
-      {
-        "workload": "CapERA (data/downloads/capera manifest - 2864 video, tek klip=tek item)",
-        "n_items": 2864,
-        "cpu_estimate_h": 694.4,
-        "gpu_estimate_min": 116.6
+      "capera": {
+        "status": "ATLANDI - 2048d checkpoint yok"
       },
-      {
-        "workload": "MSR-VTT 1k-A (1000 test video)",
-        "n_items": 1000,
-        "cpu_estimate_h": 242.5,
-        "gpu_estimate_min": 40.7
+      "msrvtt": {
+        "status": "ATLANDI - 2048d checkpoint yok"
       }
-    ],
-    "downstream_notebooks_blocked": [
-      "04_vector_backend_loading",
-      "05_hybrid_query_benchmark"
-    ],
-    "downstream_notebooks_not_blocked": [
-      "03_postgres_metadata_telemetry (embedding'e bagimsiz kisimlari)"
-    ]
+    },
+    "checkpoint_paths": {
+      "auair": "artifacts\\research\\checkpoints\\auair_qwen2048.ndjson",
+      "capera": "artifacts\\research\\checkpoints\\capera_qwen2048.ndjson",
+      "msrvtt": "artifacts\\research\\checkpoints\\msrvtt_qwen2048.ndjson"
+    }
   },
-  "generated_at": "2026-07-29T08:25:07.404447+00:00"
+  "generated_at": "2026-07-29T10:59:58.713901+00:00"
 }

@@ -1,0 +1,31 @@
+# Faz 6 Colab handoff - notebooks/00-06 + scripts/ + src/research/ icin
+# tam bagimlilik listesi. requirements.txt (ana repo) ile CAKISABILIR -
+# Colab hucresinde `pip install -r requirements-colab.txt` calistirin.
+# torch: Colab GPU runtime'inda ONCEDEN CUDA-destekli kurulu gelir -
+# BURADA YENIDEN KURULMAZ (yeniden kurmak CUDA uyumunu bozabilir).
+
+# --- Cekirdek (repo genelinde) ---
+numpy>=1.26
+pandas>=2.2
+pyarrow>=15.0          # parquet okuma/yazma (auair_segments.parquet vb.)
+pyyaml>=6.0
+opencv-python-headless>=4.9
+imageio-ffmpeg>=0.6
+requests>=2.31
+psutil>=5.9            # scripts/colab_preflight.py RAM/disk kontrolu
+
+# --- Dataset indirme ---
+gdown>=6.1
+
+# --- Embedding modeli (notebook 02, GPU) ---
+transformers>=4.45
+sentence-transformers>=5.0
+qwen-vl-utils>=0.0.14
+
+# --- Vector backend Python surucileri (notebook 04-05) ---
+clickhouse-connect>=0.8,<0.9
+qdrant-client>=1.12,<1.13
+psycopg[binary]>=3.2,<4
+
+# --- Test ---
+pytest>=8.0

@@ -1,0 +1,76 @@
+{
+  "notebook": "04_vector_backend_loading",
+  "hardware_profile": "local-cpu",
+  "dataset_id": "",
+  "model_id": "",
+  "model_revision": "",
+  "dtype": "",
+  "attn_implementation": "",
+  "frames_per_item": null,
+  "extra": {
+    "backend_statuses": {
+      "clickhouse": "environment_unavailable",
+      "qdrant": "environment_unavailable",
+      "pgvector": "environment_unavailable"
+    },
+    "backend_versions_used": {
+      "_note": "Faz 6 Colab handoff - backend surumleri KASITLI sabit (latest degil, spec madde 10). Her sonuc satirina bu dosyadaki surum yazilir. Bu depoda GERCEKTEN kurulup calistirilmadi (bkz. COLAB_RUNBOOK.md) - Colab'da ilk calistirmada scripts/colab_preflight.py bu surumlerin hala indirilebilir oldugunu dogrular; degismisse burayi ve ilgili install script'ini GUNCELLEYIN, latest'e geçmeyin.",
+      "clickhouse": {
+        "version": "24.8.4.13",
+        "release_channel": "stable (LTS-benzeri)",
+        "install_method": "official static tgz (packages.clickhouse.com/tgz/stable) - root gerektirmez",
+        "download_url_template": "https://packages.clickhouse.com/tgz/stable/clickhouse-common-static-{version}-amd64.tgz",
+        "vector_index_support": "vector_similarity index (HNSW) + Quantized/QBit MRL codec'leri deneysel bayrakla (allow_experimental_vector_similarity_index, allow_experimental_codecs) bu surumde mevcut",
+        "requires_root": false,
+        "requires_docker": false
+      },
+      "qdrant": {
+        "version": "v1.12.4",
+        "install_method_primary": "official static Linux binary (GitHub Releases) - root gerektirmez",
+        "download_url_template": "https://github.com/qdrant/qdrant/releases/download/{version}/qdrant-x86_64-unknown-linux-gnu.tar.gz",
+        "install_method_fallback": "docker (yalniz static binary basarisiz olursa, Docker daemon mevcutsa)",
+        "cloud_allowed": false,
+        "local_mode_policy": "yalniz smoke test icin - server/HNSW benchmark sonucu olarak RAPORLANMAZ",
+        "requires_root": false,
+        "requires_docker": "yalniz fallback yolunda"
+      },
+      "pgvector": {
+        "postgresql_version": "16",
+        "pgvector_version": "v0.8.0",
+        "install_method": "apt-get postgresql-16 + postgresql-server-dev-16, ardindan pgvector'i kaynaktan derleme (git clone --branch v0.8.0 https://github.com/pgvector/pgvector)",
+        "requires_root": true,
+        "requires_root_scope": "YALNIZCA gecici Colab VM'i ve bu VM uzerindeki yerel PostgreSQL instance'i icin - baska hicbir sisteme yayilmaz",
+        "cloud_allowed": false,
+        "requires_docker": false
+      },
+      "python_driver_versions": {
+        "clickhouse-connect": ">=0.8,<0.9",
+        "qdrant-client": ">=1.12,<1.13",
+        "psycopg": ">=3.2,<4"
+      }
+    },
+    "n_ingest_rows": 0,
+    "embeddings_available": {
+      "auair": {
+        "2048": false,
+        "1024": false,
+        "512": false,
+        "256": false
+      },
+      "capera": {
+        "2048": false,
+        "1024": false,
+        "512": false,
+        "256": false
+      },
+      "msrvtt": {
+        "2048": false,
+        "1024": false,
+        "512": false,
+        "256": false
+      }
+    },
+    "no_two_backends_simultaneously": true
+  },
+  "generated_at": "2026-07-29T11:00:17.859392+00:00"
+}

@@ -1,0 +1,60 @@
+{
+  "auair": {
+    "source": "https://drive.google.com/uc?id=1boGF0L6olGe_Nu7rd1R8N7YmQErCb0xA (annotations), https://drive.google.com/uc?id=1pJ3xfKtHiTdysX5G3dxqKTdGESOBYCxJ (images) - web aramasiyla dogrulanan GUNCEL Drive ID'leri, orijinal bozcani.github.io/auairdataset artik erisilemiyor",
+    "license": "CC BY-NC-SA 2.0 (spec'in dedigi CC BY 4.0 DEGIL - notebook 01'de gercek veriden dogrulandi)",
+    "download_method": "gdown",
+    "resume_supported": true,
+    "files": [
+      {
+        "name": "annotations_raw.zip",
+        "sha256": "5cef55c2717b5fca01d2423cead29ba00913c3c12aa4590d04108d71a12b2f46",
+        "size_bytes": 4039375,
+        "expected_record_count": 32823
+      },
+      {
+        "name": "images.zip",
+        "size_bytes": 347078656,
+        "expected_size_bytes": 2200000000,
+        "complete": false
+      }
+    ]
+  },
+  "capera": {
+    "source": "Kullanici tarafindan Google Drive klasorunden (capera_dataset_model_test) yerel depoya kopyalandi (onceki is paketi - bkz. CONTEXT.md); ham video Colab'a Drive uzerinden TASINMALI, bu depoda ham video YOK",
+    "license": "CC BY 4.0 (MDPI)",
+    "download_method": "manual_drive_copy",
+    "resume_supported": false,
+    "files": [
+      {
+        "name": "CapERA_DATASET_train.json",
+        "present_locally": true
+      },
+      {
+        "name": "CapERA_DATASET_test.json",
+        "present_locally": true
+      },
+      {
+        "name": "all_results.json",
+        "present_locally": true,
+        "note": "onceki AGREGATIF sonuclar - ham 2048d embedding DEGIL, notebook 02 hicbir sekilde bunu 'mevcut embedding' olarak kabul ETMEMELI"
+      }
+    ],
+    "raw_video_status": "NOT_PRESENT_LOCALLY - Colab GPU asamasinda Drive'dan saglanmali"
+  },
+  "msrvtt": {
+    "source": "HuggingFace friedrichor/MSR-VTT (1k-A test split, JSFusion protokolu)",
+    "license": "akademik (MSR sartlari)",
+    "download_method": "huggingface datasets.load_dataset (onceki is paketinde zaten yapildi)",
+    "resume_supported": false,
+    "files": [
+      {
+        "name": "msrvtt_test_1k.json",
+        "present_locally": true
+      },
+      {
+        "name": "MSRVTT_Videos.zip",
+        "present_locally": true
+      }
+    ]
+  }
+}

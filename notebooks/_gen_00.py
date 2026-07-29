@@ -8,8 +8,10 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.research.nb_build import build_and_execute
+from src.research.colab_paths import COLAB_BOOTSTRAP_CELL
 
 CELLS = [
+("code", COLAB_BOOTSTRAP_CELL),
 ("md", """# 00 - Arastirma kapsami ve dataset masa basi denetimi
 
 Spec: `07_MRL_VE_VECTOR_BACKEND_ARASTIRMA_SPEC.md` SS4.1. GPU/indirme
@@ -25,11 +27,10 @@ import sys
 import requests
 
 sys.path.insert(0, str(pathlib.Path.cwd()))
-from src.research.config import DEFAULT as cfg
+from src.research import colab_paths
 from src.research.manifest import RunManifest, detect_hardware_profile, write_manifest
 
-OUT = cfg.research_root
-OUT.mkdir(parents=True, exist_ok=True)
+OUT = colab_paths.research_root()
 
 hw = detect_hardware_profile()
 env_report = {
