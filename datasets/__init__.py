@@ -5,6 +5,7 @@ doner. dataset_id (config.yaml: datasets.<id>) ile adapter sinifi
 teorik olarak birden fazla dataset_id altinda (farkli split/versiyon)
 kullanilabilir."""
 from .base import DatasetAdapter, DatasetManifest, qualified_id
+from .capera import CapERAAdapter
 from .msrvtt import MSRVTTAdapter
 from .registry import (
     dataset_config,
@@ -18,6 +19,7 @@ from .visdrone import VisDroneAdapter
 _ADAPTER_CLASSES = {
     "visdrone": VisDroneAdapter,
     "msrvtt": MSRVTTAdapter,
+    "capera": CapERAAdapter,
 }
 _instances = {}
 

@@ -1,0 +1,78 @@
+{
+  "protocol": "CapERA aerial-video captioning T2V retrieval - video basina 5 caption, her caption AYRI sorgu, video 5sn (alt-pencere YOK, MSR-VTT'ye benzer whole-clip retrieval). ClickHouse'a YAZILMAZ (retrieval_backend=artifact_matrix).",
+  "source": "data\\downloads\\capera\\all_results.json (kullanici tarafindan Google Drive'daki capera_dataset_model_test klasorunden kopyalandi - bu script HICBIR embedding/model YENIDEN URETMEDI, yalniz mevcut sonuclari ortak semaya tasidi).",
+  "dataset_manifest": {
+    "dataset_id": "capera",
+    "dataset_version": "CapERA (Bashmal ve ark. 2023) train+test caption release",
+    "source_hash": "04b24b7ea39c7583d7e647fa5995c56fe634a35b9e6a18a0e2df45a76629e7e4",
+    "split": "train+test (split-nitelenmis kimlik, bkz. modul docstring'i)",
+    "item_count": 2864,
+    "query_count": 14320,
+    "retrieval_unit": "video",
+    "has_structured_filters": false,
+    "groundtruth_type": "caption_1to5",
+    "embedding_cache_key": "capera:04b24b7ea39c"
+  },
+  "known_gaps": [
+    "Per-model embedding/checkpoint dosyalari (emb/<model>/chunk_embeddings.npz, query_embeddings.npy, chunk_meta.json, per_category_metrics.json, per_query_ranks.csv) bu depoya KOPYALANMADI - yalniz all_results.json'daki agregatif satirlar mevcut. Per-kategori veya per-sorgu kirilim, ham embedding vektoru bu artifact'ta YOK.",
+    "capera_retrieval_pipeline.ipynb'de 4 model adaptoru var (Qwen3-VL-Embedding-2B/8B, ebind-audio-vision, VideoCLIP-XL) ama all_results.json'da yalniz 3 sonuc var - ebind-audio-vision KOSULMAMIS veya sonucu kaydedilmemis, sebebi bu dosyalardan belli degil.",
+    "all_results.json'daki n_videos=2863, adapter'in (datasets/capera.py) gercek 2864 kaydiyla 1 fark - notebook hucre 23, 'train__PoliceChase_048.mp4' adli 1 video dosyasini Colab diskinde bulamayip degerlendirme disi birakmis (dogrulandi: notebook kodu). Bug degil, ortam-ozel bir dosya-eksikligi.",
+    "Video dosyalarinin kendisi (mp4'ler) bu depoda YOK - notebook onlari Colab'in gecici diskine aciyordu, Drive'a geri kaydedilmemis. Bu yuzden bu depoda CapERA icin yeni bir embedding/dogrulama kosumu su an YAPILAMAZ (video verisi eksik, GPU da yok)."
+  ],
+  "results": {
+    "Qwen3-VL-Embedding-2B": {
+      "model": "Qwen3-VL-Embedding-2B",
+      "n_videos": 2863,
+      "n_failed_videos": 0,
+      "n_queries": 14315,
+      "n_failed_queries": 0,
+      "embedding_dim": 2048,
+      "chunk_embeddings_file_size_mb": 22.367,
+      "avg_video_embed_time_sec": 0.1985,
+      "query_embed_time_ms": 60.15,
+      "query_embed_time_std_ms": 8.54,
+      "peak_gpu_memory_mb": 8472.6,
+      "model_size_disk_mb": 0.0,
+      "recall_at_1": 0.1357,
+      "recall_at_5": 0.3297,
+      "recall_at_10": 0.4412,
+      "mrr": 0.2373
+    },
+    "Qwen3-VL-Embedding-8B": {
+      "model": "Qwen3-VL-Embedding-8B",
+      "n_videos": 2863,
+      "n_failed_videos": 0,
+      "n_queries": 14315,
+      "n_failed_queries": 0,
+      "embedding_dim": 4096,
+      "chunk_embeddings_file_size_mb": 44.735,
+      "avg_video_embed_time_sec": 0.2093,
+      "query_embed_time_ms": 61.54,
+      "query_embed_time_std_ms": 0.64,
+      "peak_gpu_memory_mb": 21350.6,
+      "model_size_disk_mb": 0.0,
+      "recall_at_1": 0.1416,
+      "recall_at_5": 0.3413,
+      "recall_at_10": 0.4555,
+      "mrr": 0.2453
+    },
+    "VideoCLIP-XL": {
+      "model": "VideoCLIP-XL",
+      "n_videos": 2863,
+      "n_failed_videos": 0,
+      "n_queries": 14315,
+      "n_failed_queries": 0,
+      "embedding_dim": 768,
+      "chunk_embeddings_file_size_mb": 8.388,
+      "avg_video_embed_time_sec": 0.9031,
+      "query_embed_time_ms": 20.72,
+      "query_embed_time_std_ms": 7.27,
+      "peak_gpu_memory_mb": 12905.5,
+      "model_size_disk_mb": 0.0,
+      "recall_at_1": 0.1079,
+      "recall_at_5": 0.282,
+      "recall_at_10": 0.3897,
+      "mrr": 0.2014
+    }
+  }
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>CapERA Model Karşılaştırması</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;max-width:1080px;margin:36px auto;padding:0 22px;color:#172033;line-height:1.55;background:#f7f9fc}
+.hero{background:linear-gradient(120deg,#102a56,#2458a6);color:white;border-radius:18px;padding:24px}
+.card{background:white;border:1px solid #dce4ef;border-radius:14px;padding:17px;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}
+th,td{border-bottom:1px solid #e5e9f0;padding:8px;text-align:left} th{background:#f1f4f9}
+.warn{border-left:5px solid #e7a500;background:#fff9ee}
+</style></head><body>
+<div class="hero"><h1>CapERA Model Karşılaştırması</h1><p>CapERA aerial-video captioning T2V retrieval - video basina 5 caption, her caption AYRI sorgu, video 5sn (alt-pencere YOK, MSR-VTT&#x27;ye benzer whole-clip retrieval). ClickHouse&#x27;a YAZILMAZ (retrieval_backend=artifact_matrix).</p></div>
+<div style="border:2px solid #3c7a58;background:#e4f0e9;color:#245c3f;
+border-radius:10px;padding:14px 18px;margin:0 0 18px;font-family:Arial,sans-serif;line-height:1.5">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <span style="font-weight:700;letter-spacing:.04em;font-size:13px">GERÇEK VERİ</span>
+    
+  </div>
+  <div style="margin-top:6px;font-size:14px"><b>CapERA (ERA aerial event captioning, 2864 video)</b> &middot; 14,320 sorgu (video başına 5 caption)</div>
+  <div style="margin-top:6px;font-size:13px">3 embedding modelinin (Qwen3-VL-Embedding-2B/8B, VideoCLIP-XL) CapERA üzerinde zero-shot T2V retrieval kalitesini karşılaştırmak - kullanıcı tarafından Google Drive&#x27;dan kopyalanan, önceden üretilmiş GERÇEK sonuçlar (bu depoda yeniden üretilmedi/koşulmadı).</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;font-size:12.5px">
+    <div><b>Bu rapordan çıkarılabilir:</b><ul style="margin:4px 0 0;padding-left:18px"><li>3 modelin R@1/R@5/R@10/MRR karşılaştırması (aynı 2863 video/14315 sorguya karşı)</li><li>Qwen3-VL-Embedding-8B&#x27;nin bu 3 model içinde en yüksek recall&#x27;a sahip olduğu (2B&#x27;ye göre küçük fark, VideoCLIP-XL&#x27;e göre belirgin fark)</li><li>Model başına GPU bellek/gecikme karşılaştırması</li></ul></div>
+    <div><b>Bu rapordan ÇIKARILAMAZ:</b><ul style="margin:4px 0 0;padding-left:18px"><li>Per-kategori veya per-sorgu kırılım (o dosyalar bu depoya kopyalanmadı)</li><li>ebind-audio-vision sonucu (notebook&#x27;ta adaptörü var ama sonuç yok)</li><li>VisDrone veya MSR-VTT ile doğrudan karşılaştırma (farklı dataset/protokol/model seti)</li><li>Bu depoda yeniden üretilebilirlik (video dosyaları yerel değil, GPU yok)</li></ul></div>
+  </div>
+</div>
+<section class="card"><h2>Model sonuçları (3 model, gerçek kayıtlı sonuçlar)</h2>
+<table><thead><tr><th>model</th><th>n_videos</th><th>n_queries</th><th>embedding_dim</th><th>recall_at_1</th><th>recall_at_5</th><th>recall_at_10</th><th>mrr</th><th>peak_gpu_memory_mb</th></tr></thead><tbody><tr><td>Qwen3-VL-Embedding-8B</td><td>2863</td><td>14315</td><td>4096</td><td>0.142</td><td>0.341</td><td>0.456</td><td>0.245</td><td>21350.600</td></tr><tr><td>Qwen3-VL-Embedding-2B</td><td>2863</td><td>14315</td><td>2048</td><td>0.136</td><td>0.330</td><td>0.441</td><td>0.237</td><td>8472.600</td></tr><tr><td>VideoCLIP-XL</td><td>2863</td><td>14315</td><td>768</td><td>0.108</td><td>0.282</td><td>0.390</td><td>0.201</td><td>12905.500</td></tr></tbody></table></section>
+<section class="card warn"><h2>Bilinen boşluklar</h2><ul><li>Per-model embedding/checkpoint dosyalari (emb/&lt;model&gt;/chunk_embeddings.npz, query_embeddings.npy, chunk_meta.json, per_category_metrics.json, per_query_ranks.csv) bu depoya KOPYALANMADI - yalniz all_results.json&#x27;daki agregatif satirlar mevcut. Per-kategori veya per-sorgu kirilim, ham embedding vektoru bu artifact&#x27;ta YOK.</li><li>capera_retrieval_pipeline.ipynb&#x27;de 4 model adaptoru var (Qwen3-VL-Embedding-2B/8B, ebind-audio-vision, VideoCLIP-XL) ama all_results.json&#x27;da yalniz 3 sonuc var - ebind-audio-vision KOSULMAMIS veya sonucu kaydedilmemis, sebebi bu dosyalardan belli degil.</li><li>all_results.json&#x27;daki n_videos=2863, adapter&#x27;in (datasets/capera.py) gercek 2864 kaydiyla 1 fark - notebook hucre 23, &#x27;train__PoliceChase_048.mp4&#x27; adli 1 video dosyasini Colab diskinde bulamayip degerlendirme disi birakmis (dogrulandi: notebook kodu). Bug degil, ortam-ozel bir dosya-eksikligi.</li><li>Video dosyalarinin kendisi (mp4&#x27;ler) bu depoda YOK - notebook onlari Colab&#x27;in gecici diskine aciyordu, Drive&#x27;a geri kaydedilmemis. Bu yuzden bu depoda CapERA icin yeni bir embedding/dogrulama kosumu su an YAPILAMAZ (video verisi eksik, GPU da yok).</li></ul></section>
+<section class="card"><h2>Dataset manifest</h2><table><thead><tr><th>dataset_id</th><th>dataset_version</th><th>source_hash</th><th>split</th><th>item_count</th><th>query_count</th><th>retrieval_unit</th><th>has_structured_filters</th><th>groundtruth_type</th><th>embedding_cache_key</th></tr></thead><tbody><tr><td>capera</td><td>CapERA (Bashmal ve ark. 2023) train+test caption release</td><td>04b24b7ea39c7583d7e647fa5995c56fe634a35b9e6a18a0e2df45a76629e7e4</td><td>train+test (split-nitelenmis kimlik, bkz. modul docstring&#x27;i)</td><td>2864</td><td>14320</td><td>video</td><td>False</td><td>caption_1to5</td><td>capera:04b24b7ea39c</td></tr></tbody></table>
+<p style="font-size:12px;color:#667085">data\downloads\capera\all_results.json (kullanici tarafindan Google Drive&#x27;daki capera_dataset_model_test klasorunden kopyalandi - bu script HICBIR embedding/model YENIDEN URETMEDI, yalniz mevcut sonuclari ortak semaya tasidi).</p></section>
+</body></html>
