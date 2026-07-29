@@ -7,8 +7,8 @@
       "expected_files": ["annotations_raw.zip", "extracted/annotations.json", "images.zip"]
     },
     "datasets/capera": {
-      "purpose": "CapERA ham video ZIP'i (ERA_Dataset.zip) - KULLANICI TARAFINDAN buraya yerlestirilir, notebook 02 OTOMATIK olarak /content/ERA_Dataset'e acar (elle extract GEREKMEZ)",
-      "expected_files": ["ERA_Dataset.zip"]
+      "purpose": "CapERA ham video ZIP'i (ERA_Dataset.zip, notebook 02 OTOMATIK olarak /content/ERA_Dataset'e acar - elle extract GEREKMEZ) + caption JSON'lari (CapERA_DATASET_train.json, CapERA_DATASET_test.json - bu depoda data/downloads/ altinda gitignore'lu, ZIP'in icinde GELMEZ). Ucu de KULLANICI TARAFINDAN buraya yerlestirilir.",
+      "expected_files": ["ERA_Dataset.zip", "CapERA_DATASET_train.json", "CapERA_DATASET_test.json"]
     },
     "datasets/msrvtt": {
       "purpose": "MSR-VTT 1k-A test video'lari",

@@ -54,14 +54,18 @@ Ayni GPU runtime'inda, sirayla:
    (gdown, resume destekli - kesilirse hucreyi tekrar calistirin, kaldigi
    yerden devam eder), sema/video/hard-stop/pencereleme/telemetri/secicilik
    dogrulamasini yapar.
-   - **CapERA video:** Bu depoda YOK. Eger CapERA'da GERCEK embedding
-     uretmek istiyorsaniz, `ERA_Dataset.zip` dosyasini (elle ACMADAN, zip
-     olarak) Drive'da su yola atin:
-     `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/capera/ERA_Dataset.zip`
-     - **notebook 02'nin CapERA hucresi bunu KENDISI, otomatik olarak
+   - **CapERA video + caption:** Bu depoda YOK (video hic yok; caption
+     JSON'lari `data/downloads/` altinda gitignore'lu, ZIP'in icine GIRMEZ).
+     Eger CapERA'da GERCEK embedding uretmek istiyorsaniz, UCU DE dosyayi
+     Drive'da AYNI klasore atin:
+     `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/capera/`
+     - `ERA_Dataset.zip` (elle ACMADAN, zip olarak)
+     - `CapERA_DATASET_train.json`, `CapERA_DATASET_test.json` (kucuk,
+       captionlari icerir)
+     - **notebook 02'nin CapERA hucresi zip'i KENDISI, otomatik olarak
      `/content/ERA_Dataset`'e acar** (Drive'a degil, hizli olsun diye).
-     Elle extract etmenize GEREK YOK. Zip'i koymazsaniz CapERA hucresi
-     sadece atlanir, AU-AIR/MSR-VTT etkilenmez.
+     Elle extract etmenize GEREK YOK. Bu 3 dosyadan biri eksikse CapERA
+     hucresi sadece atlanir, AU-AIR/MSR-VTT etkilenmez.
    - `scripts/verify_drive_inputs.py`'yi calistirarak (bir hucrede
      `!python scripts/verify_drive_inputs.py`) hangi dataset'lerin hazir
      oldugunu kontrol edebilirsiniz.

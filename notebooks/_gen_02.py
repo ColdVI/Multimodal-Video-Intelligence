@@ -120,10 +120,15 @@ else:
       "ERA_Dataset.zip'i ELLE ACMANIZA GEREK YOK - asagidaki hucre, "
       "`/content/ERA_Dataset/Videos` yoksa Drive'daki `datasets/capera/ERA_Dataset.zip`'i "
       "OTOMATIK bulup `/content`'e acar (Drive'a degil - hizli). Zip'i Drive'da "
-      "`.../phase6_mrl_vector_backend/datasets/capera/ERA_Dataset.zip` yoluna atmaniz yeterli."),
+      "`.../phase6_mrl_vector_backend/datasets/capera/ERA_Dataset.zip` yoluna atmaniz yeterli. "
+      "AYRICA `CapERA_DATASET_train.json` ve `CapERA_DATASET_test.json` (kucuk caption "
+      "dosyalari, config.yaml'daki train_split/test_split) da AYNI `datasets/capera/` "
+      "klasorune atin - bu depoda `data/downloads/` altinda gitignore'lu oldugu icin ZIP'in "
+      "icinde GELMEZ, Drive'a ayrica koymaniz gerekir."),
 
 ("code", """import zipfile
 
+from common import load_config as _load_raw_config
 from dataset_adapters.capera import CapERAAdapter, FIXED_DURATION_S
 from ingest.frame_io import read_window_frames
 
@@ -131,7 +136,8 @@ capera_ckpt = CKPT_ROOT / "capera_qwen2048.ndjson"
 capera_embedding_ready = False
 
 CAPERA_VIDEOS_DIR = pathlib.Path("/content/ERA_Dataset/Videos")
-CAPERA_ZIP_IN_DRIVE = colab_paths.dataset_root("capera") / "ERA_Dataset.zip"
+CAPERA_DIR_IN_DRIVE = colab_paths.dataset_root("capera")
+CAPERA_ZIP_IN_DRIVE = CAPERA_DIR_IN_DRIVE / "ERA_Dataset.zip"
 
 def _ensure_capera_extracted():
     if CAPERA_VIDEOS_DIR.exists():
@@ -147,12 +153,28 @@ def _ensure_capera_extracted():
     print("Acildi.")
     return CAPERA_VIDEOS_DIR.exists()
 
+# NOT: config.yaml'daki train_split/test_split yerel gelistirme yoluna
+# (data/downloads/capera/...) sabit - o klasor .gitignore'da, Colab'a hic
+# gitmez. MSR-VTT hucresiyle AYNI desen: config'e degil, dogrudan
+# colab_paths.dataset_root()'a (Drive) bakiyoruz.
+capera_train = CAPERA_DIR_IN_DRIVE / "CapERA_DATASET_train.json"
+capera_test = CAPERA_DIR_IN_DRIVE / "CapERA_DATASET_test.json"
+
+capera_cfg = None
 if not gpu_available:
     print("[ATLANDI] CapERA embedding uretimi (GPU yok).")
 elif not _ensure_capera_extracted():
     pass
+elif not (capera_train.exists() and capera_test.exists()):
+    print(f"[ATLANDI] {capera_train} / {capera_test} Drive'da yok - CapERA "
+         "caption JSON'larini ERA_Dataset.zip'in yanina (datasets/capera/) atin.")
 else:
-    adapter = CapERAAdapter()
+    capera_cfg = _load_raw_config()
+    capera_cfg["datasets"]["capera"]["train_split"] = str(capera_train)
+    capera_cfg["datasets"]["capera"]["test_split"] = str(capera_test)
+
+if capera_cfg is not None:
+    adapter = CapERAAdapter(cfg=capera_cfg)
     all_ids = adapter.list_sequences()
     todo = remaining_items(all_ids, capera_ckpt)
     print(f"CapERA: {len(all_ids)} video, {len(all_ids) - len(todo)} zaten tamamlanmis, {len(todo)} kaldi.")
