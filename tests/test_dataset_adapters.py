@@ -6,9 +6,9 @@ import pathlib
 
 import pytest
 
-from datasets import get_dataset_adapter, qualified_id
-from datasets.msrvtt import MSRVTTAdapter
-from datasets.visdrone import VisDroneAdapter
+from dataset_adapters import get_dataset_adapter, qualified_id
+from dataset_adapters.msrvtt import MSRVTTAdapter
+from dataset_adapters.visdrone import VisDroneAdapter
 
 _HAS_VISDRONE = pathlib.Path("data/raw/manifest.json").exists()
 _HAS_MSRVTT = pathlib.Path("data/downloads/msrvtt/msrvtt_test_1k.json").exists()

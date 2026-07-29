@@ -11,7 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import dataclasses
 
-from datasets.capera import CapERAAdapter
+from dataset_adapters.capera import CapERAAdapter
 
 SOURCE_PATH = pathlib.Path("data/downloads/capera/all_results.json")
 OUT_PATH = pathlib.Path("artifacts/capera_validation.json")
@@ -26,7 +26,7 @@ KNOWN_GAPS = [
      "Embedding-2B/8B, ebind-audio-vision, VideoCLIP-XL) ama all_results.json'da "
      "yalniz 3 sonuc var - ebind-audio-vision KOSULMAMIS veya sonucu "
      "kaydedilmemis, sebebi bu dosyalardan belli degil."),
-    ("all_results.json'daki n_videos=2863, adapter'in (datasets/capera.py) "
+    ("all_results.json'daki n_videos=2863, adapter'in (dataset_adapters/capera.py) "
      "gercek 2864 kaydiyla 1 fark - notebook hucre 23, 'train__PoliceChase_048.mp4' "
      "adli 1 video dosyasini Colab diskinde bulamayip degerlendirme disi "
      "birakmis (dogrulandi: notebook kodu). Bug degil, ortam-ozel bir "

@@ -31,7 +31,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from bench.gpu_gate import require_gpu_for_qwen_windows
 from bench.manifest import torch_info
-from datasets.msrvtt import MSRVTTAdapter
+from dataset_adapters.msrvtt import MSRVTTAdapter
 from ingest.frame_io import read_window_frames
 from models import get_embedder
 from scripts.mrl_truncate_embeddings import truncate_and_renormalize

@@ -4,7 +4,7 @@ import pathlib
 
 import pytest
 
-from datasets.capera import CapERAAdapter
+from dataset_adapters.capera import CapERAAdapter
 from scripts.migrate_capera_results import build_migrated_artifact, evaluated_counts
 
 _SOURCE = pathlib.Path("data/downloads/capera/all_results.json")

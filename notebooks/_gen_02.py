@@ -116,7 +116,7 @@ else:
     print(f"AU-AIR embedding_ready={auair_embedding_ready} -> {auair_ckpt}")
 """),
 
-("md", "## CapERA embedding (datasets.capera.CapERAAdapter - ham video Drive'dan)\n\n"
+("md", "## CapERA embedding (dataset_adapters.capera.CapERAAdapter - ham video Drive'dan)\n\n"
       "ERA_Dataset.zip'i ELLE ACMANIZA GEREK YOK - asagidaki hucre, "
       "`/content/ERA_Dataset/Videos` yoksa Drive'daki `datasets/capera/ERA_Dataset.zip`'i "
       "OTOMATIK bulup `/content`'e acar (Drive'a degil - hizli). Zip'i Drive'da "
@@ -124,7 +124,7 @@ else:
 
 ("code", """import zipfile
 
-from datasets.capera import CapERAAdapter, FIXED_DURATION_S
+from dataset_adapters.capera import CapERAAdapter, FIXED_DURATION_S
 from ingest.frame_io import read_window_frames
 
 capera_ckpt = CKPT_ROOT / "capera_qwen2048.ndjson"

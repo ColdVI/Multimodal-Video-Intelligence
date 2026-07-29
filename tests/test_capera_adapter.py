@@ -1,11 +1,11 @@
 """CapERAAdapter'i GERCEK yerel caption JSON'larina karsi test eder. Video
-dosyalari bu depoda yok (bkz. datasets/capera.py docstring'i) - o kismi
+dosyalari bu depoda yok (bkz. dataset_adapters/capera.py docstring'i) - o kismi
 test etmiyoruz, video-bagimsiz sozlesmeyi test ediyoruz."""
 import pathlib
 
 import pytest
 
-from datasets.capera import CapERAAdapter, FIXED_DURATION_S
+from dataset_adapters.capera import CapERAAdapter, FIXED_DURATION_S
 
 _HAS_CAPERA = (pathlib.Path("data/downloads/capera/CapERA_DATASET_test.json").exists()
               and pathlib.Path("data/downloads/capera/CapERA_DATASET_train.json").exists())
@@ -88,7 +88,7 @@ def test_manifest_source_hash_matches_real_concatenated_file_hash():
 
 
 def test_get_dataset_adapter_registers_capera():
-    from datasets import available_datasets, get_dataset_adapter
+    from dataset_adapters import available_datasets, get_dataset_adapter
     assert "capera" in available_datasets()
     ce = get_dataset_adapter("capera")
     assert isinstance(ce, CapERAAdapter)

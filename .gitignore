@@ -16,12 +16,15 @@ __pycache__/
 .gradio/
 weights/
 runs/
-# datasets/ - ultralytics kendi otomatik indirdigi veri klasoru icin
-# eskiden buraya konmustu; simdi datasets/ ayni zamanda bizim
-# DatasetAdapter kaynak kodumuz (bkz. datasets/base.py) - .py dosyalarini
-# takip et, geri kalanini (ultralytics'in indirdigi gercek veri) yoksay.
-datasets/*
-!datasets/*.py
+# dataset_adapters/ - ultralytics kendi otomatik indirdigi veri klasoru icin
+# eskiden buraya konmustu; simdi dataset_adapters/ ayni zamanda bizim
+# DatasetAdapter kaynak kodumuz (bkz. dataset_adapters/base.py) - .py
+# dosyalarini takip et, geri kalanini (ultralytics'in indirdigi gercek veri)
+# yoksay. (Eskiden bu klasorun adi "datasets" idi - pip'in "datasets"
+# paketiyle isim/import celismesi Colab'da sentence-transformers'i
+# kirdigi icin dataset_adapters/ olarak yeniden adlandirildi.)
+dataset_adapters/*
+!dataset_adapters/*.py
 *.pt
 artifacts/colab_gpu_bundle.zip
 artifacts/research/Multimodal-Video-Intelligence-phase6.zip

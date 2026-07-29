@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from bench import adaptive_mrl
-from datasets import visdrone as visdrone_module
+from dataset_adapters import visdrone as visdrone_module
 
 
 class _FakeResult:
@@ -135,7 +135,7 @@ def test_run_adaptive_mrl_bench_end_to_end_real_visdrone_gt_fake_clickhouse():
 
 
 def test_pilot_warning_absent_when_threshold_reached(monkeypatch):
-    # HEM adaptive_mrl'in HEM datasets.visdrone'un kendi build_queries
+    # HEM adaptive_mrl'in HEM dataset_adapters.visdrone'un kendi build_queries
     # bagi bagimsiz isim baglamalari (from X import Y) - ikisi de sahtelenmeli
     # yoksa adapter.ground_truth() gercek 28 sorguyla KeyError atar.
     fake_queries = {f"q{i}": (lambda F, N, fps: []) for i in range(150)}

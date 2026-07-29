@@ -1,5 +1,5 @@
 """Bilinmeyen bir dataset dizinini analiz edip insan-okur ozet + bir
-datasets/<isim>.py adapter iskeleti uretir.
+dataset_adapters/<isim>.py adapter iskeleti uretir.
 
 NEDEN: ekip arkadaslari farkli veri yukleyecek (bkz. dataset_prompt_paketi.md).
 Her biri icin elle adapter yazmak yerine, once veriyi TANIYAN bir arac -
@@ -264,7 +264,7 @@ degil, TODO'lari doldurun. Kaynak dizin analizi:
 """
 from pathlib import Path
 
-from datasets.base import DatasetAdapter
+from dataset_adapters.base import DatasetAdapter
 
 
 class {class_name}Adapter(DatasetAdapter):
@@ -302,7 +302,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True, help="Analiz edilecek dataset dizini")
     ap.add_argument("--name", required=True, help="Adapter dosyasi icin dataset adi (ör. capera)")
-    ap.add_argument("--out-dir", default="datasets", help="Adapter iskeletinin yazilacagi dizin")
+    ap.add_argument("--out-dir", default="dataset_adapters", help="Adapter iskeletinin yazilacagi dizin")
     ap.add_argument("--force", action="store_true", help="Var olan adapter dosyasinin uzerine yaz")
     args = ap.parse_args()
 

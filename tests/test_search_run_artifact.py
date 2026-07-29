@@ -7,7 +7,7 @@ from bench.search_run_artifact import (
     capture_explain_plans,
     write_search_run,
 )
-from datasets.base import DatasetManifest
+from dataset_adapters.base import DatasetManifest
 
 
 def _fake_dataset_manifest():

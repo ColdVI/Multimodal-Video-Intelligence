@@ -1,6 +1,6 @@
 import pytest
 
-from datasets import registry
+from dataset_adapters import registry
 
 
 def test_dataset_configs_validates_required_fields(monkeypatch):

@@ -21,7 +21,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from bench.metrics import evaluate_multi_k
 from common import load_config
-from datasets.visdrone import VisDroneAdapter
+from dataset_adapters.visdrone import VisDroneAdapter
 from eval.make_groundtruth import build_queries, build_query_metadata
 from models import get_embedder
 from scripts.mrl_truncate_embeddings import truncate_and_renormalize
