@@ -148,7 +148,10 @@ def _table_html(rows: list[dict]) -> str:
     return f"<div class='scroll'><table><thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"
 
 
-def render_clickhouse_report(evidence: dict) -> str:
+def render_clickhouse_report(evidence: dict, scope_badge_html: str = "") -> str:
+    """scope_badge_html: reports/scope_badge.py::render_scope_badge() ciktisi
+    - opsiyonel, verilmezse mevcut (v1) cikti birebir ayni kalir. v2
+    build script'i bunu SMOKE_TEST rozetiyle doldurur."""
     query_sections = []
     for item in evidence["queries"]:
         server_ms = float(item.get("statistics", {}).get("elapsed", 0.0)) * 1000
@@ -193,6 +196,7 @@ body{{font-family:Inter,Arial,sans-serif;max-width:1180px;margin:36px auto;paddi
 .warn{{border-left:5px solid #e7a500}}
 </style></head><body>
 <div class="hero"><h1>ClickHouse Search Lab</h1><p>Exact filtre · exact brute-force vector · HNSW · hybrid pre/postfilter</p></div>
+{scope_badge_html}
 <div class="grid">
   <div class="card"><b>ClickHouse</b><br>{html.escape(evidence['clickhouse_version'])}</div>
   <div class="card"><b>Katalog sorgusu</b><br>{evidence['catalog_query_count']}</div>

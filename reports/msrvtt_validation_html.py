@@ -53,7 +53,9 @@ def _seconds_to_human(seconds: float) -> str:
     return f"{seconds:.1f} sn"
 
 
-def render_msrvtt_report(evidence: dict) -> str:
+def render_msrvtt_report(evidence: dict, scope_badge_html: str = "") -> str:
+    """scope_badge_html: reports/scope_badge.py ciktisi, opsiyonel - bos ise
+    mevcut (v1) cikti birebir ayni kalir."""
     zero_shot = evidence.get("zero_shot_baseline", {})
     zs_name = zero_shot.get("name", "")
     zs_values = zero_shot.get("values", {})
@@ -128,6 +130,7 @@ th,td{{border-bottom:1px solid #e5e9f0;padding:8px;text-align:left}} th{{backgro
 ul{{margin:6px 0}}
 </style></head><body>
 <div class="hero"><h1>MSR-VTT 1k-A Boru Hattı Doğrulaması</h1><p>{html.escape(evidence.get('protocol', ''))}</p></div>
+{scope_badge_html}
 {''.join(model_sections)}
 <section class="card"><h2>Referans-amaçlı baseline'lar (kırmızı bayrak için KULLANILMAZ)</h2>
 <p class="meta">Fine-tune edilmiş retrieval modelleri - üst sınır göstergesi, zero-shot checkpoint'imizle doğrudan kıyaslanamaz.</p>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>MSR-VTT 1k-A Boru Hattı Doğrulaması</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;max-width:1000px;margin:36px auto;padding:0 22px;color:#172033;line-height:1.55;background:#f7f9fc}
+.hero{background:linear-gradient(120deg,#102a56,#2458a6);color:white;border-radius:18px;padding:24px}
+.card{background:white;border:1px solid #dce4ef;border-radius:14px;padding:17px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:14px 0}
+.stat{background:#f1f4f9;border-radius:10px;padding:10px;text-align:center}
+.chance{font-weight:600;color:#174a9c;background:#e6eeff;border-radius:8px;padding:8px 12px;display:inline-block}
+.meta{color:#667085;font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}
+th,td{border-bottom:1px solid #e5e9f0;padding:8px;text-align:left} th{background:#f1f4f9}
+.warn-title{color:#b3541e}
+ul{margin:6px 0}
+</style></head><body>
+<div class="hero"><h1>MSR-VTT 1k-A Boru Hattı Doğrulaması</h1><p>MSR-VTT 1k-A, standart t2v retrieval (video basina tek pencere, IoU/merge_intervals YOK) - MVEB&#x27;in filtrelenmis ~879 klip alt kumesiyle DEGIL, tam 1000 klipin klasik protokolüyle karsilastirilabilir.</p></div>
+<div style="border:2px solid #3c7a58;background:#e4f0e9;color:#245c3f;
+border-radius:10px;padding:14px 18px;margin:0 0 18px;font-family:Arial,sans-serif;line-height:1.5">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <span style="font-weight:700;letter-spacing:.04em;font-size:13px">GERÇEK VERİ</span>
+    
+  </div>
+  <div style="margin-top:6px;font-size:14px"><b>MSR-VTT 1k-A test split (standart yayınlanmış benchmark)</b> &middot; 1,000 video/caption çifti (tam split, alt küme değil)</div>
+  <div style="margin-top:6px;font-size:13px">xclip_hf_zeroshot checkpoint&#x27;inin gerçek text-to-video retrieval kalitesini, yayınlanmış bir literatür baseline&#x27;ına karşı ölçmek - bu depodaki TEK gerçek model-kalite benchmarkı (diğer raporlar gecikme/plan ölçer, kalite değil).</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;font-size:12.5px">
+    <div><b>Bu rapordan çıkarılabilir:</b><ul style="margin:4px 0 0;padding-left:18px"><li>R@1/R@5/R@10/MedR/MeanR - standart 1k-A protokolüyle karşılaştırılabilir</li><li>MeanR&#x27;nin rastgele şanstan kaç kat iyi olduğu (baseline tartışmasından bağımsız)</li><li>Zero-shot CLIP-straight baseline&#x27;ına karşı hangi metriklerin bayraklı kaldığı</li></ul></div>
+    <div><b>Bu rapordan ÇIKARILAMAZ:</b><ul style="margin:4px 0 0;padding-left:18px"><li>VisDrone&#x27;daki arama kalitesi (farklı domain/görev - drone görüntüsü vs. genel video, windowed interval retrieval vs. whole-clip T2V)</li><li>Ma ve ark. (retrieval-fine-tuned) X-CLIP&#x27;in sonucu (entegre edilmedi, bkz. script notu)</li></ul></div>
+  </div>
+</div>
+
+        <section class="card">
+          <h2>xclip_hf_zeroshot</h2>
+          <div class="grid">
+            <div class="stat"><b>R@1</b><br>21.5</div>
+            <div class="stat"><b>R@5</b><br>42.4</div>
+            <div class="stat"><b>R@10</b><br>52.3</div>
+            <div class="stat"><b>MedR</b><br>8.5</div>
+            <div class="stat"><b>n</b><br>1000</div>
+          </div>
+          <p class="chance">MeanR=75.1, rastgele sans ~500.5 -&gt; 6.7x daha iyi</p>
+          <p class='meta'>Video embed: 1.5 sa (1000 video) · Metin embed: 27.9 sn · Değerlendirilen çift: 1000</p>
+          <h3>Zero-shot baseline karşılaştırması</h3>
+          <p class="meta">CLIP-straight zero-shot (Portillo-Quintero ve ark. 2021, T2V, MSR-VTT 1k-A, fine-tune yok) - iki bagimsiz kaynaktan dogrulandi, kirmizi bayrak buna karsi kosulur</p>
+          <table><thead><tr><th>metrik</th><th>ölçülen</th><th>zero-shot baseline</th><th>fark (puan)</th><th>durum</th></tr></thead><tbody><tr><td>R@1</td><td>21.5</td><td>31.2</td><td>9.7</td><td>temiz</td></tr><tr><td>R@5</td><td>42.4</td><td>53.7</td><td>11.3</td><td>BAYRAKLI</td></tr><tr><td>R@10</td><td>52.3</td><td>64.2</td><td>11.9</td><td>BAYRAKLI</td></tr><tr><td>MedR</td><td>8.5</td><td>4.0</td><td>4.5</td><td>referans (gate yok)</td></tr></tbody></table>
+          <h3 class="warn-title">Kırmızı bayraklar</h3>
+          <ul><li>R@5: olculen=42.4 yayinlanan=53.7 (fark 11.3 puan &gt; 10.0 esigi) - olasi sebep: kare sayisi, cozunurluk, normalize, prompt sablonu, split farki</li><li>R@10: olculen=52.3 yayinlanan=64.2 (fark 11.9 puan &gt; 10.0 esigi) - olasi sebep: kare sayisi, cozunurluk, normalize, prompt sablonu, split farki</li></ul>
+        </section>
+<section class="card"><h2>Referans-amaçlı baseline'lar (kırmızı bayrak için KULLANILMAZ)</h2>
+<p class="meta">Fine-tune edilmiş retrieval modelleri - üst sınır göstergesi, zero-shot checkpoint'imizle doğrudan kıyaslanamaz.</p>
+<table><thead><tr><th>model</th><th>R@1</th><th>R@5</th><th>R@10</th><th>MedR</th></tr></thead><tbody><tr><td>CLIP4Clip (ViT-B/32), fine-tuned t2v - ust sinir referansi, red bayrak icin KULLANILMIYOR</td><td>44.5</td><td>71.4</td><td>81.6</td><td>2.0</td></tr></tbody></table></section>
+</body></html>

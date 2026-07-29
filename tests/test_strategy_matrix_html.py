@@ -56,6 +56,26 @@ def test_render_scale_section_warns_about_pb_extrapolation_gap():
     assert "4,194" in out or "4194" in out  # 419430400/100000 = 4194.3x boşluk
 
 
+def test_real_and_synthetic_badges_appear_in_their_own_sections():
+    scale = {"matrix": [], "hnsw_recall_at_10": {"table": "x", "k": 10, "recall_at_k": 1.0,
+                                                 "n_overlap": 10, "n_exact": 10}}
+    out = render_strategy_report(
+        _fake_small_scale(), scale_100k=scale,
+        real_badge_html="<div>REAL_MARKER</div>",
+        synthetic_badge_html="<div>SYNTHETIC_MARKER</div>")
+    assert "REAL_MARKER" in out
+    assert "SYNTHETIC_MARKER" in out
+    # gercek rozet sentetik bolumden ONCE gelmeli (73 pencere ustte, 100K altta)
+    assert out.index("REAL_MARKER") < out.index("SYNTHETIC_MARKER")
+
+
+def test_badges_absent_by_default_match_v1_output():
+    with_default = render_strategy_report(_fake_small_scale())
+    with_explicit_empty = render_strategy_report(
+        _fake_small_scale(), real_badge_html="", synthetic_badge_html="")
+    assert with_default == with_explicit_empty
+
+
 def test_render_scale_section_handles_missing_corpus_size_gracefully():
     scale = {"matrix": [], "hnsw_recall_at_10": {"table": "x", "k": 10, "recall_at_k": 1.0,
                                                  "n_overlap": 10, "n_exact": 10}}

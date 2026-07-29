@@ -54,6 +54,17 @@ def test_render_includes_reference_only_baseline_table():
     assert "44.5" in out
 
 
+def test_scope_badge_html_included_when_provided():
+    out = render_msrvtt_report(_fake_evidence(), scope_badge_html="<div>MARKER_BADGE</div>")
+    assert "MARKER_BADGE" in out
+
+
+def test_scope_badge_html_absent_by_default_matches_v1_output():
+    with_default = render_msrvtt_report(_fake_evidence())
+    with_explicit_empty = render_msrvtt_report(_fake_evidence(), scope_badge_html="")
+    assert with_default == with_explicit_empty
+
+
 def test_render_handles_multiple_models():
     evidence = _fake_evidence()
     evidence["results"]["qwen3vl_emb_2048"] = evidence["results"]["xclip_hf_zeroshot"]

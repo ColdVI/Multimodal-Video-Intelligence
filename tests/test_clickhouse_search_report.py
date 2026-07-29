@@ -35,3 +35,30 @@ def test_report_renders_sql_results_and_methodology():
     assert "HNSW planı: yok" in output
     long_vector = "[" + ", ".join(str(index / 10) for index in range(32)) + "]"
     assert _compact_query_plan(long_vector) == "[query_vector omitted]"
+
+
+def test_scope_badge_html_included_when_provided(monkeypatch):
+    evidence = {
+        "clickhouse_version": "26.7.1", "catalog_query_count": 1,
+        "total_rows_across_model_tables": 7,
+        "vector_exact_and_hnsw_ranking_equal": True,
+        "vector_exact_and_hnsw_distances_equal": False,
+        "vector_exact_and_hnsw_max_distance_delta": 0.0001,
+        "settings": {}, "methodology": [], "queries": [],
+    }
+    out = render_clickhouse_report(evidence, scope_badge_html="<div>MARKER_BADGE</div>")
+    assert "MARKER_BADGE" in out
+
+
+def test_scope_badge_html_absent_by_default_matches_v1_output():
+    evidence = {
+        "clickhouse_version": "26.7.1", "catalog_query_count": 1,
+        "total_rows_across_model_tables": 7,
+        "vector_exact_and_hnsw_ranking_equal": True,
+        "vector_exact_and_hnsw_distances_equal": False,
+        "vector_exact_and_hnsw_max_distance_delta": 0.0001,
+        "settings": {}, "methodology": [], "queries": [],
+    }
+    with_default = render_clickhouse_report(evidence)
+    with_explicit_empty = render_clickhouse_report(evidence, scope_badge_html="")
+    assert with_default == with_explicit_empty

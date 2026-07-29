@@ -23,7 +23,13 @@ def _rows_to_table(rows: list[dict], columns: list[str]) -> str:
 
 
 def render_strategy_report(small_scale: dict, scale_100k: dict = None,
-                           memory_projection: dict = None, scale_corpus_size: int = None) -> str:
+                           memory_projection: dict = None, scale_corpus_size: int = None,
+                           real_badge_html: str = "", synthetic_badge_html: str = "") -> str:
+    """real_badge_html/synthetic_badge_html: reports/scope_badge.py ciktisi,
+    opsiyonel - ikisi de bos ise mevcut (v1) cikti birebir ayni kalir. 73
+    gercek pencere (small_scale) ile 100K sentetik satir (scale_100k) AYRI
+    rozetler alir - ikisini tek rozette birlestirmek "gercek mi sentetik
+    mi" ayrimini bulaniklastirirdi."""
     matrix_cols = ["strategy", "selectivity", "table", "row_count", "rows_read",
                    "vector_index_in_plan", "p50_ms", "p95_ms"]
     matrix_html = _rows_to_table(small_scale["matrix"], matrix_cols)
@@ -60,6 +66,7 @@ def render_strategy_report(small_scale: dict, scale_100k: dict = None,
                        "geçilmedi) - hedef 1 PB davranışı ÖLÇÜLMEDİ, ekstrapolasyondur.")
         scale_section = f"""
         <section class="card"><h2>100K sentetik ölçek (bench_scale_512)</h2>
+        {synthetic_badge_html}
         <p class="warn">{gap_note} Bu bölümdeki
         sayılar PB ölçeğinde bir garanti değil, tek bir ölçüm noktasıdır.</p>
         <p>HNSW-exact uyumu@10: {r['recall_at_k']:.3f} ({r['n_overlap']}/{r['n_exact']}) - yukarıdaki not aynen geçerli</p>
@@ -84,6 +91,7 @@ th,td{{border:1px solid #ddd;padding:6px;text-align:left}} th{{background:#f4f4f
 .warn{{color:#7a4a00;font-size:13px;background:#fff4e0;border-left:4px solid #e0a500;padding:8px 10px}}
 </style></head><body>
 <h1>Faz 2: ClickHouse arama katmanı — strateji matrisi</h1>
+{real_badge_html}
 <section class="card"><h2>4 strateji × 2 seçicilik × 2 tablo (73 satır, gerçek smoke veri)</h2>
 {matrix_html}</section>
 <section class="card"><h2>fetch_multiplier sweep</h2>{fetch_html}</section>
