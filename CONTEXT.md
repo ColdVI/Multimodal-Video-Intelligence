@@ -32,6 +32,18 @@ gercek IHA verisi olmadan, acik drone veri setleriyle sinamak icin var.
    sorulmamali. POC'ta `platform` kolonu sabit `'visdrone'` — gercek
    coklu-platform senaryosu burada yok, Faz 5'te ayri bir katalog join'i
    olarak eklenecek.
+3. **150-sorgu istatistiksel guc esigi (28 Temmuz 2026)**: VisDrone'da
+   `eval/make_groundtruth.py::build_queries()` 28 sorgu uretiyor - bu
+   esigin ALTINDA. Adaptive MRL harness'i (bkz. STATUS.md "Unified Search
+   Harness") bu 28 sorguyla GERCEKTEN calistirildi ve gercek sayilar
+   uretti, ama bu PILOT bir olcum, baglayici bir "X boyutu Y'den iyi"
+   uretim karari DEGIL - kucuk n'de gurultu buyuk boyut farklarini
+   maskeleyebilir/taklit edebilir. Baglayici karar icin ya VisDrone GT'si
+   150+ sorguya genisletilmeli ya da MSR-VTT'nin 1000 sorguluk GPU
+   kosumu (Faz 6, henuz calistirilmadi - bu makinede GPU yok) tamamlanmali.
+   Bu esik gecilmeden planner (Faz 7) esikleri veya dashboard'a yeni
+   sekmeler EKLENMEMELI - tahminle deger yazmak yerine bilincli olarak
+   ertelendi.
 
 ## POC'ta bilincli basitlestirmeler
 

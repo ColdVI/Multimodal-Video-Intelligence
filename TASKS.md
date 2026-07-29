@@ -407,3 +407,26 @@ olabileceği spekülasyonu) ölçüldüğünde YANLIŞ çıktı.
 P1/P2 kasıtlı olarak başlatılmadı — kaynak belgenin kendisi bunları insan
 kararı olarak işaretliyor (hedef GPU, ana model, korpus kapsamı, caption
 dataset'i) ve hepsi decode düzeltmesinden sonra yeniden ölçüm gerektiriyor.
+
+## Unified Search Harness: dataset registry + adaptive MRL (28 Temmuz 2026)
+
+Tam kanıt/ölçüm/bulgu detayı: `STATUS.md` ("Unified Search Harness" bölümü).
+Burada yalnız durum özeti - beş ayrım açıkça korunmalı:
+
+- [x] Dataset registry (`datasets/registry.py`, `config.yaml: datasets:`) +
+      VisDrone/MSR-VTT somut adaptörleri - gerçek yerel veriyle doğrulandı.
+- [x] **Adaptive MRL VisDrone pilotu GERÇEKTEN ÇALIŞTIRILDI** (canlı
+      ClickHouse, 28 sorgu × 19 sekans × 14 strateji = 392 satır, 95sn).
+      Artifact: `artifacts/search_runs/adaptive_mrl_visdrone_bf236d0b76/`.
+- [ ] **Sonuç 28 sorguluk PİLOT - ÜRETİM KARARI DEĞİL.** 150-sorgu eşiği
+      geçilmedi; bağlayıcı karar MSR-VTT'nin 1000 sorguluk GPU koşumunu
+      bekliyor. Bu uyarı `manifest.json: evaluation_power_warning` alanına
+      da gömülü - rapor okuyan biri artifact'tan da görebilir.
+- [ ] **MSR-VTT Qwen GPU koşumu YAPILMADI** - bu makinede GPU yok
+      (doğrulandı). Yalnız cache/resume altyapısı (`scripts/
+      msrvtt_embedding_cache.py`) hazırlandı ve test edildi.
+- [ ] **Planner (Faz 7) ve dashboard entegrasyonu (D4) bilinçli olarak
+      ERTELENDİ** - olgun (150+ sorgu) veri olmadan eşik/sekme üretmek
+      tahmin olurdu. "Sekme B/C/D" diye varsayılan sekmeler zaten yoktu.
+- [x] PostgreSQL araştırıldı, gerekmediği kanıtlandı, eklenmedi (bkz.
+      `CONTEXT.md`).
