@@ -1,0 +1,14 @@
+services:
+  api:
+    environment:
+      EMBEDDING_MODE: real
+    volumes:
+      - ./Qwen3-VL-Embedding:/opt/Qwen3-VL-Embedding:ro
+      - ./weights:/weights:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

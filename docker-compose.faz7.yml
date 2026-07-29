@@ -1,0 +1,131 @@
+name: multimodal-video-faz7
+
+services:
+  pg:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: faz7
+      POSTGRES_USER: faz7
+      POSTGRES_PASSWORD: faz7
+    ports: ["5442:5432"]
+    volumes: ["faz7_pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faz7 -d faz7"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ch:
+    image: clickhouse/clickhouse-server:25.8
+    environment:
+      CLICKHOUSE_DB: faz7
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports: ["8143:8123", "9100:9000"]
+    volumes: ["faz7_ch:/var/lib/clickhouse"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8123/ping | grep -q Ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports: ["6343:6333", "6344:6334"]
+    volumes: ["faz7_qdrant:/qdrant/storage"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ': </dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: service/Dockerfile
+    env_file:
+      - path: .env.faz7
+        required: false
+    environment:
+      PG_DSN: postgresql://faz7:faz7@pg:5432/faz7
+      CH_HOST: ch
+      CH_PORT: 8123
+      QDRANT_URL: http://qdrant:6333
+      ARTIFACTS_DIR: /workspace/artifacts
+    volumes:
+      - ./artifacts:/workspace/artifacts
+    ports: ["8000:8000"]
+    depends_on:
+      pg: {condition: service_healthy}
+      ch: {condition: service_healthy}
+      qdrant: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  ui:
+    build:
+      context: .
+      dockerfile: service/Dockerfile.ui
+    env_file:
+      - path: .env.faz7
+        required: false
+    environment:
+      API_URL: http://api:8000
+    ports: ["7860:7860"]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:7860/\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  etcd:
+    profiles: ["milvus"]
+    image: quay.io/coreos/etcd:v3.5.5
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+    volumes: ["faz7_etcd:/etcd"]
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    profiles: ["milvus"]
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    command: minio server /minio_data
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes: ["faz7_minio:/minio_data"]
+
+  milvus:
+    profiles: ["milvus"]
+    image: milvusdb/milvus:v2.4.15
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports: ["19530:19530"]
+    volumes: ["faz7_milvus:/var/lib/milvus"]
+    depends_on: [etcd, minio]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  faz7_pg:
+  faz7_ch:
+  faz7_qdrant:
+  faz7_etcd:
+  faz7_minio:
+  faz7_milvus:
