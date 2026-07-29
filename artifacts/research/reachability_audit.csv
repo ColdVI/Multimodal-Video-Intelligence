@@ -1,0 +1,11 @@
+label,url,reachable,note
+AU-AIR (GitHub Pages),https://bozcani.github.io/auairdataset/,False,404 (final url: https://odtum.de/auairdataset/)
+AU-AIR (GitHub repo),https://github.com/bozcani/auairdataset,False,404
+"AU-AIR images (Drive, arama ile bulunan guncel id)",https://drive.google.com/uc?id=1pJ3xfKtHiTdysX5G3dxqKTdGESOBYCxJ,True,200 (final url: https://drive.usercontent.google.com/download?id=1pJ3xfKtHiTdysX5G3dxqKTdGESOBYCxJ)
+"AU-AIR annotations (Drive, arama ile bulunan guncel id)",https://drive.google.com/uc?id=1boGF0L6olGe_Nu7rd1R8N7YmQErCb0xA,True,200 (final url: https://drive.usercontent.google.com/download?id=1boGF0L6olGe_Nu7rd1R8N7YmQErCb0xA)
+CapERA (GitHub),https://github.com/yakoubbazi/CapEra,True,200
+MSR-VTT (HF),https://huggingface.co/datasets/friedrichor/MSR-VTT,True,200
+ALFA (GitHub repo),https://github.com/castacks/alfa-dataset,True,200
+ALFA (AirLab sayfasi),https://theairlab.org/alfa-dataset/,True,200
+Blackbird,https://blackbird-dataset.mit.edu,False,"ERROR ConnectionError: HTTPSConnectionPool(host='blackbird-dataset.mit.edu', port=443): Max retries exceeded with url: / (Caused by NameResolutionError(""HTTPSConnection(host='blackbird-dataset.mit.edu', port=443): Failed to resolve 'blackbird-dataset.mit.edu' ([Errno 11001] getaddrinfo failed)""))"
+RflyMAD,https://rfly-openha.github.io,True,200 (final url: https://rfly-openha.github.io/)

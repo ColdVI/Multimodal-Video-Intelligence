@@ -1,0 +1,42 @@
+{
+  "notebook": "02_qwen2b_embedding_and_mrl",
+  "hardware_profile": "local-cpu",
+  "dataset_id": "",
+  "model_id": "",
+  "model_revision": "",
+  "dtype": "",
+  "attn_implementation": "",
+  "frames_per_item": null,
+  "extra": {
+    "gpu_gate_triggered": true,
+    "gpu_gate_message": "[GPU KAPISI] notebook 02: Qwen3-VL-Embedding-2B 2048d uretimi (AU-AIR+CapERA+MSR-VTT) GPU gerektiriyor.\n  GPU'da tahmini : 233 dk\n  CPU'da tahmini : 1389.3 saat -> IPTAL\n  Colab GPU oturumu acip tekrar deneyin.",
+    "cost_table": [
+      {
+        "workload": "AU-AIR (notebook 01 gercek pencere sayisi)",
+        "n_items": 1866,
+        "cpu_estimate_h": 452.4,
+        "gpu_estimate_min": 76.0
+      },
+      {
+        "workload": "CapERA (data/downloads/capera manifest - 2864 video, tek klip=tek item)",
+        "n_items": 2864,
+        "cpu_estimate_h": 694.4,
+        "gpu_estimate_min": 116.6
+      },
+      {
+        "workload": "MSR-VTT 1k-A (1000 test video)",
+        "n_items": 1000,
+        "cpu_estimate_h": 242.5,
+        "gpu_estimate_min": 40.7
+      }
+    ],
+    "downstream_notebooks_blocked": [
+      "04_vector_backend_loading",
+      "05_hybrid_query_benchmark"
+    ],
+    "downstream_notebooks_not_blocked": [
+      "03_postgres_metadata_telemetry (embedding'e bagimsiz kisimlari)"
+    ]
+  },
+  "generated_at": "2026-07-29T08:25:07.404447+00:00"
+}

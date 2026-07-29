@@ -1,0 +1,15 @@
+{
+  "notebook": "00_research_scope_and_dataset_audit",
+  "hardware_profile": "local-cpu",
+  "dataset_id": "",
+  "model_id": "",
+  "model_revision": "",
+  "dtype": "",
+  "attn_implementation": "",
+  "frames_per_item": null,
+  "extra": {
+    "reachable_count": 7,
+    "total_sources": 10
+  },
+  "generated_at": "2026-07-29T08:07:37.798741+00:00"
+}

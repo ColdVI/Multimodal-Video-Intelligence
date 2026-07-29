@@ -1,0 +1,12 @@
+{
+  "protocol_confirmed": "MAVLink 2.0 (modified mavros + Pixhawk + Ardupilot 3.9.0beta1)",
+  "source": "github.com/castacks/alfa-dataset README.md (canli fetch, asagida ilk 500 karakter)",
+  "formats_available": [
+    ".bag (ROS)",
+    ".csv",
+    ".mat"
+  ],
+  "tooling_license": "BSD-3-Clause (alfa-dataset-tools)",
+  "data_license": "akademik (spec SS2.1'deki gibi - README'de acik CC/MIT ibaresi yok)",
+  "column_level_mapping": "KISMI CEVAP - gercek sorgu seviyesi CSV kolon adlari repo icinde duz metin olarak yayinlanmamis (alfa-python sarmalayicisi derlenmis C++ .bag okuyucusu cagiriyor, ornek CSV repo'da yok). Protokol (MAVLink 2.0) dogrulandi - bu, spec SS16 risk #9'daki 'MAVLink vs MISB KLV' belirsizligine KISMI cevaptir: MAVLink dogrulandi, tam alan-alan CSV kolon listesi icin gercek sequence dosyasi indirilmesi/build edilmesi gerekir (kapsam disi - future_work.md)."
+}

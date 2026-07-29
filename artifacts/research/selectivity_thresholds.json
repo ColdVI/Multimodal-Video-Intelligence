@@ -1,0 +1,90 @@
+{
+  "altitude_m": {
+    "0.5": {
+      "threshold": 20.33215,
+      "actual_selectivity": 0.5,
+      "n": 1866
+    },
+    "0.1": {
+      "threshold": 11.106788636363635,
+      "actual_selectivity": 0.10021436227224008,
+      "n": 1866
+    },
+    "0.01": {
+      "threshold": 5.7163725,
+      "actual_selectivity": 0.010182207931404072,
+      "n": 1866
+    },
+    "0.001": {
+      "threshold": 4.0275859999999994,
+      "actual_selectivity": 0.0010718113612004287,
+      "n": 1866
+    }
+  },
+  "velocity_mps": {
+    "0.5": {
+      "threshold": 0.10358375745206667,
+      "actual_selectivity": 0.5,
+      "n": 1866
+    },
+    "0.1": {
+      "threshold": 0.3713838151926707,
+      "actual_selectivity": 0.10021436227224008,
+      "n": 1866
+    },
+    "0.01": {
+      "threshold": 1.680516290265916,
+      "actual_selectivity": 0.010182207931404072,
+      "n": 1866
+    },
+    "0.001": {
+      "threshold": 2.03796577857371,
+      "actual_selectivity": 0.0010718113612004287,
+      "n": 1866
+    }
+  },
+  "person_count": {
+    "0.5": {
+      "threshold": 1.0,
+      "actual_selectivity": 0.38692390139335475,
+      "n": 1866
+    },
+    "0.1": {
+      "threshold": 23.0,
+      "actual_selectivity": 0.09807073954983923,
+      "n": 1866
+    },
+    "0.01": {
+      "threshold": 38.0,
+      "actual_selectivity": 0.00964630225080386,
+      "n": 1866
+    },
+    "0.001": {
+      "threshold": 44.61999999999989,
+      "actual_selectivity": 0.0010718113612004287,
+      "n": 1866
+    }
+  },
+  "vehicle_count": {
+    "0.5": {
+      "threshold": 120.0,
+      "actual_selectivity": 0.49517684887459806,
+      "n": 1866
+    },
+    "0.1": {
+      "threshold": 254.5,
+      "actual_selectivity": 0.10021436227224008,
+      "n": 1866
+    },
+    "0.01": {
+      "threshold": 416.3499999999999,
+      "actual_selectivity": 0.010182207931404072,
+      "n": 1866
+    },
+    "0.001": {
+      "threshold": 488.405,
+      "actual_selectivity": 0.0010718113612004287,
+      "n": 1866
+    }
+  }
+}

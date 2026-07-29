@@ -1,0 +1,9 @@
+dataset,official_source,license,download_size,video_or_frames,number_of_sequences,number_of_frames,text_captions,telemetry,role_in_experiment
+AU-AIR,bozcani.github.io/auairdataset (Google Drive),CC BY 4.0,2.2 GB kare + 3.9 MB annotation,frames (ham video yayinlanmadi),8,32283.0,yok,var,ana hybrid
+UAVDT,UAVDT benchmark sayfasi,akademik kullanim (dogrulanmali),~10 GB,"frames (JPEG, 30 fps kaynakli)",100,80000.0,yok,kategorik,kosullu yedek
+CapERA,github.com/yakoubbazi/CapEra,CC BY 4.0 (MDPI),~6.29 GB ham video ZIP,video (mp4),2864,,var (5x),yok,ana semantic + MRL
+MSR-VTT 1k-A,"HF friedrichor/MSR-VTT, VLM2Vec/MSR-VTT",akademik (MSR sartlari),~7 GB,video (mp4),1000,,var (~20x),yok,external benchmark
+VisDrone2019-MOT,VisDrone resmi Drive,akademik,~7.5 GB (mevcut),frames,56,24000.0,yok,yok,tarihsel baseline
+ALFA,github.com/castacks/alfa-dataset (theairlab.org/alfa-dataset),akademik (data) / BSD-3-Clause (araclar),kucuk (CSV/bag) - indirilmedi,- (log),47,,yok,var (MAVLink 2.0),yalnizca masa basi
+Blackbird,blackbird-dataset.mit.edu,MIT,"cok buyuk (10 sa, cok sensor)",video+log,168,,yok,var (mocap+IMU),elendi
+RflyMAD,rfly-openha.github.io,akademik,114 GB,log,5629,,yok,var (ULog),elendi

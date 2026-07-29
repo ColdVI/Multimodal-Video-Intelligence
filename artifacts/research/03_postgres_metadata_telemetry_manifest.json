@@ -1,0 +1,21 @@
+{
+  "notebook": "03_postgres_metadata_telemetry",
+  "hardware_profile": "local-cpu",
+  "dataset_id": "auair",
+  "model_id": "",
+  "model_revision": "",
+  "dtype": "",
+  "attn_implementation": "",
+  "frames_per_item": null,
+  "extra": {
+    "row_counts": {
+      "datasets": 1,
+      "videos": 8,
+      "segments": 1866,
+      "segment_metadata": 1866,
+      "segment_telemetry": 1866
+    },
+    "postgres_container": "research_postgres_faz6:5433"
+  },
+  "generated_at": "2026-07-29T08:32:47.621695+00:00"
+}

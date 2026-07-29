@@ -1,0 +1,20 @@
+[
+  {
+    "workload": "AU-AIR (notebook 01 gercek pencere sayisi)",
+    "n_items": 1866,
+    "cpu_estimate_h": 452.4,
+    "gpu_estimate_min": 76.0
+  },
+  {
+    "workload": "CapERA (data/downloads/capera manifest - 2864 video, tek klip=tek item)",
+    "n_items": 2864,
+    "cpu_estimate_h": 694.4,
+    "gpu_estimate_min": 116.6
+  },
+  {
+    "workload": "MSR-VTT 1k-A (1000 test video)",
+    "n_items": 1000,
+    "cpu_estimate_h": 242.5,
+    "gpu_estimate_min": 40.7
+  }
+]

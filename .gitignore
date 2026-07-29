@@ -1,5 +1,6 @@
 data/raw/
 data/downloads/
+data/research/
 data/embeddings_*.json
 data/windows.json
 data/features.json
