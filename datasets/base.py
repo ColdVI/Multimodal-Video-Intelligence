@@ -3,16 +3,45 @@ CapERA/DVTMD/ERA gibi caption'li setler) ortak arayuzu. models/base.py'deki
 VideoTextEmbedder deseninin ayni sekilde uygulanmasi - registry ile genisler,
 mevcut kod degismez.
 
-BU DOSYA YALNIZCA ARAYUZ TANIMIDIR. VisDrone'un kendisi bu arayuze henuz
-tasinmadi (ingest/*.py hala dogrudan config.yaml: paths.* okuyor) - bu
-bilincli bir kapsam karari: mevcut, dogrulanmis VisDrone davranisini
-bozmadan, yeni dataset eklemek isteyenlerin (bkz. scripts/inspect_dataset.py)
-hedefleyecegi somut bir sozlesme olsun diye once arayuz kuruldu."""
+BU DOSYA YALNIZCA ARAYUZ TANIMIDIR. VisDrone'un kendisi ClickHouse ingest
+hattinda (ingest/*.py) hala dogrudan config.yaml: paths.* okuyor - bu adapter
+katmani ONUN YERINE gecmez, cross-dataset kod (bench/eval/artifact) icin
+ORTAK bir okuma yuzeyi saglar (bkz. datasets/visdrone.py, datasets/msrvtt.py).
+Bilincli kapsam karari: mevcut, dogrulanmis VisDrone ClickHouse davranisini
+bozmadan, dataset-agnostik kodun (adaptive MRL harness, artifact contract)
+hedefleyecegi somut bir sozlesme."""
+import dataclasses
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 
+@dataclasses.dataclass(frozen=True)
+class DatasetManifest:
+    """Bir dataset'in tek-bakista kimligi - artifact'lara (bkz. artifacts/
+    contract.py) gomulur ki hangi kosunun hangi veri/split/surumden
+    uretildigi sonradan asla belirsiz olmasin."""
+    dataset_id: str
+    dataset_version: str
+    source_hash: str
+    split: str
+    item_count: int
+    query_count: int
+    retrieval_unit: str  # ör. 'video_interval' | 'video'
+    has_structured_filters: bool
+    groundtruth_type: str  # ör. 'annotation_derived' | 'caption_1to1'
+    embedding_cache_key: str
+
+
+def qualified_id(dataset_id: str, video_id: str, t_start: float = None) -> tuple:
+    """Ortak retrieval item kimligi: (dataset_id, video_id, t_start).
+    Farkli dataset'lerde ayni video_id kullanilsa bile (ör. iki ayri setten
+    ayni isimli klip) bu demet cakismaz - dataset_id ayirt edici. MSR-VTT
+    gibi pencereleme yapmayan setlerde t_start=None (tum klip TEK birim)."""
+    return (dataset_id, video_id, t_start)
+
+
 class DatasetAdapter(ABC):
+    dataset_id: str
     name: str
     has_captions: bool
 
@@ -48,3 +77,9 @@ class DatasetAdapter(ABC):
         """SPDX benzeri kisa lisans etiketi (ör. 'MIT', 'CC-BY-NC-SA-4.0').
         Ticari kullanim kontrolu bu deger uzerinden yapilir - bos/None kabul
         edilmez, bilinmiyorsa acikca 'UNKNOWN' donsun."""
+
+    @abstractmethod
+    def manifest(self) -> DatasetManifest:
+        """Bu dataset kosumunun DatasetManifest'i - artifact yazarken
+        (artifacts/search_runs/<run_id>/dataset_manifest.json) oldugu gibi
+        gomulur."""

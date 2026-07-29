@@ -22,6 +22,41 @@ clickhouse:
   host: localhost
   port: 8123
 
+# Config-driven dataset registry (bkz. datasets/registry.py). query_count
+# GERCEK, dogrulanmis degerlerdir - tahmin degil:
+#   visdrone: eval/make_groundtruth.py::build_queries() programatik olarak
+#     28 dondurur (dogrulandi: `python -c "from eval.make_groundtruth import
+#     build_queries; print(len(build_queries()))"` -> 28). data/groundtruth/
+#     gt.json'daki 6 kayit ESKI bir 5-sekans smoke ciktisidir (STATUS.md'nin
+#     erken bolumu), bench/ bu dosyayi OKUMAZ - build_queries()'i CANLI cagirir.
+#   msrvtt_1ka: data/downloads/msrvtt/msrvtt_test_1k.json 1000 essiz
+#     video_id icerir (dogrulandi, MSR-VTT validasyon oturumu).
+datasets:
+  visdrone:
+    adapter: visdrone
+    retrieval_backend: clickhouse
+    has_structured_filters: true
+    has_temporal_windows: true
+    evaluation_regime: filtered_video_interval
+    query_count: 28
+    dataset_version: "VisDrone2019-MOT-train"
+    manifest: data/raw/manifest.json
+    annotations_dir: data/raw/VisDrone2019-MOT-train/annotations
+    videos_dir: data/raw/videos
+    license: "CC BY-NC-SA 3.0 (AISKYEYE/Tianjin University aiskyeye.com - web aramasiyla dogrulandi, orijinal LICENSE dosyasi bu oturumda acilmadi)"
+
+  msrvtt_1ka:
+    adapter: msrvtt
+    retrieval_backend: artifact_matrix
+    has_structured_filters: false
+    has_temporal_windows: false
+    evaluation_regime: text_to_video
+    query_count: 1000
+    dataset_version: "1k-A test split"
+    split: data/downloads/msrvtt/msrvtt_test_1k.json
+    videos_dir: data/downloads/msrvtt/videos
+    license: "UNKNOWN (bu oturumda dogrulanamadi - HF repo sayfasi acik lisans metni surmuyordu, taniniz gerekiyor)"
+
 # Faz 3: dedektor varyant registry'si. class_map, o checkpoint'in kendi
 # cikti sinif ID'sini bizim filtre kolon kavramimiza (person/car/bus/truck)
 # baglar; ayni kavrama birden fazla sinif ID'si dusebilir (ör. VisDrone
