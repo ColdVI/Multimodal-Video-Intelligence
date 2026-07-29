@@ -39,6 +39,18 @@ FIXED_DURATION_S = 5.0
 
 _CATEGORY_RE = re.compile(r"_\d+\.mp4$")
 
+# capera_retrieval_pipeline.ipynb hucre 5 (kullanicinin kendi ERA_Dataset.zip
+# cikarma kosumundan, os.listdir() ile DOGRULANMIS): ERA_Dataset.zip
+# cikarilinca "Videos/Tra/<kategori>/..." ve "Videos/Test/<kategori>/..."
+# olusuyor - "train"/"test" DEGIL. Ayrica gercek dosya adlarinda ".mp4"
+# oncesinde fazladan bir BOSLUK var (ör. "Baseball_001 .mp4") - JSON'daki
+# video_id'de ("Baseball_001.mp4") bu bosluk YOK.
+_SPLIT_FOLDER_NAMES = {"train": "Tra", "test": "Test"}
+
+
+def _real_video_filename(video_id: str) -> str:
+    return video_id.replace(".mp4", " .mp4")
+
 
 class CapERAAdapter(DatasetAdapter):
     dataset_id = "capera"
@@ -77,9 +89,14 @@ class CapERAAdapter(DatasetAdapter):
         return sorted(self._entries())
 
     def load_video(self, seq_id: str) -> pathlib.Path:
+        """videos_dir, ERA_Dataset.zip'in cikarilmasiyla olusan 'Videos/'
+        klasorunun KENDISI olmali - alt klasor adlari ('Tra'/'Test') ve
+        dosya-adi bosluk kuraligi gercek zip cikisindan dogrulandi (yukarida)."""
         entry = self._entries()[seq_id]
         videos_dir = pathlib.Path(self.cfg["datasets"]["capera"]["videos_dir"])
-        return videos_dir / entry["split"] / entry["category"] / entry["raw_video_id"]
+        split_folder = _SPLIT_FOLDER_NAMES[entry["split"]]
+        filename = _real_video_filename(entry["raw_video_id"])
+        return videos_dir / split_folder / entry["category"] / filename
 
     def fps(self, seq_id: str) -> float:
         raise NotImplementedError(

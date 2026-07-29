@@ -51,9 +51,12 @@ def test_captions_returns_five_items():
 
 
 def test_load_video_constructs_split_and_category_qualified_path():
+    """capera_retrieval_pipeline.ipynb'nin kendi ERA_Dataset.zip cikarma
+    kosumundan dogrulanan gercek klasor/dosya adi kurali: split klasoru
+    'Tra'/'Test' (train/test DEGIL), dosya adinda '.mp4' oncesi bosluk var."""
     ce = CapERAAdapter()
     path = ce.load_video("test__Baseball_001.mp4")
-    assert path.parts[-3:] == ("test", "Baseball", "Baseball_001.mp4")
+    assert path.parts[-3:] == ("Test", "Baseball", "Baseball_001 .mp4")
 
 
 def test_fps_raises_not_implemented_rather_than_guessing():
