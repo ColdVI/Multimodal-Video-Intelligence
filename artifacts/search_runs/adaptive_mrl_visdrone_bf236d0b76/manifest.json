@@ -1,0 +1,22 @@
+{
+  "run_id": "adaptive_mrl_visdrone_bf236d0b76",
+  "git_sha": "d85d467691ebf146a01eb08ac352bd112ec3eae0",
+  "dataset_id": "visdrone",
+  "dataset_hash": "566d08fb53fff4e539f386f5a408ccf17854fd53814dc756bdede2de1dbb4014",
+  "dataset_adapter": "visdrone",
+  "retrieval_backend": "clickhouse",
+  "model_id": "Qwen/Qwen3-VL-Embedding-2B",
+  "model_revision": "unknown",
+  "n_sample": 6,
+  "dimensions": [
+    256,
+    512,
+    1024,
+    2048
+  ],
+  "gpu_gate_passed": null,
+  "embeddings_regenerated": false,
+  "embeddings_reused_from": "data/embeddings_qwen3vl_emb_2048.json (+ mrl_truncate_embeddings.py turevleri)",
+  "corpus_size": 73,
+  "evaluation_power_warning": "Bu sonuç 28 sorguluk pilot değerlendirmedir. İstatistiksel olarak bağlayıcı üretim kararı değildir."
+}

@@ -1,0 +1,78 @@
+{
+  "by_strategy": {
+    "2048d_exact": {
+      "n_queries": 28,
+      "underfilled_count": 0,
+      "mean_mrr": 0.7619047619047619,
+      "mean_ndcg@10": 0.37063445635630377,
+      "mean_map": 0.15603993781293649,
+      "mean_total_latency_s": 0.057004874999977674,
+      "mean_agreement_vs_2048_exact_at10": null
+    },
+    "2048d_hnsw": {
+      "n_queries": 28,
+      "underfilled_count": 8,
+      "mean_mrr": 0.7142857142857143,
+      "mean_ndcg@10": 0.3068965278660931,
+      "mean_map": 0.11561702739002606,
+      "mean_total_latency_s": 0.062166292857097814,
+      "mean_agreement_vs_2048_exact_at10": null
+    },
+    "256d_exact": {
+      "n_queries": 28,
+      "underfilled_count": 0,
+      "mean_mrr": 0.7738095238095238,
+      "mean_ndcg@10": 0.39842076997822756,
+      "mean_map": 0.16670373655944198,
+      "mean_total_latency_s": 0.050827535714136375,
+      "mean_agreement_vs_2048_exact_at10": null
+    },
+    "256d_hnsw": {
+      "n_queries": 28,
+      "underfilled_count": 12,
+      "mean_mrr": 0.755952380952381,
+      "mean_ndcg@10": 0.30307494323495543,
+      "mean_map": 0.11065128511225371,
+      "mean_total_latency_s": 0.052203985714316205,
+      "mean_agreement_vs_2048_exact_at10": null
+    },
+    "512d_exact": {
+      "n_queries": 28,
+      "underfilled_count": 0,
+      "mean_mrr": 0.8333333333333333,
+      "mean_ndcg@10": 0.39687216038715206,
+      "mean_map": 0.1646727859548514,
+      "mean_total_latency_s": 0.054917014285787706,
+      "mean_agreement_vs_2048_exact_at10": null
+    },
+    "512d_hnsw": {
+      "n_queries": 28,
+      "underfilled_count": 8,
+      "mean_mrr": 0.8333333333333333,
+      "mean_ndcg@10": 0.36371291786322285,
+      "mean_map": 0.1415505378326033,
+      "mean_total_latency_s": 0.05445675714304343,
+      "mean_agreement_vs_2048_exact_at10": null
+    },
+    "adaptive_mrl_256_to_2048": {
+      "n_queries": 112,
+      "underfilled_count": 45,
+      "mean_mrr": 0.7142857142857143,
+      "mean_ndcg@10": 0.2999748632369899,
+      "mean_map": 0.11170129443017544,
+      "mean_total_latency_s": 0.10859401696425104,
+      "mean_agreement_vs_2048_exact_at10": 0.8080357142857143
+    },
+    "adaptive_mrl_512_to_2048": {
+      "n_queries": 112,
+      "underfilled_count": 42,
+      "mean_mrr": 0.7232142857142857,
+      "mean_ndcg@10": 0.3054864464860151,
+      "mean_map": 0.1142636830219758,
+      "mean_total_latency_s": 0.10889659553580648,
+      "mean_agreement_vs_2048_exact_at10": 0.8223214285714285
+    }
+  },
+  "n_queries": 28,
+  "n_rows": 392
+}

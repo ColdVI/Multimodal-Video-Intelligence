@@ -1,0 +1,12 @@
+{
+  "dataset_id": "visdrone",
+  "dataset_version": "VisDrone2019-MOT-train",
+  "source_hash": "566d08fb53fff4e539f386f5a408ccf17854fd53814dc756bdede2de1dbb4014",
+  "split": "train",
+  "item_count": 19,
+  "query_count": 28,
+  "retrieval_unit": "video_interval",
+  "has_structured_filters": true,
+  "groundtruth_type": "annotation_derived",
+  "embedding_cache_key": "visdrone:566d08fb53ff"
+}
