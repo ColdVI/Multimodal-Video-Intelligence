@@ -116,16 +116,41 @@ else:
     print(f"AU-AIR embedding_ready={auair_embedding_ready} -> {auair_ckpt}")
 """),
 
-("md", "## CapERA embedding (datasets.capera.CapERAAdapter - ham video Drive'dan)"),
+("md", "## CapERA embedding (datasets.capera.CapERAAdapter - ham video Drive'dan)\n\n"
+      "ERA_Dataset.zip'i ELLE ACMANIZA GEREK YOK - asagidaki hucre, "
+      "`/content/ERA_Dataset/Videos` yoksa Drive'daki `datasets/capera/ERA_Dataset.zip`'i "
+      "OTOMATIK bulup `/content`'e acar (Drive'a degil - hizli). Zip'i Drive'da "
+      "`.../phase6_mrl_vector_backend/datasets/capera/ERA_Dataset.zip` yoluna atmaniz yeterli."),
 
-("code", """from datasets.capera import CapERAAdapter, FIXED_DURATION_S
+("code", """import zipfile
+
+from datasets.capera import CapERAAdapter, FIXED_DURATION_S
 from ingest.frame_io import read_window_frames
 
 capera_ckpt = CKPT_ROOT / "capera_qwen2048.ndjson"
 capera_embedding_ready = False
 
+CAPERA_VIDEOS_DIR = pathlib.Path("/content/ERA_Dataset/Videos")
+CAPERA_ZIP_IN_DRIVE = colab_paths.dataset_root("capera") / "ERA_Dataset.zip"
+
+def _ensure_capera_extracted():
+    if CAPERA_VIDEOS_DIR.exists():
+        print(f"CapERA video zaten acik: {CAPERA_VIDEOS_DIR}")
+        return True
+    if not CAPERA_ZIP_IN_DRIVE.exists():
+        print(f"[ATLANDI] {CAPERA_ZIP_IN_DRIVE} Drive'da yok - CapERA video "
+             "atlaniyor (AU-AIR/MSR-VTT etkilenmez).")
+        return False
+    print(f"CapERA video aciliyor: {CAPERA_ZIP_IN_DRIVE} -> /content/ERA_Dataset ...")
+    with zipfile.ZipFile(CAPERA_ZIP_IN_DRIVE) as z:
+        z.extractall("/content/ERA_Dataset")
+    print("Acildi.")
+    return CAPERA_VIDEOS_DIR.exists()
+
 if not gpu_available:
     print("[ATLANDI] CapERA embedding uretimi (GPU yok).")
+elif not _ensure_capera_extracted():
+    pass
 else:
     adapter = CapERAAdapter()
     all_ids = adapter.list_sequences()

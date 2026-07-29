@@ -7,8 +7,8 @@
       "expected_files": ["annotations_raw.zip", "extracted/annotations.json", "images.zip"]
     },
     "datasets/capera": {
-      "purpose": "CapERA ham video - KULLANICI TARAFINDAN Drive'a ONCEDEN yerlestirilmeli (bu depoda ham video yok, sadece caption JSON'lari)",
-      "expected_files": ["videos/*.mp4 (kullanici tarafindan yerlestirilir)"]
+      "purpose": "CapERA ham video ZIP'i (ERA_Dataset.zip) - KULLANICI TARAFINDAN buraya yerlestirilir, notebook 02 OTOMATIK olarak /content/ERA_Dataset'e acar (elle extract GEREKMEZ)",
+      "expected_files": ["ERA_Dataset.zip"]
     },
     "datasets/msrvtt": {
       "purpose": "MSR-VTT 1k-A test video'lari",

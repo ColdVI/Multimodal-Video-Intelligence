@@ -30,3 +30,6 @@ artifacts/research/Multimodal-Video-Intelligence-phase6.zip
 # EDILIR) - ama datasets/ alt klasoru ham indirilen buyuk dataset dosyalarini
 # (data/downloads/ ile ayni ruhta) tutar, bunlar TAKIP EDILMEZ.
 artifacts/research/datasets/
+# Editor/IDE bazen zip'i onizleme icin otomatik burada acar - tracked
+# degil ama pytest tests/ toplama celiskisine yol acabiliyor, kesin disla.
+artifacts/research/Multimodal-Video-Intelligence-phase6/
