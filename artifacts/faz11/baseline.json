@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "status": "captured_with_failures",
+  "captured_at_utc": "2026-07-30T19:46:45Z",
+  "git_sha": "23eb2a894c9b24f998b05a93c6a33262a860796d",
+  "git_branch": "main",
+  "dirty_files_before_baseline": [],
+  "environment": {
+    "os": "macOS 26.5.1 (25F80)",
+    "kernel": "Darwin 25.5.0 arm64",
+    "python_for_py_compile": "Python 3.14.4",
+    "pytest_entrypoint_python": "Python 3.13.1",
+    "pytest": "8.3.4",
+    "gpu_acceptance_environment": false
+  },
+  "commands": [
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "result": "23eb2a894c9b24f998b05a93c6a33262a860796d"
+    },
+    {
+      "command": "git status --short",
+      "exit_code": 0,
+      "result": "clean"
+    },
+    {
+      "command": "git log -5 --oneline",
+      "exit_code": 0,
+      "result": "captured in implementation log"
+    },
+    {
+      "command": "pytest tests/ -v",
+      "exit_code": 2,
+      "collected": 348,
+      "passed": 0,
+      "failed": 0,
+      "errors": 1,
+      "reason": "Collection stopped because clickhouse_connect is not installed in the Python 3.13 pytest environment."
+    },
+    {
+      "command": "python3 -m pytest tests/ -v -p no:cacheprovider",
+      "exit_code": 1,
+      "passed": 0,
+      "failed": 0,
+      "errors": 1,
+      "reason": "Python 3.14.4 has no pytest module; this records interpreter drift rather than a product test result."
+    },
+    {
+      "command": "PYTHONPATH=service pytest service/tests/ -v -p no:cacheprovider",
+      "exit_code": 1,
+      "collected": 58,
+      "passed": 41,
+      "failed": 2,
+      "skipped": 15,
+      "reason": "Both failures eagerly require absent local CapERA data: data/downloads/capera/CapERA_DATASET_train.json."
+    },
+    {
+      "command": "python3 -m py_compile $(rg --files -g '*.py' -g '!notebooks/**' -g '!artifacts/**')",
+      "exit_code": 0,
+      "files_checked": 192
+    },
+    {
+      "command": "docker compose config",
+      "exit_code": 0,
+      "sha256": "067d2f62b11b1c0c5e87ec4d8fa6036e7a5bc7f6ec92c88a124dcdd0ef01a21a"
+    },
+    {
+      "command": "docker compose -f docker-compose.faz7.yml config",
+      "exit_code": 0,
+      "sha256": "2e958a90f4504a68d19f38f12c92e596873bd4343b3509b9afa29e266f084c2f"
+    }
+  ],
+  "requirements_sha256": {
+    "requirements.txt": "ba9845070a609593f531d637246663950aa67e62cfeff243b79ffdf8f9afef06",
+    "service/requirements.txt": "36ec960ea4985e4f4f54104ecea79d3bd0a5109e0dd4ac6e8d08dd8f0a7ee386",
+    "service/requirements-test.txt": "250d30c615e756d5dbe4c6fd3a4652868e50e77abc176eac8727dff537d9c079",
+    "service/requirements-real.txt": "b650e24f904cc90e577dca84e2c731c83f1bf96caa115158062412515d34b35e"
+  },
+  "compose_source_sha256": {
+    "docker-compose.yml": "f4b87a85e96bcf36267788f1b61ca0049128de71f4dda02b18b941a42bff0b96",
+    "docker-compose.faz7.yml": "6bf34e32b95405ec3995bce53695188360ce1c2a2929b2e5dfdfe8bc29d23587"
+  },
+  "baseline_findings": [
+    "The root test environment is incomplete and interpreter entrypoints are inconsistent.",
+    "CapERA service tests are not lazy and fail when the local quality dataset is absent.",
+    "Both existing Compose configurations parse successfully.",
+    "All 192 non-notebook Python source files compile successfully."
+  ]
+}

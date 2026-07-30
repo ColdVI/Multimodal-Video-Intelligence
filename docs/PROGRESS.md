@@ -1,5 +1,11 @@
 # Faz 7 ilerleme günlüğü
 
+## Faz 11 progress
+
+| Date | Stage | Result | Evidence |
+|---|---|---|---|
+| 2026-07-30 | Aşama 0 baseline | Başlangıç SHA/dirty state, root ve service testleri, 192 Python dosyasının syntax kontrolü ve iki mevcut Compose config'i kaydedildi. Root test ortamında eksik `clickhouse_connect`; service koşumunda absent CapERA verisine eager bağlanan iki test açıkça başarısız. | `artifacts/faz11/baseline.json`, `docs/PORTABILITY_AUDIT.md` |
+
 ## Faz 8 progress
 
 | Date | Stage | Result | Evidence |
