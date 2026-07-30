@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-30T21:04:49Z",
+  "status": "implementation_complete_hardware_acceptance_pending",
+  "tested_code_sha": "045ea81b83de366b3597c84a051d5c5f039603d5",
+  "baseline_sha": "23eb2a894c9b24f998b05a93c6a33262a860796d",
+  "environment": {
+    "platform": "macOS arm64",
+    "python": "3.13.1",
+    "pytest": "8.3.4",
+    "docker_cli": true,
+    "docker_daemon": false,
+    "nvidia_smi": false,
+    "institution_data": false,
+    "verified_qwen_bundle": false
+  },
+  "summary": {
+    "pass": 19,
+    "fail": 0,
+    "blocked": 0,
+    "not_run": 9
+  },
+  "test_runs": [
+    {
+      "command": "make test PYTHON=.testdeps/bin/python",
+      "exit_code": 0,
+      "passed": 314,
+      "skipped": 42
+    },
+    {
+      "command": "PYTHONPATH=service .testdeps/bin/python -m pytest service/tests/ -q -p no:cacheprovider",
+      "exit_code": 0,
+      "passed": 104,
+      "skipped": 17
+    },
+    {
+      "command": "rg --files -g '*.py' -0 | xargs -0 .testdeps/bin/python -m py_compile",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "compose_configs": {
+    "canonical_sha256": "70c5d5641e180cb5a9a081e2b0a5276a79bc9c2a53dfb28f92442453d9ac6d7d",
+    "gpu_sha256": "a29210da23e628e3dcd40a35e371734f286fe1448c99a798aaa06ca5155fa3f5",
+    "benchmark_sha256": "26630098cc3da2cead4cfcf31fa94e8d2f03a08ceba1b618ce93f4b4a19876b0",
+    "benchmark_debug_sha256": "f22dd0e80655dcb6547f738f41bd37235c67c289a1ef7d183fd751aa9ca298a1"
+  },
+  "acceptance": [
+    {"id": "baseline_artifact", "status": "pass", "evidence": "artifacts/faz11/baseline.json"},
+    {"id": "portability_audit", "status": "pass", "evidence": "docs/PORTABILITY_AUDIT.md"},
+    {"id": "compose_profile_parse", "status": "pass", "evidence": "four config SHA-256 values in this artifact"},
+    {"id": "lazy_config_and_enabled_capabilities", "status": "pass", "evidence": "service/tests/test_faz11_profiles.py"},
+    {"id": "manifest_and_path_contract", "status": "pass", "evidence": "service/tests/test_faz11_manifest.py"},
+    {"id": "read_only_preflight_contract", "status": "pass", "evidence": "tests/test_faz11_preflight.py and artifacts/faz11/preflight_example.json"},
+    {"id": "streaming_video_window_contract", "status": "pass", "evidence": "service/tests/test_faz11_streaming.py"},
+    {"id": "telemetry_alignment_and_circular_math", "status": "pass", "evidence": "service/tests/test_faz11_streaming.py"},
+    {"id": "pinned_model_bundle_contract", "status": "pass", "evidence": "tests/test_faz11_model_bundle.py"},
+    {"id": "qwen_batch_fail_closed_contract", "status": "pass", "evidence": "service/tests/test_faz11_qwen_batch.py"},
+    {"id": "run_versioning_and_recovery_contract", "status": "pass", "evidence": "service/tests/test_faz11_run_versioning.py"},
+    {"id": "generic_ingest_resume_contract", "status": "pass", "evidence": "service/tests/test_faz11_generic_ingest.py"},
+    {"id": "filter_compiler_and_circular_wrap", "status": "pass", "evidence": "service/tests/test_faz11_pushdown.py"},
+    {"id": "active_snapshot_search_contract", "status": "pass", "evidence": "service/tests/test_engine.py"},
+    {"id": "dynamic_ui_and_extra_telemetry_contract", "status": "pass", "evidence": "service/tests/test_faz11_media_ui.py"},
+    {"id": "media_path_cache_atomicity_contract", "status": "pass", "evidence": "service/tests/test_faz11_media_ui.py"},
+    {"id": "bearer_and_signed_media_security", "status": "pass", "evidence": "service/tests/test_faz11_security.py"},
+    {"id": "deployment_operations_documentation", "status": "pass", "evidence": "docs/DEPLOYMENT.md and docs/OPERATIONS.md"},
+    {"id": "all_pure_tests_and_syntax", "status": "pass", "evidence": "314 root + 104 service tests; syntax exit 0"},
+    {"id": "live_institution_profile_health", "status": "not_run", "reason": "Docker daemon and institution data are unavailable", "required_command": "docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml up -d --build", "expected_environment": "NVIDIA Linux host with Docker daemon, credentials, verified model bundle and institution data"},
+    {"id": "live_benchmark_profile", "status": "not_run", "reason": "Docker daemon and active corpus are unavailable", "required_command": "docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.benchmark.yml up -d --build", "expected_environment": "healthy PostgreSQL, ClickHouse, Qdrant, API and GPU runtime"},
+    {"id": "three_video_data_preflight", "status": "not_run", "reason": "real institution MP4 and telemetry files are unavailable", "required_command": "python scripts/preflight.py --dataset datasets/kurum.yaml --env-file .env --json-out artifacts/faz11/preflight.json", "expected_environment": "at least three paired institution MP4/telemetry files under DATA_ROOT"},
+    {"id": "real_qwen_gpu_smoke", "status": "not_run", "reason": "CUDA GPU and verified bundle are unavailable", "required_command": "PYTHONPATH=service python scripts/gpu_smoke.py --dataset datasets/kurum.yaml --data-root /kurum/data --output artifacts/faz11/gpu_smoke.json --windows 10", "expected_environment": "NVIDIA Linux host with verified pinned Qwen bundle"},
+    {"id": "live_schema_migration", "status": "not_run", "reason": "Docker daemon/live persisted databases and compatible psycopg2 runtime are unavailable", "required_command": "PYTHONPATH=service python scripts/migrate_faz11_schema.py --plan --output artifacts/faz11/schema_migration_report.json", "expected_environment": "backup-protected live legacy PostgreSQL/ClickHouse deployment"},
+    {"id": "real_interrupted_resume", "status": "not_run", "reason": "GPU, real videos and live backends are unavailable", "required_command": "docker compose --env-file .env exec -T api python -m app.ingestion.ingest --dataset /workspace/datasets/kurum.yaml --resume", "expected_environment": "an intentionally interrupted inactive run on the institution stack"},
+    {"id": "live_pushdown_equivalence_and_scale", "status": "not_run", "reason": "active representative corpus and vector backends are unavailable", "required_command": "docker compose --env-file .env exec -T api python -m app.search.equivalence --dataset-id kurum_ucuslari --backend clickhouse --dimension 512 --output /workspace/artifacts/faz11/filter_equivalence.json", "expected_environment": "completed active institution run at representative scale"},
+    {"id": "live_ui_media_preview", "status": "not_run", "reason": "live stack, active local MP4 run and browser runtime are unavailable", "required_command": "RUN_FAZ8_INTEGRATION=1 UI_URL=http://127.0.0.1:7860 PYTHONPATH=service pytest service/tests/test_t10_ui.py -q", "expected_environment": "healthy API/UI stack with active real run and Playwright Chromium"},
+    {"id": "full_institution_acceptance", "status": "not_run", "reason": "requires target hardware, credentials and proprietary institution data", "required_command": "python scripts/preflight.py --dataset datasets/kurum.yaml --env-file .env --json-out artifacts/faz11/preflight.json", "expected_environment": "target NVIDIA Linux deployment environment"}
+  ],
+  "required_artifacts": [
+    "artifacts/faz11/baseline.json",
+    "artifacts/faz11/preflight_example.json",
+    "artifacts/faz11/schema_migration_report.json",
+    "artifacts/faz11/ingest_resume_smoke.json",
+    "artifacts/faz11/filter_equivalence.json",
+    "artifacts/faz11/search_scale_smoke.json",
+    "artifacts/faz11/gpu_smoke.json",
+    "artifacts/faz11/ui_smoke.png",
+    "artifacts/faz11/final_acceptance.json"
+  ]
+}
