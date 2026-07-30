@@ -19,7 +19,7 @@ class TestVisDroneAdapter:
     def test_list_sequences_matches_real_manifest(self):
         vd = VisDroneAdapter()
         seqs = vd.list_sequences()
-        assert len(seqs) == 19
+        assert len(seqs) == 56
         assert "uav0000013_01073_v" in seqs
 
     def test_load_video_points_to_existing_file(self):
@@ -47,7 +47,7 @@ class TestVisDroneAdapter:
         vd = VisDroneAdapter()
         m = vd.manifest()
         assert m.query_count == 28
-        assert m.item_count == 19
+        assert m.item_count == 56
         assert m.dataset_id == "visdrone"
         assert m.has_structured_filters is True
 
