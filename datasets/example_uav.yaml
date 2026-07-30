@@ -1,0 +1,103 @@
+schema_version: 1
+dataset_id: kurum_ucuslari
+display_name: Kurum Uçuşları
+
+source:
+  videos_glob: "videos/**/*.mp4"
+  video_id_from: filename_stem
+
+pairing:
+  strategy: filename_stem
+  telemetry_glob: "telemetry/**/*.csv"
+  telemetry_id_from: filename_stem
+  manifest_csv: null
+
+time_alignment:
+  video_clock: pts
+  telemetry_clock: unix_ms
+  video_start_time_from: container_creation_time
+  filename_time_regex: null
+  filename_time_format: null
+  timezone: UTC
+  offset_s: 0.0
+  max_gap_s: 1.0
+  missing_policy: null
+
+window:
+  size_s: 8.0
+  stride_s: 4.0
+  frames_per_item: 8
+  partial_window_policy: drop_partial
+
+telemetry:
+  format: generic_csv
+  timestamp_column: timestamp_ms
+  fields:
+    altitude_m:
+      source: alt_agl_m
+      unit: m
+      reference: AGL
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    velocity_mps:
+      source: groundspeed
+      unit: m/s
+      kind: ground_speed
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    compass_heading:
+      source: heading_deg
+      unit: deg
+      type: circular_deg
+      interpolation: circular
+      aggregation: circular_mean
+    roll:
+      source: roll_deg
+      unit: deg
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    pitch:
+      source: pitch_deg
+      unit: deg
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    yaw:
+      source: yaw_deg
+      unit: deg
+      type: circular_deg
+      interpolation: circular
+      aggregation: circular_mean
+    gimbal_pitch:
+      source: gimbal_pitch_deg
+      unit: deg
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    gimbal_heading:
+      source: gimbal_heading_deg
+      unit: deg
+      type: circular_deg
+      interpolation: circular
+      aggregation: circular_mean
+  extra:
+    battery_v:
+      source: battery_voltage
+      unit: V
+      type: continuous
+    sensor_mode:
+      source: eo_ir_mode
+      type: categorical
+
+captions:
+  format: none
+
+media:
+  enabled: true
+  clip_cache: true
+
+policy:
+  fail_on_video_error: true

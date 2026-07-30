@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "status": "not_run",
+  "reason": "Template manifest contract was exercised, but no real institution videos, telemetry, NVIDIA runtime, credentials, or model bundle are available on this host.",
+  "required_command": "python scripts/preflight.py --dataset datasets/kurum.yaml --env-file .env --json-out artifacts/faz11/preflight.json",
+  "expected_environment": "Configured institution DATA_ROOT and model bundle, non-placeholder credentials, Docker Compose v2, NVIDIA driver and NVIDIA Container Toolkit.",
+  "observed_template_preflight_status": "fail",
+  "generated_at_utc": "2026-07-30T20:05:40.137574+00:00",
+  "git_sha": "15376b6b9db3ee1b7d64fc862cebf9d419650907",
+  "environment": {
+    "platform": "darwin",
+    "python": "3.13.1",
+    "env_file": "/Users/anil/Desktop/GitHub/Multimodal-Video-Intelligence/.env.example",
+    "dataset_manifest": "/Users/anil/Desktop/GitHub/Multimodal-Video-Intelligence/datasets/example_uav.yaml"
+  },
+  "command": [
+    "python",
+    "scripts/preflight.py",
+    "--dataset",
+    "/Users/anil/Desktop/GitHub/Multimodal-Video-Intelligence/datasets/example_uav.yaml",
+    "--env-file",
+    "/Users/anil/Desktop/GitHub/Multimodal-Video-Intelligence/.env.example"
+  ],
+  "checks": [
+    {
+      "check_id": "docker",
+      "category": "configuration",
+      "status": "pass",
+      "detail": "Docker version 28.1.1, build 4eba377"
+    },
+    {
+      "check_id": "compose_v2",
+      "category": "configuration",
+      "status": "pass",
+      "detail": "Docker Compose version v2.35.1-desktop.1"
+    },
+    {
+      "check_id": "nvidia_driver",
+      "category": "gpu",
+      "status": "fail",
+      "detail": "FileNotFoundError: [Errno 2] No such file or directory: 'nvidia-smi'"
+    },
+    {
+      "check_id": "required_env",
+      "category": "configuration",
+      "status": "fail",
+      "detail": "missing_or_placeholder=['POSTGRES_PASSWORD', 'CLICKHOUSE_PASSWORD', 'MODEL_BUNDLE_ROOT']"
+    },
+    {
+      "check_id": "bind_host",
+      "category": "configuration",
+      "status": "pass",
+      "detail": "BIND_HOST=127.0.0.1"
+    },
+    {
+      "check_id": "data_root",
+      "category": "data",
+      "status": "fail",
+      "detail": "path=/Users/anil/Desktop/GitHub/Multimodal-Video-Intelligence/data"
+    },
+    {
+      "check_id": "model_bundle_root",
+      "category": "model",
+      "status": "fail",
+      "detail": "path=CHANGE_ME_MODEL_BUNDLE_ROOT"
+    },
+    {
+      "check_id": "disk_space",
+      "category": "resources",
+      "status": "pass",
+      "detail": "free_bytes=21836746752"
+    },
+    {
+      "check_id": "compose_config",
+      "category": "configuration",
+      "status": "pass",
+      "detail": "name: multimodal-video-intelligence"
+    },
+    {
+      "check_id": "manifest",
+      "category": "data",
+      "status": "pass",
+      "detail": "schema v1; dataset=kurum_ucuslari"
+    },
+    {
+      "check_id": "relative_paths",
+      "category": "data",
+      "status": "pass",
+      "detail": "all configured paths are DATA_ROOT-relative"
+    },
+    {
+      "check_id": "video_count",
+      "category": "data",
+      "status": "fail",
+      "detail": "videos=0"
+    },
+    {
+      "check_id": "duplicate_video_ids",
+      "category": "data",
+      "status": "pass",
+      "detail": "unique=0; total=0"
+    },
+    {
+      "check_id": "telemetry_pairing",
+      "category": "data",
+      "status": "pass",
+      "detail": "missing=[]; total_missing=0"
+    },
+    {
+      "check_id": "clock_contract",
+      "category": "data",
+      "status": "pass",
+      "detail": "telemetry_clock=unix_ms; offset_s=0.0; absolute=True"
+    },
+    {
+      "check_id": "enabled_profile",
+      "category": "configuration",
+      "status": "pass",
+      "detail": "backends=('clickhouse',); dimensions=(512,)"
+    },
+    {
+      "check_id": "storage_estimate",
+      "category": "resources",
+      "status": "pass",
+      "detail": "estimated_segments=0; vector_bytes=0; active_plus_staging_bytes=0"
+    },
+    {
+      "check_id": "artifacts_access",
+      "category": "configuration",
+      "status": "pass",
+      "detail": "path=artifacts; exists=True"
+    },
+    {
+      "check_id": "model_bundle",
+      "category": "model",
+      "status": "not_run",
+      "detail": "model/source hash and Qwen import checks are activated by Faz 11 Aşama 4"
+    }
+  ],
+  "data_preflight": {
+    "schema_version": 1,
+    "status": "fail",
+    "generated_at_utc": "2026-07-30T20:05:40.119160+00:00",
+    "dataset_id": "kurum_ucuslari",
+    "manifest_hash": "ab257518abc5dbca7fe9ac83cda3e1afa5a8290ac8c64aa9d2d40de450dfd55b",
+    "video_count": 0,
+    "estimated_segments": 0,
+    "enabled_backends": [
+      "clickhouse"
+    ],
+    "enabled_dimensions": [
+      512
+    ],
+    "checks": [
+      {
+        "check_id": "manifest",
+        "category": "data",
+        "status": "pass",
+        "detail": "schema v1; dataset=kurum_ucuslari"
+      },
+      {
+        "check_id": "relative_paths",
+        "category": "data",
+        "status": "pass",
+        "detail": "all configured paths are DATA_ROOT-relative"
+      },
+      {
+        "check_id": "video_count",
+        "category": "data",
+        "status": "fail",
+        "detail": "videos=0"
+      },
+      {
+        "check_id": "duplicate_video_ids",
+        "category": "data",
+        "status": "pass",
+        "detail": "unique=0; total=0"
+      },
+      {
+        "check_id": "telemetry_pairing",
+        "category": "data",
+        "status": "pass",
+        "detail": "missing=[]; total_missing=0"
+      },
+      {
+        "check_id": "clock_contract",
+        "category": "data",
+        "status": "pass",
+        "detail": "telemetry_clock=unix_ms; offset_s=0.0; absolute=True"
+      },
+      {
+        "check_id": "enabled_profile",
+        "category": "configuration",
+        "status": "pass",
+        "detail": "backends=('clickhouse',); dimensions=(512,)"
+      },
+      {
+        "check_id": "storage_estimate",
+        "category": "resources",
+        "status": "pass",
+        "detail": "estimated_segments=0; vector_bytes=0; active_plus_staging_bytes=0"
+      },
+      {
+        "check_id": "artifacts_access",
+        "category": "configuration",
+        "status": "pass",
+        "detail": "path=artifacts; exists=True"
+      },
+      {
+        "check_id": "model_bundle",
+        "category": "model",
+        "status": "not_run",
+        "detail": "model/source hash and Qwen import checks are activated by Faz 11 Aşama 4"
+      }
+    ]
+  }
+}

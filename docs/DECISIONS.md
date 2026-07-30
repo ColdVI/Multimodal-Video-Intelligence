@@ -20,6 +20,17 @@
   yapıldı. Gerekçe: kurum config'inde `datasets.capera` bulunmaması API import ve
   startup'ını bozmamalı; CapERA kalite komutu çağrılırsa eksiklik açık hata olarak
   kalmalı.
+- 2026-07-30 — Manifest parser elle ve fail-closed yazıldı; Pydantic'e ikinci bir
+  config modeli eklenmedi. Mutlak path/`..`/symlink escape, bilinmeyen canonical
+  alan, eksik altitude reference ve velocity kind parse aşamasında reddediliyor.
+  Gerekçe: yanlış semantik ingest başladıktan sonra düzeltilmemeli.
+- 2026-07-30 — Pozitif `offset_s` hem absolute hem relative clock'ta telemetriyi
+  video timeline'ında erkene taşır (`... - offset_s`). Bu işaret kod docstring'i,
+  örnek YAML ve `docs/DATASET_MANIFEST.md` içinde tek anlamla sabitlendi.
+- 2026-07-30 — `artifacts/faz11/preflight_example.json` gerçek kurum preflight
+  PASS kanıtı değildir. Şablon/config reddetme yolu gerçek çalıştırıldı, fakat bu
+  hostta kurum verisi/GPU/model bundle olmadığı için acceptance status `not_run`
+  ve gereken tam komutla yayımlandı.
 
 ## Faz 8 decisions
 
