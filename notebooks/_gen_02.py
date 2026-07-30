@@ -246,16 +246,44 @@ else:
 
     msrvtt_dir = colab_paths.dataset_root("msrvtt")
     test_split_path = msrvtt_dir / "msrvtt_test_1k.json"
+    MSRVTT_LOCAL_VIDEOS_DIR = pathlib.Path("/content/msrvtt_videos")
+    MSRVTT_VIDEOS_ZIP = msrvtt_dir / "videos.zip"
+
+    def _resolve_msrvtt_videos_dir():
+        # Drive'da dogrudan tek tek mp4 dosyalari varsa (kucuk sayida, elle
+        # yuklendiyse) onu kullan; yoksa videos.zip'i (varsa) /content'e ac -
+        # zip'in ic klasor yapisi bilinmiyor, en cok .mp4 iceren alt-klasoru sec.
+        drive_videos_dir = msrvtt_dir / "videos"
+        if drive_videos_dir.exists() and any(drive_videos_dir.glob("*.mp4")):
+            return drive_videos_dir
+        if not MSRVTT_VIDEOS_ZIP.exists():
+            return None
+        if not (MSRVTT_LOCAL_VIDEOS_DIR.exists() and any(MSRVTT_LOCAL_VIDEOS_DIR.rglob("*.mp4"))):
+            print(f"MSR-VTT videolari aciliyor: {MSRVTT_VIDEOS_ZIP} -> {MSRVTT_LOCAL_VIDEOS_DIR} ...")
+            with zipfile.ZipFile(MSRVTT_VIDEOS_ZIP) as z:
+                z.extractall(MSRVTT_LOCAL_VIDEOS_DIR)
+            print("Acildi.")
+        counts = {}
+        for p in MSRVTT_LOCAL_VIDEOS_DIR.rglob("*.mp4"):
+            counts[p.parent] = counts.get(p.parent, 0) + 1
+        return max(counts, key=counts.get) if counts else None
+
     if not test_split_path.exists():
         print(f"[ATLANDI] {test_split_path} yok.")
     else:
         entries = load_test_split(str(test_split_path))
-        videos_dir = msrvtt_dir / "videos"
-        embeddings = embed_all_videos(entries, videos_dir, "qwen3vl_emb_2048",
-                                      n_frames=32, cache_file=msrvtt_ckpt)
-        msrvtt_embedding_ready = len(embeddings) == len(entries)
-        print(f"MSR-VTT: {len(embeddings)}/{len(entries)} video embed edildi "
-             f"(embedding_ready={msrvtt_embedding_ready}) -> {msrvtt_ckpt}")
+        videos_dir = _resolve_msrvtt_videos_dir()
+        if videos_dir is None:
+            print(f"[ATLANDI] {msrvtt_dir}/videos/*.mp4 veya {MSRVTT_VIDEOS_ZIP} Drive'da yok.")
+        else:
+            embeddings = embed_all_videos(entries, videos_dir, "qwen3vl_emb_2048",
+                                          n_frames=32, cache_file=msrvtt_ckpt)
+            msrvtt_embedding_ready = len(embeddings) == len(entries)
+            print(f"MSR-VTT: {len(embeddings)}/{len(entries)} video embed edildi "
+                 f"(embedding_ready={msrvtt_embedding_ready}) -> {msrvtt_ckpt}")
+            if not msrvtt_embedding_ready:
+                print(f"UYARI: {len(entries) - len(embeddings)} MSR-VTT videosu "
+                     f"{videos_dir} altinda bulunamadi (embed_all_videos sessizce atlar).")
 """),
 
 ("md", "## VisDrone-MOT embedding (bench subset - ingest/02_windowing.py ile AYNI pencereleme formulu)\n\n"

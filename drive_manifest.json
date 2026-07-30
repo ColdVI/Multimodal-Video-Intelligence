@@ -11,8 +11,8 @@
       "expected_files": ["ERA_Dataset.zip", "CapERA_DATASET_train.json", "CapERA_DATASET_test.json"]
     },
     "datasets/msrvtt": {
-      "purpose": "MSR-VTT 1k-A test video'lari",
-      "expected_files": ["msrvtt_test_1k.json", "videos/*.mp4"]
+      "purpose": "MSR-VTT 1k-A test video'lari (1000 klip, ~213 MB) - `videos/*.mp4` (tek tek dosya) YA DA `videos.zip` (notebook 02 OTOMATIK /content'e acar, zip ic yapisi onceden bilinmese de en cok .mp4 iceren alt-klasoru bulur) - biri yeterli",
+      "expected_files": ["msrvtt_test_1k.json", "videos.zip"]
     },
     "datasets/visdrone": {
       "purpose": "VisDrone-MOT bench subset (19 sekans, config.yaml: bench.subset) - manifest.json (video sure/fps), videos/*.mp4 (ingest/01_frames_to_video.py ciktisi, ONCEDEN mp4'e donusturulmus), annotations/*.txt (MOT format). Bu depoda data/raw/ gitignore'lu oldugu icin ZIP'in icinde GELMEZ - KULLANICI TARAFINDAN buraya yerlestirilir.",

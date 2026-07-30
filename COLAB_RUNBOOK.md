@@ -66,6 +66,13 @@ Ayni GPU runtime'inda, sirayla:
      `/content/ERA_Dataset`'e acar** (Drive'a degil, hizli olsun diye).
      Elle extract etmenize GEREK YOK. Bu 3 dosyadan biri eksikse CapERA
      hucresi sadece atlanir, AU-AIR/MSR-VTT etkilenmez.
+   - **MSR-VTT video:** Bu depoda YOK. Drive'da su klasore
+     `msrvtt_test_1k.json` (split) ve **`videos.zip`** (1000 klip, ~213 MB -
+     bu depodaki `data/downloads/msrvtt/videos/` klasorunun zipli hali)
+     atin:
+     `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/msrvtt/`
+     - notebook 02'nin MSR-VTT hucresi `videos.zip`'i KENDISI
+     `/content`'e acar (Drive'a degil). Eksikse hucre sadece atlanir.
    - **VisDrone-MOT (bench subset, 19 sekans):** Bu depoda YOK
      (`data/raw/` gitignore'lu). Drive'da AYNI kok altinda su klasore atin:
      `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/visdrone/`
