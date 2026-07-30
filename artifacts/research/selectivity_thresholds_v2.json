@@ -1,0 +1,29 @@
+{
+  "auair": {
+    "altitude_m": {
+      "min": 2.8381,
+      "max": 30.36365,
+      "upper_50pct": 20.33215,
+      "upper_10pct": 29.616225,
+      "upper_1pct": 29.83484,
+      "upper_0_1pct": 30.29655852272728
+    },
+    "velocity_mps": {
+      "min": 0.008797972979728768,
+      "max": 2.1310678773071428,
+      "upper_50pct": 0.10358375745206667,
+      "upper_10pct": 0.3713838151926707,
+      "upper_1pct": 1.680516290265916,
+      "upper_0_1pct": 2.0379657785737293
+    },
+    "gimbal_pitch": null,
+    "person_count": {
+      "min": 0.0,
+      "max": 67.0,
+      "upper_50pct": 1.0,
+      "upper_10pct": 23.0,
+      "upper_1pct": 38.0,
+      "upper_0_1pct": 44.62000000000262
+    }
+  }
+}

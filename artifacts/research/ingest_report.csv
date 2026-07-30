@@ -1,1 +1,13 @@
-backend,dimension,table,ddl_applied,n_embeddings_loaded
+dataset_id,dimension,backend,row_count,elapsed_s,storage_mb,embedding_mode
+auair,2048,pgvector,1866,5.394015,,synthetic
+auair,2048,clickhouse,1866,0.350737,22.184361,synthetic
+auair,2048,qdrant,1866,1.250816,,synthetic
+auair,1024,pgvector,1866,5.253674,,synthetic
+auair,1024,clickhouse,1866,0.212023,11.236285,synthetic
+auair,1024,qdrant,1866,0.634606,,synthetic
+auair,512,pgvector,1866,1.675585,,synthetic
+auair,512,clickhouse,1866,0.147932,5.758432,synthetic
+auair,512,qdrant,1866,0.458891,,synthetic
+auair,256,pgvector,1866,1.159821,,synthetic
+auair,256,clickhouse,1866,0.131781,3.018194,synthetic
+auair,256,qdrant,1866,0.255655,,synthetic
