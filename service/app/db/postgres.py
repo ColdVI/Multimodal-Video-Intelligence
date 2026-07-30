@@ -1,0 +1,313 @@
+from __future__ import annotations
+
+from contextlib import contextmanager
+from typing import Any, Iterable
+
+from app.config import DIMENSIONS, settings
+from app.search.strategies import pgvector_session_settings
+
+
+SCHEMA_SQL = """
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE IF NOT EXISTS datasets (
+  dataset_id text PRIMARY KEY, dataset_version text, source_hash text,
+  license text, has_telemetry boolean NOT NULL, has_captions boolean NOT NULL
+);
+CREATE TABLE IF NOT EXISTS videos (
+  dataset_id text, video_id text, source_uri text, split text,
+  duration_s double precision, event_category text,
+  PRIMARY KEY (dataset_id, video_id)
+);
+CREATE TABLE IF NOT EXISTS segments (
+  segment_id text PRIMARY KEY, dataset_id text NOT NULL, video_id text NOT NULL,
+  t_start double precision NOT NULL, t_end double precision NOT NULL, caption text
+);
+CREATE TABLE IF NOT EXISTS segment_metadata (
+  segment_id text PRIMARY KEY, person_count int, vehicle_count int,
+  bus_count int, object_classes text[], brightness real, camera_motion real
+);
+CREATE TABLE IF NOT EXISTS segment_telemetry (
+  segment_id text PRIMARY KEY, timestamp_start timestamptz, timestamp_end timestamptz,
+  latitude double precision, longitude double precision,
+  altitude_m real, velocity_mps real,
+  roll real, pitch real, yaw real, yaw_rate real,
+  gimbal_pitch real, gimbal_heading real, compass_heading real,
+  imu_summary jsonb
+);
+CREATE TABLE IF NOT EXISTS emb_pg_2048 (segment_id text PRIMARY KEY, dataset_id text, v halfvec(2048));
+CREATE TABLE IF NOT EXISTS emb_pg_1024 (segment_id text PRIMARY KEY, dataset_id text, v vector(1024));
+CREATE TABLE IF NOT EXISTS emb_pg_1024h(segment_id text PRIMARY KEY, dataset_id text, v halfvec(1024));
+CREATE TABLE IF NOT EXISTS emb_pg_512  (segment_id text PRIMARY KEY, dataset_id text, v vector(512));
+CREATE TABLE IF NOT EXISTS emb_pg_256  (segment_id text PRIMARY KEY, dataset_id text, v vector(256));
+CREATE INDEX IF NOT EXISTS ix_seg_ds ON segments(dataset_id);
+CREATE INDEX IF NOT EXISTS ix_seg_video ON segments(dataset_id, video_id);
+CREATE INDEX IF NOT EXISTS ix_tel_alt ON segment_telemetry(altitude_m);
+CREATE INDEX IF NOT EXISTS ix_tel_vel ON segment_telemetry(velocity_mps);
+CREATE INDEX IF NOT EXISTS ix_tel_gp  ON segment_telemetry(gimbal_pitch);
+CREATE INDEX IF NOT EXISTS ix_meta_p  ON segment_metadata(person_count);
+"""
+
+VECTOR_TABLES = {
+    2048: ("emb_pg_2048", "halfvec"),
+    1024: ("emb_pg_1024", "vector"),
+    512: ("emb_pg_512", "vector"),
+    256: ("emb_pg_256", "vector"),
+}
+
+
+def _driver():
+    import psycopg2
+    import psycopg2.extras
+
+    return psycopg2, psycopg2.extras
+
+
+@contextmanager
+def connection():
+    psycopg2, _ = _driver()
+    conn = psycopg2.connect(
+        host=settings.pg_host,
+        port=settings.pg_port,
+        dbname=settings.pg_db,
+        user=settings.pg_user,
+        password=settings.pg_password,
+        connect_timeout=5,
+    )
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def health() -> bool:
+    try:
+        with connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            return cur.fetchone()[0] == 1
+    except Exception:
+        return False
+
+
+def init_schema() -> None:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(SCHEMA_SQL)
+        conn.commit()
+
+
+def _execute_values(cur, sql: str, rows: list[tuple[Any, ...]]) -> None:
+    if rows:
+        _, extras = _driver()
+        extras.execute_values(cur, sql, rows, page_size=500)
+
+
+def upsert_dataset_bundle(
+    dataset: tuple[Any, ...],
+    videos: list[tuple[Any, ...]],
+    segments: list[tuple[Any, ...]],
+    metadata: list[tuple[Any, ...]],
+    telemetry: list[tuple[Any, ...]],
+) -> None:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO datasets VALUES (%s,%s,%s,%s,%s,%s)
+               ON CONFLICT (dataset_id) DO UPDATE SET
+               dataset_version=EXCLUDED.dataset_version, source_hash=EXCLUDED.source_hash,
+               license=EXCLUDED.license, has_telemetry=EXCLUDED.has_telemetry,
+               has_captions=EXCLUDED.has_captions""",
+            dataset,
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO videos(dataset_id,video_id,source_uri,split,duration_s,event_category) VALUES %s
+               ON CONFLICT(dataset_id,video_id) DO UPDATE SET source_uri=EXCLUDED.source_uri,
+               split=EXCLUDED.split,duration_s=EXCLUDED.duration_s,event_category=EXCLUDED.event_category""",
+            videos,
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO segments(segment_id,dataset_id,video_id,t_start,t_end,caption) VALUES %s
+               ON CONFLICT(segment_id) DO UPDATE SET caption=EXCLUDED.caption""",
+            segments,
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO segment_metadata(segment_id,person_count,vehicle_count,bus_count,object_classes,brightness,camera_motion) VALUES %s
+               ON CONFLICT(segment_id) DO UPDATE SET person_count=EXCLUDED.person_count,
+               vehicle_count=EXCLUDED.vehicle_count,bus_count=EXCLUDED.bus_count,
+               object_classes=EXCLUDED.object_classes,brightness=EXCLUDED.brightness,camera_motion=EXCLUDED.camera_motion""",
+            metadata,
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO segment_telemetry(segment_id,timestamp_start,timestamp_end,latitude,longitude,
+               altitude_m,velocity_mps,roll,pitch,yaw,yaw_rate,gimbal_pitch,gimbal_heading,compass_heading,imu_summary)
+               VALUES %s ON CONFLICT(segment_id) DO UPDATE SET altitude_m=EXCLUDED.altitude_m,
+               velocity_mps=EXCLUDED.velocity_mps,roll=EXCLUDED.roll,pitch=EXCLUDED.pitch,
+               yaw=EXCLUDED.yaw,yaw_rate=EXCLUDED.yaw_rate,gimbal_pitch=EXCLUDED.gimbal_pitch,
+               gimbal_heading=EXCLUDED.gimbal_heading,compass_heading=EXCLUDED.compass_heading""",
+            telemetry,
+        )
+        conn.commit()
+
+
+def upsert_vectors(dimension: int, rows: Iterable[tuple[str, str, list[float]]], *, half_1024: bool = False) -> None:
+    table = "emb_pg_1024h" if dimension == 1024 and half_1024 else VECTOR_TABLES[dimension][0]
+    values = [(segment_id, dataset_id, _vector_literal(vector)) for segment_id, dataset_id, vector in rows]
+    with connection() as conn, conn.cursor() as cur:
+        _execute_values(
+            cur,
+            f"INSERT INTO {table}(segment_id,dataset_id,v) VALUES %s ON CONFLICT(segment_id) DO UPDATE SET v=EXCLUDED.v",
+            values,
+        )
+        conn.commit()
+
+
+def create_vector_indexes() -> None:
+    statements = (
+        "CREATE INDEX IF NOT EXISTS ix_pg_2048_hnsw ON emb_pg_2048 USING hnsw (v halfvec_cosine_ops) WITH (m=16, ef_construction=128)",
+        "CREATE INDEX IF NOT EXISTS ix_pg_1024_hnsw ON emb_pg_1024 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
+        "CREATE INDEX IF NOT EXISTS ix_pg_1024h_hnsw ON emb_pg_1024h USING hnsw (v halfvec_cosine_ops) WITH (m=16, ef_construction=128)",
+        "CREATE INDEX IF NOT EXISTS ix_pg_512_hnsw ON emb_pg_512 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
+        "CREATE INDEX IF NOT EXISTS ix_pg_256_hnsw ON emb_pg_256 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
+    )
+    with connection() as conn, conn.cursor() as cur:
+        for statement in statements:
+            cur.execute(statement)
+        conn.commit()
+
+
+def _vector_literal(vector: Iterable[float]) -> str:
+    return "[" + ",".join(f"{float(value):.9g}" for value in vector) + "]"
+
+
+def filter_segment_ids(dataset_id: str, metadata_filters: dict[str, Any], telemetry_filters: dict[str, Any]) -> list[str]:
+    clauses = ["s.dataset_id=%s"]
+    params: list[Any] = [dataset_id]
+    joins = ["JOIN videos v ON v.dataset_id=s.dataset_id AND v.video_id=s.video_id"]
+    allowed_meta = {"event_category": "v.event_category", "split": "v.split", "video_id": "s.video_id"}
+    for key, column in allowed_meta.items():
+        value = (metadata_filters or {}).get(key)
+        if value not in (None, "", []):
+            clauses.append(f"{column}=%s")
+            params.append(value)
+    if telemetry_filters:
+        joins.append("JOIN segment_telemetry t ON t.segment_id=s.segment_id")
+        allowed_telemetry = {
+            "altitude_m": "t.altitude_m",
+            "velocity_mps": "t.velocity_mps",
+            "gimbal_pitch": "t.gimbal_pitch",
+        }
+        for key, column in allowed_telemetry.items():
+            bounds = telemetry_filters.get(key)
+            if not bounds:
+                continue
+            lo, hi = bounds
+            if lo is not None:
+                clauses.append(f"{column}>=%s")
+                params.append(float(lo))
+            if hi is not None:
+                clauses.append(f"{column}<=%s")
+                params.append(float(hi))
+    sql = f"SELECT s.segment_id FROM segments s {' '.join(joins)} WHERE {' AND '.join(clauses)} ORDER BY s.segment_id"
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        return [row[0] for row in cur.fetchall()]
+
+
+def search_vectors(
+    dataset_id: str,
+    dimension: int,
+    query_vector: Iterable[float],
+    top_k: int,
+    strategy: str,
+    candidate_ids: list[str] | None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    table, vector_type = VECTOR_TABLES[dimension]
+    literal = _vector_literal(query_vector)
+    candidate_clause = ""
+    params: list[Any] = [literal, dataset_id]
+    if candidate_ids is not None:
+        if not candidate_ids:
+            return [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": []}
+        candidate_clause = " AND segment_id=ANY(%s)"
+        params.append(candidate_ids)
+    params.extend([literal, top_k])
+    sql = f"""SELECT segment_id, 1-(v <=> %s::{vector_type}({dimension})) AS score
+              FROM {table} WHERE dataset_id=%s{candidate_clause}
+              ORDER BY v <=> %s::{vector_type}({dimension}) LIMIT %s"""
+    with connection() as conn, conn.cursor() as cur:
+        for statement in pgvector_session_settings(strategy):
+            cur.execute(statement)
+        cur.execute(sql, params)
+        rows = [{"segment_id": row[0], "score": float(row[1])} for row in cur.fetchall()]
+        plan_used = strategy != "exact"
+    return rows, {"plan_used_vector_index": plan_used, "indexed_vectors_count": None, "notes": []}
+
+
+def hydrate(segment_ids: list[str]) -> list[dict[str, Any]]:
+    if not segment_ids:
+        return []
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(
+                """SELECT s.segment_id,s.video_id,s.t_start,s.t_end,s.caption,v.source_uri AS file_path,
+                          t.altitude_m,t.velocity_mps,t.gimbal_pitch
+                   FROM segments s
+                   JOIN videos v ON v.dataset_id=s.dataset_id AND v.video_id=s.video_id
+                   LEFT JOIN segment_telemetry t ON t.segment_id=s.segment_id
+                   WHERE s.segment_id=ANY(%s)""",
+                (segment_ids,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def stats() -> list[dict[str, Any]]:
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(
+                """SELECT d.dataset_id,d.dataset_version,d.license,d.has_telemetry,d.has_captions,
+                          count(s.segment_id)::int AS segments
+                   FROM datasets d LEFT JOIN segments s ON s.dataset_id=d.dataset_id
+                   GROUP BY d.dataset_id ORDER BY d.dataset_id"""
+            )
+            datasets = [dict(row) for row in cur.fetchall()]
+            for item in datasets:
+                counts = {}
+                for dimension, (table, _) in VECTOR_TABLES.items():
+                    cur.execute(f"SELECT count(*)::int AS n FROM {table} WHERE dataset_id=%s", (item["dataset_id"],))
+                    counts[str(dimension)] = cur.fetchone()["n"]
+                item["pgvector"] = counts
+            return datasets
+
+
+def facets(dataset_id: str) -> dict[str, Any]:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT array_remove(array_agg(DISTINCT v.event_category),NULL),
+                      array_remove(array_agg(DISTINCT v.split),NULL),
+                      array_agg(DISTINCT v.video_id)
+               FROM videos v WHERE v.dataset_id=%s""",
+            (dataset_id,),
+        )
+        event_categories, splits, video_ids = cur.fetchone()
+        cur.execute(
+            """SELECT min(t.altitude_m),max(t.altitude_m),min(t.velocity_mps),max(t.velocity_mps),
+                      min(t.gimbal_pitch),max(t.gimbal_pitch)
+               FROM segment_telemetry t JOIN segments s ON s.segment_id=t.segment_id WHERE s.dataset_id=%s""",
+            (dataset_id,),
+        )
+        values = cur.fetchone()
+    def bounds(lo, hi):
+        return None if lo is None or hi is None else [float(lo), float(hi)]
+    return {
+        "event_categories": sorted(event_categories or []),
+        "splits": sorted(splits or []),
+        "video_ids": sorted(video_ids or []),
+        "telemetry": {
+            "altitude_m": bounds(values[0], values[1]),
+            "velocity_mps": bounds(values[2], values[3]),
+            "gimbal_pitch": bounds(values[4], values[5]),
+        },
+    }
