@@ -1,0 +1,150 @@
+name: video-search-faz7
+
+services:
+  pg:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-uav_search}
+      POSTGRES_USER: ${POSTGRES_USER:-uav}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uav_local_only}
+    ports:
+      - "5442:5432"
+    volumes:
+      - faz7_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uav} -d ${POSTGRES_DB:-uav_search}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ch:
+    image: clickhouse/clickhouse-server:25.8
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-uav_search}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8143:8123"
+      - "9100:9000"
+    volumes:
+      - faz7_ch_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    ports:
+      - "6343:6333"
+      - "6344:6334"
+    volumes:
+      - faz7_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env.faz7
+        required: false
+    environment:
+      POSTGRES_HOST: pg
+      POSTGRES_PORT: 5432
+      CLICKHOUSE_HOST: ch
+      CLICKHOUSE_PORT: 8123
+      QDRANT_URL: http://qdrant:6333
+      ARTIFACTS_ROOT: /workspace/artifacts
+      DATA_ROOT: /workspace/data
+      EMBEDDING_MODE: ${EMBEDDING_MODE:-synthetic}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./artifacts:/workspace/artifacts
+      - ./data:/workspace/data:ro
+    depends_on:
+      pg:
+        condition: service_healthy
+      ch:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  ui:
+    build:
+      context: ./service
+      dockerfile: Dockerfile.ui
+    restart: unless-stopped
+    env_file:
+      - path: .env.faz7
+        required: false
+    environment:
+      API_URL: http://api:8000
+      EMBEDDING_MODE: ${EMBEDDING_MODE:-synthetic}
+    ports:
+      - "7860:7860"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    profiles: ["milvus"]
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+    volumes:
+      - faz7_etcd_data:/etcd
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    profiles: ["milvus"]
+    command: minio server /minio_data
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - faz7_minio_data:/minio_data
+
+  milvus:
+    image: milvusdb/milvus:v2.4.15
+    profiles: ["milvus"]
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports:
+      - "19530:19530"
+    volumes:
+      - faz7_milvus_data:/var/lib/milvus
+    depends_on: [etcd, minio]
+
+volumes:
+  faz7_pg_data:
+  faz7_ch_data:
+  faz7_qdrant_data:
+  faz7_etcd_data:
+  faz7_minio_data:
+  faz7_milvus_data:
+
