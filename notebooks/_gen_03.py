@@ -25,17 +25,16 @@ notebook 01'in GERCEK AU-AIR segment/telemetri ciktisini yukler, embedding
 gerektirmez. Veritabani calisma dizini YEREL/ephemeral'dir (Drive'a DEGIL -
 Colab handoff madde 5); sonuc CSV/rapor Drive'a yazilir.
 
-**Yerel test/gelistirme (bu depo):** gecici docker container
-`research_postgres_faz6` (port 5433) - ana `docker-compose.yml`
-DEGISTIRILMEDI.
-**Colab:** `bash scripts/install_pgvector_colab.sh install && bash scripts/install_pgvector_colab.sh start`
-ile ayni temel Postgres kurulur (vector extension bu notebook icin
-gerekmez, zarasiz) - asagidaki `DSN` degiskenini o script'in port/db
-degerleriyle guncelleyin (varsayilan port 5432, db phase6_vector_bench)."""),
+**Colab'da elle bir sey yapmaniza GEREK YOK** - asagidaki hucre
+`scripts/install_pgvector_colab.sh install` + `start`'i KENDISI calistirir
+(apt-get + pgvector derleme, ~2-4 dk). **Yerel test/gelistirme (bu
+depo):** gecici docker container `research_postgres_faz6` (port 5433) -
+ana `docker-compose.yml` DEGISTIRILMEDI."""),
 
 ("code", """import json
 import os
 import pathlib
+import subprocess
 import sys
 
 import pandas as pd
@@ -49,10 +48,20 @@ from src.research.manifest import RunManifest, detect_hardware_profile, write_ma
 OUT = colab_paths.research_root()
 hw = detect_hardware_profile()
 
-# Colab'da: DSN ortam degiskeniyle scripts/install_pgvector_colab.sh'nin
-# ac tigi instance'a yonlendirin (ör. PHASE6_PG_DSN="host=127.0.0.1 port=5432
-# dbname=phase6_vector_bench user=postgres"). Yerel test/gelistirme icin
-# varsayilan, mevcut docker container'a isaret eder.
+if colab_paths.in_colab() and "PHASE6_PG_DSN" not in os.environ:
+    print("Colab: PostgreSQL+pgvector kuruluyor/baslatiliyor (scripts/install_pgvector_colab.sh)...")
+    for step in ("install", "start"):
+        r = subprocess.run(["bash", "scripts/install_pgvector_colab.sh", step],
+                           capture_output=True, text=True)
+        print(r.stdout, r.stderr)
+        if r.returncode != 0:
+            raise RuntimeError(f"install_pgvector_colab.sh {step} basarisiz (cikti yukarida) - "
+                               "environment_unavailable, bkz. scripts/colab_preflight.py raporu.")
+    # script varsayilanlari: PGVECTOR_PORT=5432, PGVECTOR_DB_NAME=phase6_vector_bench,
+    # --auth=trust (bu tek-kullanicili gecici VM icin sifre gerektirmez).
+    os.environ["PHASE6_PG_DSN"] = "host=127.0.0.1 port=5432 dbname=phase6_vector_bench user=postgres"
+
+# Yerel test/gelistirme icin varsayilan, mevcut docker container'a isaret eder.
 DSN = os.environ.get("PHASE6_PG_DSN",
                      "host=localhost port=5433 dbname=research user=postgres password=research")
 conn = psycopg.connect(DSN, autocommit=True)

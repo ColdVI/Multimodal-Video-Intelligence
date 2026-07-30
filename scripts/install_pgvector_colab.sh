@@ -64,9 +64,12 @@ cmd_start() {
     fi
     PG_BIN="/usr/lib/postgresql/${PG_VERSION}/bin"
     if [ ! -d "${DATA_DIR}/base" ]; then
-        # initdb yerel scratch veri dizinine - Drive'a DEGIL (spec madde 5)
-        sudo -u postgres "${PG_BIN}/initdb" -D "${DATA_DIR}" 2>&1 | tee -a "${LOG_DIR}/initdb.log" \
-            || "${PG_BIN}/initdb" -D "${DATA_DIR}"
+        # initdb yerel scratch veri dizinine - Drive'a DEGIL (spec madde 5).
+        # --auth=trust: bu Colab VM'i tek kullanicili, gecici, disariya kapali
+        # (yalniz 127.0.0.1) - sifre yonetimi gereksiz karmasiklik olurdu,
+        # notebook'un psycopg.connect() cagrisi sifresiz baglanir.
+        sudo -u postgres "${PG_BIN}/initdb" -D "${DATA_DIR}" --auth=trust 2>&1 | tee -a "${LOG_DIR}/initdb.log" \
+            || "${PG_BIN}/initdb" -D "${DATA_DIR}" --auth=trust
     fi
     sudo -u postgres "${PG_BIN}/pg_ctl" -D "${DATA_DIR}" -l "${LOG_DIR}/server.log" \
         -o "-p ${PORT} -k /tmp" start 2>&1 || \
