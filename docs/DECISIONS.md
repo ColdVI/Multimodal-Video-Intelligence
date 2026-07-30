@@ -31,6 +31,19 @@
   PASS kanıtı değildir. Şablon/config reddetme yolu gerçek çalıştırıldı, fakat bu
   hostta kurum verisi/GPU/model bundle olmadığı için acceptance status `not_run`
   ve gereken tam komutla yayımlandı.
+- 2026-07-30 — Streaming decoder birincil olarak PyAV 16.0.1, fallback olarak
+  OpenCV headless kullanır. İlk denenmiş PyAV 14.4.0 macOS/Python 3.13 wheel
+  sunmayıp FFmpeg 7 source-build önkoşulunda durduğu için 16.0.1'e pinlendi;
+  16.0.1 wheel'i kuruldu ve aynı gerçek MP4 fixture testleri PyAV yolunda 7/7
+  geçti. Fallback de ayrı koşumda 7/7 geçti.
+- 2026-07-30 — Window sahipliği yalnız `t_start` ile belirlenir; decoder chunk
+  başına bir kez açılıp `chunk_end + window_size` halo'suna kadar sequential
+  ilerler. Generator tamamlanan ilk window'u tüm chunk decode edilmeden yield
+  eder; corpus veya chunk frame'leri topluca listelenmez.
+- 2026-07-30 — Telemetri bir video için sıralı series olarak tutulur, corpus
+  seviyesinde tutulmaz. Continuous alanlar linear+median, circular derece
+  alanları shortest-arc+circular mean, categorical alanlar LOCF+mode uygular;
+  `extra` ayrı read-only payload olarak kalır.
 
 ## Faz 8 decisions
 

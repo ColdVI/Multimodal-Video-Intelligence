@@ -75,6 +75,10 @@ class Settings:
     enabled_dimensions: tuple[int, ...]
     filter_execution_mode: str
     legacy_candidate_limit: int
+    decode_chunk_s: float
+    decode_prefetch_windows: int
+    embed_batch_size: int
+    db_write_batch_size: int
     require_secure_credentials: bool
     pg_host: str
     pg_port: int
@@ -109,6 +113,10 @@ class Settings:
             enabled_dimensions=_dimensions(values),
             filter_execution_mode=values.get("FILTER_EXECUTION_MODE", "pushdown").lower(),
             legacy_candidate_limit=_int(values, "LEGACY_CANDIDATE_LIMIT", 100000),
+            decode_chunk_s=_float(values, "DECODE_CHUNK_S", 300.0),
+            decode_prefetch_windows=_int(values, "DECODE_PREFETCH_WINDOWS", 8),
+            embed_batch_size=_int(values, "EMBED_BATCH_SIZE", 2),
+            db_write_batch_size=_int(values, "DB_WRITE_BATCH_SIZE", 512),
             require_secure_credentials=_bool(values, "REQUIRE_SECURE_CREDENTIALS"),
             pg_host=values.get("POSTGRES_HOST", "localhost"),
             pg_port=_int(values, "POSTGRES_PORT", 5442),
@@ -151,6 +159,10 @@ class Settings:
             raise ValueError(f"FILTER_EXECUTION_MODE must be one of {sorted(FILTER_EXECUTION_MODES)}")
         if self.legacy_candidate_limit < 1:
             raise ValueError("LEGACY_CANDIDATE_LIMIT must be positive")
+        if self.decode_chunk_s <= 0:
+            raise ValueError("DECODE_CHUNK_S must be positive")
+        if min(self.decode_prefetch_windows, self.embed_batch_size, self.db_write_batch_size) < 1:
+            raise ValueError("decode prefetch, embed batch, and DB write batch sizes must be positive")
         if self.require_secure_credentials:
             missing = []
             if not self.pg_password:
