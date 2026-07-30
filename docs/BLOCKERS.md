@@ -37,3 +37,34 @@ Kritik yol blokeri yok — `service/tests/test_t10_ui.py` (7/7) ve repo geneli
 - Bu oturumda yeniden build edilen `video-search-faz7-api`/`video-search-faz7-ui`
   imajları yalnızca yerel Docker'da; hiçbir registry'ye push edilmedi (kapsam dışı,
   proje zaten yalnız yerel compose kullanıyor).
+
+## Faz 10 (gerçek embedding'e geçiş) open blockers
+
+- **Kritik yol bloke:** `readiness_check.py --profile quality` hâlâ `A1.1 FAIL`
+  veriyor — `artifacts/embeddings/{capera_2048.npy, capera_ids.parquet,
+  capera_queries_2048.npy, capera_query_ids.parquet, query_embeddings.json,
+  embedding_manifest.json}` yerelde yok. Bu talimatın §2'sidir (kullanıcının
+  Colab'da GPU runtime ile `notebooks/07_colab_embedding_production.ipynb`'yi
+  çalıştırıp indirdiği ZIP'i açması) ve Codex/Claude tarafından yapılamaz.
+  `data/downloads/capera/CapERA_DATASET_{train,test}.json` yerelde zaten var;
+  eksik olan tek şey Colab'ın ürettiği embedding ZIP'i. Talimatın kendi kuralı
+  gereği (§3.1: "A1.1 FAIL ise dur, devam etme") §3.2-§3.3, §3.5-§3.8 bu
+  oturumda başlatılmadı.
+- Notebook tarafında ek iş **yok**: `notebooks/07_colab_embedding_production.ipynb`
+  (Faz 7/8'de yazıldı) hem 1391 video hem 6955 caption/query embedding'ini
+  doğru `.npy`+`.parquet` formatında üretip zip'liyor (hücre 4-11). Önceki bir
+  oturumda "notebook 02 + NDJSON dönüştürme script'i gerekir" denilmişti; bu
+  artık geçersiz — notebook 02 zaten `notebooks/_archive/`'e taşındı (Faz 7
+  aşama 1, bkz. `docs/PROGRESS.md`).
+
+## Faz 10 §3.4 (vector_provenance) — durum
+
+Kritik yol bloke yok. `datasets.vector_provenance` kolonu eklendi, ingest bunu
+`settings.embedding_mode`'a göre yazıyor, `/health?dataset_id=`, `/stats`,
+`/search` bunu additive alan olarak dönüyor, `mode_details()` artık önce
+dataset'in kendi provenance'ına bakıyor. Doğrulanan: yalnız **auair** yarısı
+(`vector_provenance='synthetic'` + danger banner, canlı Docker'a karşı test
+edildi: `test_additive_fields.py::test_mixed_provenance_database_reports_auair_as_synthetic_with_danger_banner`).
+**capera→'real'+success yarısı doğrulanamadı** — capera henüz ingest edilmedi
+(yukarıdaki A1.1 blokerine bağlı). Colab ZIP'i geldiğinde §3.2 ingest'i
+tamamlanınca bu testin capera koluyla tamamlanması gerekiyor.

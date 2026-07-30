@@ -51,14 +51,14 @@ class SearchRequest(BaseModel):
 
 
 @app.get("/health")
-def health() -> dict[str, Any]:
+def health(dataset_id: str | None = None) -> dict[str, Any]:
     return {
         "status": "ok" if all((postgres.health(), clickhouse.health(), qdrant.health())) else "degraded",
         "pg": postgres.health(),
         "ch": clickhouse.health(),
         "qdrant": qdrant.health(),
         "embedding_mode": settings.embedding_mode,
-        "embedding": mode_details(),
+        "embedding": mode_details(dataset_id),
     }
 
 

@@ -331,8 +331,9 @@ def ingest(dataset_id: str) -> dict[str, Any]:
     qdrant.init_schema()
     bundle = LOADERS[dataset_id]()
     started = time.perf_counter()
+    provenance = "synthetic" if settings.embedding_mode == "synthetic" else "real"
     postgres.upsert_dataset_bundle(
-        bundle.dataset, bundle.videos, bundle.segments, bundle.metadata,
+        (*bundle.dataset, provenance), bundle.videos, bundle.segments, bundle.metadata,
         bundle.telemetry, bundle.groundtruth,
     )
     vectors = _build_vectors(bundle)

@@ -28,9 +28,9 @@ CSS = (Path(__file__).resolve().parent / "static" / "theme.css").read_text(encod
 
 # ------------------------------------------------------------- API client --
 
-def _get(path: str) -> dict[str, Any]:
+def _get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     with httpx.Client(timeout=30.0) as client:
-        response = client.get(f"{API_URL}{path}")
+        response = client.get(f"{API_URL}{path}", params=params)
         response.raise_for_status()
         return response.json()
 
@@ -204,7 +204,7 @@ def update_strategies(backend: str):
 
 def render_header(dataset_id: str | None):
     try:
-        health = _get("/health")
+        health = _get("/health", params={"dataset_id": dataset_id} if dataset_id else None)
     except Exception:
         health = {"pg": False, "ch": False, "qdrant": False, "embedding": {
             "level": "danger", "message": "API'ye ulaşılamıyor — backend health kontrolü başarısız.",
@@ -342,7 +342,7 @@ def run_search(
             results_html = components.empty_state("no_results")
     else:
         results_html = components.result_list(results)
-        if response.get("embedding_mode") == "synthetic":
+        if response.get("vector_provenance") == "synthetic":
             results_html = components.warning_banner(
                 "SENTETİK EMBEDDING — bu sonuçlar sıralama kalitesi için anlamlı değildir, "
                 "yalnızca sistem/gecikme doğrulaması.",
@@ -407,6 +407,7 @@ def _run_comparison(query: str, dataset_id: str, backends: list[str], dimensions
                     "returned_count": response["diagnostics"]["returned_count"],
                     "underfilled": response["diagnostics"]["underfilled"],
                     "embedding_mode": response["embedding_mode"],
+                    "vector_provenance": response.get("vector_provenance"),
                 })
             except Exception as exc:
                 rows.append({"backend": backend, "strategy": strategy, "dimension": dimension, "error": str(exc)})
@@ -420,7 +421,7 @@ def _render_comparison(rows: list[dict[str, Any]]) -> str:
     for row in rows:
         groups.setdefault(row.get("embedding_mode") or "bilinmiyor (hata)", []).append(row)
     parts = []
-    if any(row.get("embedding_mode") == "synthetic" for row in rows):
+    if any(row.get("vector_provenance") == "synthetic" for row in rows):
         parts.append(components.warning_banner(
             "Bu karşılaştırmadaki sonuçlar sentetik embedding ile üretildi — sıralama kalitesi anlamlı değildir.",
             "danger",

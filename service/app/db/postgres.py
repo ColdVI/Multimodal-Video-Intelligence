@@ -11,8 +11,10 @@ SCHEMA_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS datasets (
   dataset_id text PRIMARY KEY, dataset_version text, source_hash text,
-  license text, has_telemetry boolean NOT NULL, has_captions boolean NOT NULL
+  license text, has_telemetry boolean NOT NULL, has_captions boolean NOT NULL,
+  vector_provenance text NOT NULL DEFAULT 'synthetic'
 );
+ALTER TABLE datasets ADD COLUMN IF NOT EXISTS vector_provenance text NOT NULL DEFAULT 'synthetic';
 CREATE TABLE IF NOT EXISTS videos (
   dataset_id text, video_id text, source_uri text, split text,
   duration_s double precision, event_category text,
@@ -115,7 +117,7 @@ def dataset_info(dataset_id: str) -> dict[str, Any] | None:
         _, extras = _driver()
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT dataset_id,has_telemetry,has_captions FROM datasets WHERE dataset_id=%s",
+                "SELECT dataset_id,has_telemetry,has_captions,vector_provenance FROM datasets WHERE dataset_id=%s",
                 (dataset_id,),
             )
             row = cur.fetchone()
@@ -174,11 +176,11 @@ def upsert_dataset_bundle(
         cur.execute("DELETE FROM segments WHERE dataset_id=%s", (dataset_id,))
         cur.execute("DELETE FROM videos WHERE dataset_id=%s", (dataset_id,))
         cur.execute(
-            """INSERT INTO datasets VALUES (%s,%s,%s,%s,%s,%s)
+            """INSERT INTO datasets VALUES (%s,%s,%s,%s,%s,%s,%s)
                ON CONFLICT (dataset_id) DO UPDATE SET
                dataset_version=EXCLUDED.dataset_version, source_hash=EXCLUDED.source_hash,
                license=EXCLUDED.license, has_telemetry=EXCLUDED.has_telemetry,
-               has_captions=EXCLUDED.has_captions""",
+               has_captions=EXCLUDED.has_captions, vector_provenance=EXCLUDED.vector_provenance""",
             dataset,
         )
         _execute_values(
@@ -350,7 +352,7 @@ def stats() -> list[dict[str, Any]]:
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             cur.execute(
                 """SELECT d.dataset_id,d.dataset_version,d.license,d.has_telemetry,d.has_captions,
-                          count(s.segment_id)::int AS segments
+                          d.vector_provenance, count(s.segment_id)::int AS segments
                    FROM datasets d LEFT JOIN segments s ON s.dataset_id=d.dataset_id
                    GROUP BY d.dataset_id ORDER BY d.dataset_id"""
             )

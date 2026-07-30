@@ -45,7 +45,10 @@ def fake_corpus(monkeypatch):
     monkeypatch.setattr(engine.postgres, "filter_segment_ids", filter_ids)
     monkeypatch.setattr(
         engine.postgres, "dataset_info",
-        lambda dataset_id: {"dataset_id": dataset_id, "has_telemetry": True, "has_captions": False},
+        lambda dataset_id: {
+            "dataset_id": dataset_id, "has_telemetry": True, "has_captions": False,
+            "vector_provenance": "real",
+        },
     )
     monkeypatch.setattr(engine.postgres, "hydrate", hydrate)
     monkeypatch.setattr(engine, "embed_query", lambda text, dim: np.ones(dim, dtype=np.float32) / np.sqrt(dim))

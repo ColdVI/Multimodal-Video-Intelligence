@@ -38,3 +38,31 @@ def test_facets_expose_additive_counts_block_without_removing_existing_fields():
         assert key in data["counts"]
         lo, hi = data["counts"][key]
         assert lo <= hi
+
+
+def test_mixed_provenance_database_reports_auair_as_synthetic_with_danger_banner():
+    """FAZ10 §1/§3.4: a mixed database (real CapERA vectors alongside synthetic AU-AIR
+    vectors) must not let a global embedding_mode banner claim AU-AIR results are real.
+    Provenance is a per-dataset DB column, not a settings.embedding_mode reflection."""
+    readiness("system")
+
+    stats = httpx.get("http://localhost:8000/stats", timeout=30).json()
+    auair_row = next(row for row in stats["datasets"] if row["dataset_id"] == "auair")
+    assert auair_row["vector_provenance"] == "synthetic"
+
+    health = httpx.get(
+        "http://localhost:8000/health", params={"dataset_id": "auair"}, timeout=30,
+    ).json()
+    assert health["embedding"]["vector_provenance"] == "synthetic"
+    assert health["embedding"]["level"] == "danger"
+
+    response = httpx.post(
+        "http://localhost:8000/search",
+        json={
+            "query": "dense traffic", "dataset_id": "auair", "backend": "clickhouse",
+            "strategy": "exact", "dimension": 512, "top_k": 5, "repeats": 1,
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    assert response.json()["vector_provenance"] == "synthetic"

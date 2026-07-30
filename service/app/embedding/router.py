@@ -44,9 +44,24 @@ def embed_item(key: str, dimension: int, *, dataset_id: str, media: str | list[s
 
 
 def mode_details(dataset_id: str | None = None) -> dict[str, object]:
+    if dataset_id:
+        from app.db import postgres
+
+        info = postgres.dataset_info(dataset_id)
+        if info is not None and info.get("vector_provenance") == "synthetic":
+            return {
+                "mode": settings.embedding_mode,
+                "vector_provenance": "synthetic",
+                "level": "danger",
+                "message": (
+                    f"{dataset_id}: SENTETİK EMBEDDING — sonuç sıralamaları anlamsızdır. "
+                    "Yalnızca sistem/gecikme doğrulaması."
+                ),
+            }
     if settings.embedding_mode == "synthetic":
         return {
             "mode": "synthetic",
+            "vector_provenance": "synthetic",
             "level": "danger",
             "message": "SENTETİK EMBEDDING — sonuç sıralamaları anlamsızdır. Yalnızca sistem/gecikme doğrulaması.",
         }
@@ -54,6 +69,7 @@ def mode_details(dataset_id: str | None = None) -> dict[str, object]:
         count = cache.count(dataset_id) if dataset_id else 0
         return {
             "mode": "cached",
+            "vector_provenance": "real",
             "synthetic_fallback": False,
             "level": "success",
             "message": f"GERÇEK EMBEDDING (Qwen3-VL-2B, cached) — {dataset_id or 'dataset'}: {count} vektör",
@@ -64,6 +80,7 @@ def mode_details(dataset_id: str | None = None) -> dict[str, object]:
         runtime = runtime_details()
         return {
             "mode": "hybrid_text",
+            "vector_provenance": "real",
             "level": "success",
             "message": (
                 f"GERCEK EMBEDDING ({runtime['model_id']}@{runtime['model_revision']}, "
@@ -85,6 +102,7 @@ def mode_details(dataset_id: str | None = None) -> dict[str, object]:
         gpu, dtype = "torch unavailable", "unknown"
     return {
         "mode": "real",
+        "vector_provenance": "real",
         "synthetic_fallback": False,
         "level": "success",
         "message": f"GERÇEK EMBEDDING (Qwen3-VL-2B, real) — {dtype}, {gpu}",

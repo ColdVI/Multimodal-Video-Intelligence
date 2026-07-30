@@ -23,6 +23,15 @@
 | 2026-07-30 | Aşama 7 | 9 kod hücreli Colab üretim notebook'u nbformat ile geçerli; GPU olmayan ilk hücre doğru ve açık mesajla duruyor. | Notebook sözleşme doğrulaması |
 | 2026-07-30 | Aşama 8 | Windows tam verify 47,2 sn'de geçti; repo-geneli 347/347 pytest, compileall, compose config ve notebook CPU kapısı geçti. | GERÇEK teslim doğrulaması |
 
+## Faz 10 (gerçek embedding'e geçiş) progress
+
+| Date | Stage | Result | Evidence |
+|---|---|---|---|
+| 2026-07-30 | Ön kapı | `readiness_check.py --profile quality` çalıştırıldı: `A1.1 FAIL` — Colab ZIP'i (`artifacts/embeddings/`) yerelde yok. Notebook 07 kodu zaten hem video hem caption/query embedding'ini doğru formatta üretiyor (ek script gerekmiyor); eksik olan tek şey kullanıcının §2 Colab koşumu. | Gerçek CLI çıktısı |
+| 2026-07-30 | §3.4 provenance | `datasets.vector_provenance` kolonu eklendi (idempotent migration); `ingest()`, `mode_details()`, `/health`, `/stats`, `/search`, UI banner'ları (arama sonucu + karşılaştırma) dataset'in gerçek provenance'ını kullanacak şekilde güncellendi. | Kod + canlı Docker doğrulaması: `/stats`, `/health?dataset_id=auair`, `/search` üçü de `vector_provenance=synthetic` döndü |
+| 2026-07-30 | Regresyon | `RUN_FAZ8_INTEGRATION=1 pytest -q` (repo kökünden, canlı `api`+`ui`+3 DB container'a karşı): `404 passed, 1 skipped` (önceki `403 passed, 1 skipped`'den regresyon yok, +1 yeni provenance testi). `test_engine.py`'deki `fake_corpus` fixture'ı yeni `vector_provenance` alanını içerecek şekilde güncellendi (KeyError düzeltmesi). | Gerçek pytest çıktısı |
+| 2026-07-30 | G3 kapısı | Kısmen geçti: auair yarısı (`synthetic`+danger banner) canlı doğrulandı. capera yarısı (`real`+success) CapERA henüz ingest edilmediği için doğrulanamadı — §2 tamamlanınca yapılacak. | `test_additive_fields.py::test_mixed_provenance_database_reports_auair_as_synthetic_with_danger_banner` |
+
 ## Ölçüm kapsamı
 
 | Kapsam | Kullanılabilecek iddialar |

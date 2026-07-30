@@ -161,6 +161,7 @@ def search(request: Any) -> dict[str, Any]:
     }
     return {
         "embedding_mode": settings.embedding_mode,
+        "vector_provenance": dataset["vector_provenance"],
         "backend": request.backend,
         "strategy": request.strategy,
         "dimension": request.dimension,

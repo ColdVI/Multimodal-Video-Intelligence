@@ -71,3 +71,33 @@
   hiç kopyalanmıyordu. Yol çözümü `app/config.py::_capera_protocol`'deki aynı
   iki-adaylı (repo kökü / konteyner `/app`) desenle yapıldı — yeni bir "dead code
   fallback" icat edilmedi.
+
+## Faz 10 (gerçek embedding'e geçiş) decisions
+
+- 2026-07-30 — §3.4 uygulandı: `vector_provenance` **ayardan değil, veriden**
+  okunuyor. `datasets.vector_provenance text NOT NULL DEFAULT 'synthetic'`
+  eklendi (idempotent `ADD COLUMN IF NOT EXISTS`); mevcut `auair` satırı ayrı
+  bir UPDATE'e gerek kalmadan DEFAULT üzerinden doğru değere düştü (auair
+  gerçekten sentetik). `ingest()` provenance'ı `settings.embedding_mode`'dan
+  türetip yazıyor (`synthetic`→`synthetic`, diğerleri→`real`); bu tek yazma
+  noktası, gelecekte hangi dataset hangi modda ingest edilirse edilsin kolonun
+  doğru kalmasını sağlıyor — dataset bazlı hardcode yok.
+- 2026-07-30 — `mode_details(dataset_id)` artık önce dataset'in DB'deki
+  provenance'ına bakıyor; `synthetic` ise `settings.embedding_mode` ne olursa
+  olsun danger banner döner. `dataset_id=None` veya dataset DB'de yoksa eski
+  (global `embedding_mode`'a dayalı) davranışa düşer — bu, henüz ingest
+  edilmemiş bir dataset için makul bir varsayılan.
+- 2026-07-30 — UI'daki iki ayrı "sentetik" uyarı kontrolü de düzeltildi:
+  `run_search`'teki sonuç banner'ı ve `_render_comparison`'daki karşılaştırma
+  uyarısı artık `response["embedding_mode"]` yerine `response["vector_provenance"]`
+  kullanıyor. Gerekçe: karışık bir veritabanında (gerçek CapERA + sentetik
+  AU-AIR) global `embedding_mode` (ör. `hybrid_text`) AU-AIR sorgusunun
+  vektörlerinin de gerçek olduğunu yanlış iddia ederdi — tam da talimat
+  §1'in tarif ettiği risk. `embedding_mode` alanının kendisi (hangi modun
+  sorgu vektörünü hesapladığını gösterir) değiştirilmedi, additive olarak
+  `vector_provenance` eklendi.
+- 2026-07-30 — Bu aşama CapERA verisi olmadan başlatıldı (talimat §3.1 gereği
+  A1.1 FAIL iken §3.2+ durduruldu), çünkü §3.4 tamamen dataset-agnostik bir
+  şema/kod değişikliği: doğrulaması için gerçek CapERA embedding'i gerekmiyor,
+  yalnızca canlı auair verisiyle test edilebiliyor. Amaç, Colab ZIP'i geldiğinde
+  §3.2-§3.8'e doğrudan geçebilmek.
