@@ -14,6 +14,9 @@ __pycache__/
 .testdeps/
 .runtime/
 .gradio/
+.env.faz7
+artifacts/embeddings/*.npy
+artifacts/embeddings/*_ids.parquet
 weights/
 runs/
 # dataset_adapters/ - ultralytics kendi otomatik indirdigi veri klasoru icin

@@ -1,5 +1,25 @@
 # Hibrit video arama — POC
 
+## Faz 7: çalışan sistem
+
+GPU gerektirmeyen varsayılan `synthetic` modla Postgres/pgvector,
+ClickHouse, Qdrant, FastAPI ve Gradio birlikte ayağa kalkar:
+
+```bash
+cp .env.faz7.example .env.faz7
+docker compose -f docker-compose.faz7.yml up -d --build
+docker compose -f docker-compose.faz7.yml exec -T api python -m app.ingestion.load_dataset --dataset auair
+```
+
+- UI: <http://localhost:7860>
+- API/OpenAPI: <http://localhost:8000/docs>
+- Sağlık: <http://localhost:8000/health>
+
+UI'daki kırmızı banner bilinçlidir: `synthetic` sonuç sıralamaları semantik
+kalite iddiası taşımaz; yalnız sistem ve gecikme doğrulamasıdır. Gerçek Qwen
+embedding üretimi `notebooks/07_colab_embedding_production.ipynb`, cached moda
+geçiş ve tam işletim adımları `docs/RUNBOOK.md` dosyasındadır.
+
 > Codex ile devam edecekseniz önce `CODEX_START_HERE.md` dosyasını açın.
 > Tek seferlik ana prompt ve fazlara ayrılmış hazır konuşmalar
 > `docs/codex/` altındadır.

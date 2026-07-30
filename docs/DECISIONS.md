@@ -6,4 +6,5 @@
 - 2026-07-30 — Dataset görüntüsü indirmeden hazır, doğrulanmış 1.866 AU-AIR segmenti minimum uçtan uca veri yolu seçildi; SeaDronesSee ve MONET kritik yol dışında bırakıldı.
 - 2026-07-30 — `cached` mod serbest metin için yalnız önceden üretilmiş `query_embeddings.json` girdilerini kabul eder; gerçek model yüklemeden bilinmeyen sorguya sahte vektör üretmez.
 - 2026-07-30 — Kullanıcının açık talimatıyla önceki 7 commit ve Faz 7 çalışması doğrudan `main` üzerinde pushlanır; gece talimatındaki “push atma” kuralı bu teslim için geçersizdir.
-
+- 2026-07-30 — Gradio'da yerleşik çift-tutamaklı range slider bulunmadığı gerçek konteyner importunda doğrulandı; her telemetri alanı aynı min/max semantiğini koruyan yan yana iki slider ile gösterilir.
+- 2026-07-30 — Tam L2 matrisi uzun koşum olarak runner'da korunur; teslim artifact'i tüm 150 konfigürasyonu birer sorguyla ölçen ve `settings_json.execution=smoke` diye açık etiketlenen kısa koşumdur.

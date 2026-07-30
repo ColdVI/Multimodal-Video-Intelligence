@@ -1,0 +1,225 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260730083506
+Username: PC_5812\PC_5812_YD26
+RunAs User: PC_5812\PC_5812_YD26
+Configuration Name: 
+Machine: PC_5812 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File scripts\verify_faz7.ps1
+Process ID: 7788
+PSVersion: 5.1.26100.8875
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8875
+BuildVersion: 10.0.26100.8875
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+[faz7] verify started: 2026-07-30T08:35:06.2513905+03:00
+
+{
+    "status":  "ok",
+    "pg":  true,
+    "ch":  true,
+    "qdrant":  true,
+    "embedding_mode":  "synthetic",
+    "embedding":  {
+                      "mode":  "synthetic",
+                      "level":  "danger",
+                      "message":  "SENTETÄ°K EMBEDDING â sonuÃ§ sÄ±ralamalarÄ± anlamsÄ±zdÄ±r. YalnÄ±zca sistem/gecikme doÄrulamasÄ±."
+                  }
+}
+
+{
+    "embedding_mode":  "synthetic",
+    "backend":  "clickhouse",
+    "strategy":  "prefilter",
+    "dimension":  512,
+    "pattern":  "A",
+    "timings_ms":  {
+                       "filter":  10.035,
+                       "embed":  0.463,
+                       "vector_search":  145.788,
+                       "hydrate":  5.087,
+                       "total":  162.207
+                   },
+    "timings_stats":  {
+                          "p50":  162.207,
+                          "p95":  186.487,
+                          "n_repeats":  10
+                      },
+    "diagnostics":  {
+                        "candidate_count":  1866,
+                        "returned_count":  10,
+                        "underfilled":  false,
+                        "plan_used_vector_index":  false,
+                        "indexed_vectors_count":  null,
+                        "filter_correctness":  true,
+                        "notes":  [
+                                      "top_k\u003c=100, max_limit ayarÄ± deÄiÅmedi"
+                                  ],
+                        "quality_vs_groundtruth":  null,
+                        "r_at_1":  null,
+                        "ndcg":  null
+                    },
+    "results":  [
+                    {
+                        "segment_id":  "auair:20190905091750:148.000:156.000",
+                        "video_id":  "20190905091750",
+                        "t_start":  148.0,
+                        "t_end":  156.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905091750",
+                        "altitude_m":  10.321,
+                        "velocity_mps":  0.061393414,
+                        "gimbal_pitch":  null,
+                        "score":  0.1748518943786621
+                    },
+                    {
+                        "segment_id":  "auair:20190905091750:468.000:476.000",
+                        "video_id":  "20190905091750",
+                        "t_start":  468.0,
+                        "t_end":  476.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905091750",
+                        "altitude_m":  11.6252,
+                        "velocity_mps":  0.08169337,
+                        "gimbal_pitch":  null,
+                        "score":  0.1274051070213318
+                    },
+                    {
+                        "segment_id":  "auair:20190905103112:184.000:192.000",
+                        "video_id":  "20190905103112",
+                        "t_start":  184.0,
+                        "t_end":  192.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905103112",
+                        "altitude_m":  19.9724,
+                        "velocity_mps":  0.093845546,
+                        "gimbal_pitch":  null,
+                        "score":  0.12320703268051147
+                    },
+                    {
+                        "segment_id":  "auair:20190906150731:824.000:832.000",
+                        "video_id":  "20190906150731",
+                        "t_start":  824.0,
+                        "t_end":  832.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190906150731",
+                        "altitude_m":  26.2735,
+                        "velocity_mps":  0.29405153,
+                        "gimbal_pitch":  null,
+                        "score":  0.12212890386581421
+                    },
+                    {
+                        "segment_id":  "auair:20190905103112:1396.000:1404.000",
+                        "video_id":  "20190905103112",
+                        "t_start":  1396.0,
+                        "t_end":  1404.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905103112",
+                        "altitude_m":  20.3554,
+                        "velocity_mps":  0.057938702,
+                        "gimbal_pitch":  null,
+                        "score":  0.11720114946365356
+                    },
+                    {
+                        "segment_id":  "auair:20190905112522:408.000:416.000",
+                        "video_id":  "20190905112522",
+                        "t_start":  408.0,
+                        "t_end":  416.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905112522",
+                        "altitude_m":  28.7738,
+                        "velocity_mps":  0.08051721,
+                        "gimbal_pitch":  null,
+                        "score":  0.11658412218093872
+                    },
+                    {
+                        "segment_id":  "auair:20190905112522:528.000:536.000",
+                        "video_id":  "20190905112522",
+                        "t_start":  528.0,
+                        "t_end":  536.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905112522",
+                        "altitude_m":  29.1146,
+                        "velocity_mps":  0.08698161,
+                        "gimbal_pitch":  null,
+                        "score":  0.11562955379486084
+                    },
+                    {
+                        "segment_id":  "auair:20190905142119:280.000:288.000",
+                        "video_id":  "20190905142119",
+                        "t_start":  280.0,
+                        "t_end":  288.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905142119",
+                        "altitude_m":  28.39665,
+                        "velocity_mps":  0.20385769,
+                        "gimbal_pitch":  null,
+                        "score":  0.1156013011932373
+                    },
+                    {
+                        "segment_id":  "auair:20190906150731:876.000:884.000",
+                        "video_id":  "20190906150731",
+                        "t_start":  876.0,
+                        "t_end":  884.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190906150731",
+                        "altitude_m":  25.7833,
+                        "velocity_mps":  0.17591542,
+                        "gimbal_pitch":  null,
+                        "score":  0.11259269714355469
+                    },
+                    {
+                        "segment_id":  "auair:20190905143505:332.000:340.000",
+                        "video_id":  "20190905143505",
+                        "t_start":  332.0,
+                        "t_end":  340.0,
+                        "caption":  null,
+                        "file_path":  "/workspace/data/research/auair/images.zip::20190905143505",
+                        "altitude_m":  10.7082,
+                        "velocity_mps":  0.7293519,
+                        "gimbal_pitch":  null,
+                        "score":  0.11238723993301392
+                    }
+                ]
+}
+{
+    "embedding_mode":  "synthetic",
+    "datasets":  [
+                     {
+                         "dataset_id":  "auair",
+                         "dataset_version":  "research-parquet-v1",
+                         "license":  "CC BY-NC-SA",
+                         "has_telemetry":  true,
+                         "has_captions":  false,
+                         "segments":  1866,
+                         "pgvector":  {
+                                          "2048":  1866,
+                                          "1024":  1866,
+                                          "512":  1866,
+                                          "256":  1866
+                                      },
+                         "clickhouse":  {
+                                            "2048":  1866,
+                                            "1024":  1866,
+                                            "512":  1866,
+                                            "256":  1866
+                                        },
+                         "qdrant":  {
+                                        "2048":  1866,
+                                        "1024":  1866,
+                                        "512":  1866,
+                                        "256":  1866
+                                    }
+                     }
+                 ]
+}
+[faz7] UI HTTP 200
+[faz7] verify completed: 2026-07-30T08:35:52.8805863+03:00
+**********************
+Windows PowerShell transcript end
+End time: 20260730083552
+**********************
