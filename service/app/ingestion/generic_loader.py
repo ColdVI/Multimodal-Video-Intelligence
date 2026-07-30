@@ -79,6 +79,7 @@ def iter_pair_records(
     pair: SourcePair,
     *,
     configured: Settings = settings,
+    skip_chunk_indexes: set[int] | None = None,
 ) -> Iterator[WindowRecord]:
     telemetry_series = _telemetry_series(manifest, pair)
     for chunk in iter_video_chunks(
@@ -86,6 +87,8 @@ def iter_pair_records(
         chunk_s=configured.decode_chunk_s,
         window_size_s=manifest.window_size_s,
     ):
+        if skip_chunk_indexes and chunk.chunk_index in skip_chunk_indexes:
+            continue
         for decoded in iter_chunk_windows(
             chunk,
             window_size_s=manifest.window_size_s,
@@ -123,6 +126,7 @@ def iter_window_records(
     *,
     data_root: Path,
     configured: Settings = settings,
+    committed_chunks: set[tuple[str, int]] | None = None,
 ) -> Iterator[WindowRecord]:
     manifest = (
         manifest_or_path
@@ -130,7 +134,13 @@ def iter_window_records(
         else load_manifest(manifest_or_path)
     )
     for pair in discover_pairs(manifest, data_root):
-        yield from iter_pair_records(manifest, pair, configured=configured)
+        skip = {
+            chunk_index for video_id, chunk_index in (committed_chunks or set())
+            if video_id == pair.video_id
+        }
+        yield from iter_pair_records(
+            manifest, pair, configured=configured, skip_chunk_indexes=skip,
+        )
 
 
 T = TypeVar("T")

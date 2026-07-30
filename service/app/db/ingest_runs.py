@@ -182,13 +182,43 @@ class PostgresRunStore:
                      expected_segments,status,backend_status,updated_at
                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,now())
                    ON CONFLICT(run_id,video_id,chunk_index) DO UPDATE SET
-                     status=EXCLUDED.status,backend_status=EXCLUDED.backend_status,updated_at=now()""",
+                     expected_segments=EXCLUDED.expected_segments,status=EXCLUDED.status,
+                     backend_status=EXCLUDED.backend_status,updated_at=now()""",
                 (
                     spec.run_id, spec.dataset_id, spec.video_id, spec.video_path, spec.chunk_index,
                     spec.chunk_start_s, spec.chunk_end_s, spec.expected_segments, status,
                     json.dumps(backend_status),
                 ),
             )
+            conn.commit()
+
+    def find_resumable(self, dataset_id: str, manifest_hash: str) -> RunSpec | None:
+        import json
+
+        with postgres.connection() as conn:
+            _, extras = postgres._driver()
+            with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+                cur.execute(
+                    """SELECT * FROM ingest_runs WHERE dataset_id=%s AND manifest_hash=%s
+                       AND status IN ('created','preflight_passed','ingesting','failed')
+                       ORDER BY started_at DESC LIMIT 1""",
+                    (dataset_id, manifest_hash),
+                )
+                row = cur.fetchone()
+        if row is None:
+            return None
+        return RunSpec(
+            run_id=str(row["run_id"]), dataset_id=row["dataset_id"], dataset_version=row["dataset_version"],
+            vector_provenance=row["vector_provenance"], model_id=row["model_id"],
+            model_revision=row["model_revision"], source_commit=row["source_commit"],
+            enabled_backends=tuple(row["enabled_backends"]),
+            enabled_dimensions=tuple(int(value) for value in row["enabled_dimensions"]),
+            manifest_hash=row["manifest_hash"], expected_segments=row["expected_segments"],
+        )
+
+    def update_expected_segments(self, run_id: str, expected_segments: int) -> None:
+        with postgres.connection() as conn, conn.cursor() as cur:
+            cur.execute("UPDATE ingest_runs SET expected_segments=%s WHERE run_id=%s", (expected_segments, run_id))
             conn.commit()
 
     def chunks(self, run_id: str) -> Sequence[Mapping[str, Any]]:

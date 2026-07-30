@@ -175,3 +175,16 @@
 - 2026-07-30 — Legacy Qdrant point'lerinde güvenilir run provenance olmadığı için
   migration bunu yeniden-ID'lemek yerine manifest-driven re-ingest gereksinimi
   raporlar. Volume veya eski point'ler otomatik silinmez.
+
+## Faz 11 Aşama 6 decisions
+
+- 2026-07-30 — Generic manifest ingest yalnız `EMBEDDING_MODE=real` kabul eder;
+  model/GPU eksiğinde synthetic fallback yapmaz. Legacy dataset-id loader'ları
+  ayrı compatibility yolu olarak korunur.
+- 2026-07-30 — Decode iterator chunk boyunca materialize edilmez. Qwen batch
+  boyutu `EMBED_BATCH_SIZE`, DB writes aynı batch üzerinden yürür; yalnız enabled
+  dimension/backend projeksiyonları üretilir ve her batch sonrası PIL frame'leri
+  kapatılır.
+- 2026-07-30 — Resume kimliği dataset + manifest hash'ten son incomplete run'dır.
+  Committed chunk decode edilmez; incomplete chunk'ın run-scoped metadata ve
+  vector satırları temizlenip yeniden yazılır. Report/hata yolları run-scoped'tur.

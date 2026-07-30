@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "status": "not_run",
+  "reason": "The generic crash/resume orchestration passed with injected in-memory storage, but a real NVIDIA GPU, verified Qwen bundle, institution videos, and live enabled databases are unavailable on this host.",
+  "required_command": "docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml exec -T api python -m app.ingestion.ingest --dataset /workspace/datasets/kurum.yaml --resume",
+  "expected_environment": "Healthy PostgreSQL and enabled vector backends, NVIDIA GPU/runtime, verified pinned Qwen bundle, and a previously interrupted inactive run for the same manifest hash.",
+  "implementation_contract": {
+    "test": "service/tests/test_faz11_generic_ingest.py::test_crash_then_resume_skips_committed_chunk_without_duplicates",
+    "result": "pass",
+    "verified": [
+      "committed chunk is skipped on resume",
+      "failed chunk is cleaned and rewritten",
+      "segment and vector counts match",
+      "no duplicate vector keys",
+      "old active run remains until finalize succeeds"
+    ]
+  },
+  "real_windows_embedded": 0,
+  "real_backend_rows_written": 0
+}

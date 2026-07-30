@@ -92,6 +92,32 @@ python scripts/gpu_smoke.py --dataset datasets/kurum.yaml --data-root /kurum/dat
 
 Bundle manifest ve tam offline kapsamı için `docs/MODEL_BUNDLE.md` esas alınır.
 
+## Faz 11 generic manifest ingest
+
+Preflight başarılı olmadan generic ingest başlamaz. Kurum container'ında:
+
+```bash
+python -m app.preflight --dataset /workspace/datasets/kurum.yaml
+python -m app.ingestion.ingest --dataset /workspace/datasets/kurum.yaml
+```
+
+Kesilen veya failed olmuş aynı manifest-hash run'ını chunk ledger üzerinden
+devam ettirmek için:
+
+```bash
+python -m app.ingestion.ingest --dataset /workspace/datasets/kurum.yaml --resume
+```
+
+`--resume`, tamamlanmış chunk'ları decode etmez; incomplete chunk için yalnız
+aynı inactive run/chunk satırlarını temizleyip yeniden yazar. Run raporu
+`artifacts/faz11/ingest_runs/<run_id>/report.json`, satır/video hataları aynı
+dizindeki `errors.jsonl` dosyasındadır. Legacy yollar korunur:
+
+```bash
+python -m app.ingestion.ingest --dataset-id auair
+python -m app.ingestion.load_dataset --dataset auair
+```
+
 ## Teardown
 
 ```bash
