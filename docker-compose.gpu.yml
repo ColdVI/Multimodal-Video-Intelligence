@@ -3,12 +3,19 @@ services:
     build:
       context: .
       dockerfile: service/Dockerfile.gpu
+      args:
+        CUDA_IMAGE_TAG: ${CUDA_IMAGE_TAG:-12.1.1-runtime-ubuntu22.04}
     environment:
       EMBEDDING_MODE: real
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      MODEL_BUNDLE_ROOT: /opt/mvi-model-bundle
+      QWEN_REPO_PATH: /opt/Qwen3-VL-Embedding
+      QWEN_MODEL_PATH: /models/Qwen3-VL-Embedding-2B
+      QWEN_MODEL_ID: Qwen/Qwen3-VL-Embedding-2B
+      QWEN_MODEL_REVISION: 9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda
+      QWEN_SOURCE_COMMIT: 393e2978d27852b0d0230d6994f37f9c15bed73c
+      ATTN_IMPL: ${ATTN_IMPL:-sdpa}
+    volumes:
+      - ${MODEL_BUNDLE_ROOT:?MODEL_BUNDLE_ROOT must be set}:/opt/mvi-model-bundle:ro
+      - ${MODEL_BUNDLE_ROOT:?MODEL_BUNDLE_ROOT must be set}/source:/opt/Qwen3-VL-Embedding:ro
+      - ${MODEL_BUNDLE_ROOT:?MODEL_BUNDLE_ROOT must be set}/model:/models/Qwen3-VL-Embedding-2B:ro
+    gpus: all

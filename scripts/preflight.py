@@ -56,6 +56,9 @@ def run_host_preflight(dataset: Path, env_file: Path) -> dict[str, Any]:
     checks.append(_host_check("compose_v2", "configuration", compose_ok, compose_detail))
     gpu_ok, gpu_detail = _command(["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"])
     checks.append(_host_check("nvidia_driver", "gpu", gpu_ok, gpu_detail))
+    toolkit_ok, toolkit_detail = _command(["docker", "info", "--format", "{{json .Runtimes}}"])
+    toolkit_ok = toolkit_ok and "nvidia" in toolkit_detail.lower()
+    checks.append(_host_check("nvidia_container_toolkit", "gpu", toolkit_ok, toolkit_detail))
 
     required_env = ("POSTGRES_PASSWORD", "CLICKHOUSE_PASSWORD", "DATA_ROOT", "MODEL_BUNDLE_ROOT", "CUDA_IMAGE_TAG")
     missing = [name for name in required_env if not env.get(name) or env[name].startswith("CHANGE_ME")]
@@ -78,6 +81,16 @@ def run_host_preflight(dataset: Path, env_file: Path) -> dict[str, Any]:
     compose_command = ["docker", "compose", "--env-file", str(env_file), "config"]
     compose_config_ok, compose_config_detail = _command(compose_command)
     checks.append(_host_check("compose_config", "configuration", compose_config_ok, compose_config_detail))
+    cuda_tag = env.get("CUDA_IMAGE_TAG", "12.1.1-runtime-ubuntu22.04")
+    cuda_image = f"nvidia/cuda:{cuda_tag}"
+    container_gpu_ok, container_gpu_detail = _command([
+        "docker", "run", "--rm", "--gpus", "all", cuda_image,
+        "nvidia-smi", "--query-gpu=name", "--format=csv,noheader",
+    ])
+    checks.append(_host_check(
+        "cuda_container_gpu", "gpu", container_gpu_ok,
+        f"image={cuda_image}; {container_gpu_detail}",
+    ))
 
     try:
         configured = Settings.from_env(env)
@@ -129,14 +142,27 @@ def main() -> int:
     parser.add_argument("--dataset", required=True, type=Path)
     parser.add_argument("--env-file", type=Path, default=REPO_ROOT / ".env")
     parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--not-run-reason", help="mark an acceptance artifact not_run while retaining observed checks")
+    parser.add_argument("--required-command")
+    parser.add_argument("--expected-environment")
     args = parser.parse_args()
     report = run_host_preflight(args.dataset.resolve(), args.env_file.resolve())
+    observed_report = report
+    if args.not_run_reason:
+        report = {
+            **report,
+            "status": "not_run",
+            "reason": args.not_run_reason,
+            "required_command": args.required_command,
+            "expected_environment": args.expected_environment,
+            "observed_preflight_status": observed_report["status"],
+        }
     payload = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(payload, encoding="utf-8")
     print(payload, end="")
-    return _combined_exit_code(report)
+    return _combined_exit_code(observed_report)
 
 
 if __name__ == "__main__":

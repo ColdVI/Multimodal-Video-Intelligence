@@ -1,12 +1,8 @@
 {
   "schema_version": 1,
   "status": "not_run",
-  "reason": "Template manifest contract was exercised, but no real institution videos, telemetry, NVIDIA runtime, credentials, or model bundle are available on this host.",
-  "required_command": "python scripts/preflight.py --dataset datasets/kurum.yaml --env-file .env --json-out artifacts/faz11/preflight.json",
-  "expected_environment": "Configured institution DATA_ROOT and model bundle, non-placeholder credentials, Docker Compose v2, NVIDIA driver and NVIDIA Container Toolkit.",
-  "observed_template_preflight_status": "fail",
-  "generated_at_utc": "2026-07-30T20:05:40.137574+00:00",
-  "git_sha": "15376b6b9db3ee1b7d64fc862cebf9d419650907",
+  "generated_at_utc": "2026-07-30T20:25:48.931246+00:00",
+  "git_sha": "e51a149eb9a4fa469090e73e8ca68f4f83dd6671",
   "environment": {
     "platform": "darwin",
     "python": "3.13.1",
@@ -41,6 +37,12 @@
       "detail": "FileNotFoundError: [Errno 2] No such file or directory: 'nvidia-smi'"
     },
     {
+      "check_id": "nvidia_container_toolkit",
+      "category": "gpu",
+      "status": "fail",
+      "detail": "null"
+    },
+    {
       "check_id": "required_env",
       "category": "configuration",
       "status": "fail",
@@ -68,13 +70,19 @@
       "check_id": "disk_space",
       "category": "resources",
       "status": "pass",
-      "detail": "free_bytes=21836746752"
+      "detail": "free_bytes=21723213824"
     },
     {
       "check_id": "compose_config",
       "category": "configuration",
       "status": "pass",
       "detail": "name: multimodal-video-intelligence"
+    },
+    {
+      "check_id": "cuda_container_gpu",
+      "category": "gpu",
+      "status": "fail",
+      "detail": "image=nvidia/cuda:12.1.1-runtime-ubuntu22.04; docker: Cannot connect to the Docker daemon at unix:///Users/anil/.docker/run/docker.sock. Is the docker daemon running?"
     },
     {
       "check_id": "manifest",
@@ -134,13 +142,19 @@
       "check_id": "model_bundle",
       "category": "model",
       "status": "not_run",
-      "detail": "model/source hash and Qwen import checks are activated by Faz 11 Aşama 4"
+      "detail": "bundle missing at CHANGE_ME_MODEL_BUNDLE_ROOT; required_for_mode=False"
+    },
+    {
+      "check_id": "qwen_import",
+      "category": "model",
+      "status": "not_run",
+      "detail": "Qwen import cannot be checked without a verified bundle"
     }
   ],
   "data_preflight": {
     "schema_version": 1,
     "status": "fail",
-    "generated_at_utc": "2026-07-30T20:05:40.119160+00:00",
+    "generated_at_utc": "2026-07-30T20:25:48.916203+00:00",
     "dataset_id": "kurum_ucuslari",
     "manifest_hash": "ab257518abc5dbca7fe9ac83cda3e1afa5a8290ac8c64aa9d2d40de450dfd55b",
     "video_count": 0,
@@ -210,8 +224,18 @@
         "check_id": "model_bundle",
         "category": "model",
         "status": "not_run",
-        "detail": "model/source hash and Qwen import checks are activated by Faz 11 Aşama 4"
+        "detail": "bundle missing at CHANGE_ME_MODEL_BUNDLE_ROOT; required_for_mode=False"
+      },
+      {
+        "check_id": "qwen_import",
+        "category": "model",
+        "status": "not_run",
+        "detail": "Qwen import cannot be checked without a verified bundle"
       }
     ]
-  }
+  },
+  "reason": "Template manifest contract was exercised, but no real institution videos, telemetry, NVIDIA runtime, credentials, or verified model bundle are available on this host.",
+  "required_command": "python scripts/preflight.py --dataset datasets/kurum.yaml --env-file .env --json-out artifacts/faz11/preflight.json",
+  "expected_environment": "Configured institution DATA_ROOT and verified model bundle, non-placeholder credentials, Docker Compose v2, NVIDIA driver and NVIDIA Container Toolkit.",
+  "observed_preflight_status": "fail"
 }

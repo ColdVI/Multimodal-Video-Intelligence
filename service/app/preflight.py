@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import importlib
 import json
 import math
 import os
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -224,11 +226,53 @@ def run_data_preflight(
         "artifacts_access", "configuration", configured.artifacts_root.exists() and os.access(configured.artifacts_root, os.W_OK),
         f"path={configured.artifacts_root}; exists={configured.artifacts_root.exists()}",
     ))
-    checks.append(PreflightCheck(
-        "model_bundle", "model", "not_run",
-        "model/source hash and Qwen import checks are activated by Faz 11 Aşama 4",
-    ))
+    _append_model_checks(checks, configured)
     return _report(manifest, configured, checks, pairs, estimated_segments)
+
+
+def _append_model_checks(checks: list[PreflightCheck], configured: Settings) -> None:
+    requires_model = configured.embedding_mode in {"real", "hybrid_text"}
+    bundle_root = configured.model_bundle_root.expanduser()
+    if not bundle_root.is_dir():
+        status = "fail" if requires_model else "not_run"
+        checks.append(PreflightCheck(
+            "model_bundle", "model", status,
+            f"bundle missing at {bundle_root}; required_for_mode={requires_model}",
+        ))
+        checks.append(PreflightCheck(
+            "qwen_import", "model", status,
+            "Qwen import cannot be checked without a verified bundle",
+        ))
+        return
+    try:
+        from app.embedding.bundle import verify_bundle
+
+        manifest = verify_bundle(
+            bundle_root,
+            expected_model_id=configured.qwen_model_id,
+            expected_model_revision=configured.qwen_model_revision,
+            expected_source_commit=configured.qwen_source_commit,
+        )
+        checks.append(_check(
+            "model_bundle", "model", True,
+            f"verified_bytes={manifest['total_size_bytes']}; source_commit={manifest['source_commit']}",
+        ))
+    except Exception as exc:
+        checks.append(_check("model_bundle", "model", False, f"{type(exc).__name__}: {exc}"))
+        checks.append(PreflightCheck("qwen_import", "model", "not_run", "bundle verification failed"))
+        return
+    repo_path = configured.qwen_repo_path
+    if not repo_path.is_dir() and (bundle_root / "source").is_dir():
+        repo_path = bundle_root / "source"
+    try:
+        if str(repo_path) not in sys.path:
+            sys.path.insert(0, str(repo_path))
+        module = importlib.import_module("src.models.qwen3_vl_embedding")
+        checks.append(_check(
+            "qwen_import", "model", hasattr(module, "Qwen3VLEmbedder"), f"repo_path={repo_path}",
+        ))
+    except Exception as exc:
+        checks.append(_check("qwen_import", "model", False, f"{type(exc).__name__}: {exc}"))
 
 
 def _report(

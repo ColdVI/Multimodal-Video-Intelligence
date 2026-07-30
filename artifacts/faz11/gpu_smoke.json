@@ -1,0 +1,20 @@
+{
+  "cuda_runtime": null,
+  "driver_version": null,
+  "embed_batch_size": 2,
+  "embedding_dimension": 2048,
+  "expected_environment": "Linux host with NVIDIA GPU/runtime and verified Qwen bundle",
+  "generated_at_utc": "2026-07-30T20:23:02.268178+00:00",
+  "git_sha": "e51a149eb9a4fa469090e73e8ca68f4f83dd6671",
+  "gpu_name": null,
+  "model_id": "Qwen/Qwen3-VL-Embedding-2B",
+  "model_revision": "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda",
+  "reason": "CUDA GPU is unavailable",
+  "required_command": "python scripts/gpu_smoke.py --dataset datasets/example_uav.yaml --data-root data --output artifacts/faz11/gpu_smoke.json --windows 10",
+  "result": "not_run",
+  "schema_version": 1,
+  "source_commit": "393e2978d27852b0d0230d6994f37f9c15bed73c",
+  "status": "not_run",
+  "torch_version": "2.13.0",
+  "windows_embedded": 0
+}

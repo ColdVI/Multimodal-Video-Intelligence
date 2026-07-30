@@ -77,12 +77,23 @@ Bilinmeyen sorgu sentetik vektöre sessizce düşmez.
 NVIDIA Container Toolkit bulunan makinede:
 
 ```bash
-docker compose -f docker-compose.faz7.yml -f docker-compose.gpu.yml up -d --build
+cp .env.example .env
+# Secret'ları ve MODEL_BUNDLE_ROOT'u gerçek değerlerle değiştir.
+python scripts/prepare_model_bundle.py \
+  --model-id Qwen/Qwen3-VL-Embedding-2B \
+  --model-revision 9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda \
+  --source-repo https://github.com/QwenLM/Qwen3-VL-Embedding.git \
+  --source-commit 393e2978d27852b0d0230d6994f37f9c15bed73c \
+  --bundle-root /opt/mvi-model-bundle
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+python scripts/gpu_smoke.py --dataset datasets/kurum.yaml --data-root /kurum/data \
+  --output artifacts/faz11/gpu_smoke.json --windows 10
 ```
+
+Bundle manifest ve tam offline kapsamı için `docs/MODEL_BUNDLE.md` esas alınır.
 
 ## Teardown
 
 ```bash
 docker compose -f docker-compose.faz7.yml down
-# Verileri de silmek açıkça isteniyorsa ayrıca: docker compose -f docker-compose.faz7.yml down -v
 ```

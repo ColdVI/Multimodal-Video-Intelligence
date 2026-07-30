@@ -12,6 +12,7 @@ DIMENSIONS = (2048, 1024, 512, 256)
 VECTOR_BACKENDS = ("clickhouse", "qdrant", "pgvector")
 EMBEDDING_MODES = {"real", "cached", "hybrid_text", "synthetic"}
 FILTER_EXECUTION_MODES = {"pushdown", "legacy_candidate_ids"}
+ATTENTION_IMPLEMENTATIONS = {"sdpa", "flash_attention_2"}
 
 
 def capera_protocol() -> dict[str, object]:
@@ -101,6 +102,8 @@ class Settings:
     qwen_model_id: str
     qwen_model_revision: str
     qwen_source_commit: str
+    model_bundle_root: Path
+    attn_impl: str
     qwen_text_warm_limit_s: float
     qwen_text_warm_runs: int
 
@@ -138,7 +141,11 @@ class Settings:
             qwen_model_path=Path(values.get("QWEN_MODEL_PATH", "/models/Qwen3-VL-Embedding-2B")),
             qwen_model_id=values.get("QWEN_MODEL_ID", "Qwen/Qwen3-VL-Embedding-2B"),
             qwen_model_revision=values.get("QWEN_MODEL_REVISION", "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda"),
-            qwen_source_commit=values.get("QWEN_SOURCE_COMMIT", ""),
+            qwen_source_commit=values.get(
+                "QWEN_SOURCE_COMMIT", "393e2978d27852b0d0230d6994f37f9c15bed73c"
+            ),
+            model_bundle_root=Path(values.get("MODEL_BUNDLE_ROOT", "/opt/mvi-model-bundle")),
+            attn_impl=values.get("ATTN_IMPL", "sdpa").lower(),
             qwen_text_warm_limit_s=_float(values, "QWEN_TEXT_WARM_LIMIT_S", 10.0),
             qwen_text_warm_runs=_int(values, "QWEN_TEXT_WARM_RUNS", 3),
         )
@@ -157,6 +164,8 @@ class Settings:
             raise ValueError(f"unsupported ENABLED_DIMENSIONS: {unknown_dimensions}; maximum Qwen dimension is 2048")
         if self.filter_execution_mode not in FILTER_EXECUTION_MODES:
             raise ValueError(f"FILTER_EXECUTION_MODE must be one of {sorted(FILTER_EXECUTION_MODES)}")
+        if self.attn_impl not in ATTENTION_IMPLEMENTATIONS:
+            raise ValueError(f"ATTN_IMPL must be one of {sorted(ATTENTION_IMPLEMENTATIONS)}")
         if self.legacy_candidate_limit < 1:
             raise ValueError("LEGACY_CANDIDATE_LIMIT must be positive")
         if self.decode_chunk_s <= 0:

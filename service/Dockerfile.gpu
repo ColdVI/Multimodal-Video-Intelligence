@@ -1,13 +1,20 @@
-FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+ARG CUDA_IMAGE_TAG=12.1.1-runtime-ubuntu22.04
+FROM nvidia/cuda:${CUDA_IMAGE_TAG}
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3.10 python3-pip git ffmpeg build-essential && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg build-essential \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY service/requirements.txt service/requirements-real.txt ./
-RUN python3 -m pip install --no-cache-dir --upgrade pip && python3 -m pip install --no-cache-dir -r requirements-real.txt
-RUN git clone --depth 1 https://github.com/QwenLM/Qwen3-VL-Embedding.git /opt/Qwen3-VL-Embedding
-RUN hf download Qwen/Qwen3-VL-Embedding-2B --local-dir /opt/Qwen3-VL-Embedding/models/Qwen3-VL-Embedding-2B
-RUN python3 -m pip uninstall -y torchaudio
+RUN python3 -m pip install --no-cache-dir --upgrade pip \
+    && python3 -m pip install --no-cache-dir -r requirements-real.txt \
+    && python3 -m pip uninstall -y torchaudio
+
+# Qwen source and weights are never downloaded while building this image.
+# docker-compose.gpu.yml mounts the separately verified bundle read-only.
 COPY service/app ./app
+COPY scripts/gpu_smoke.py ./scripts/gpu_smoke.py
 COPY dataset_adapters ./dataset_adapters
 COPY common.py config.yaml ./
 EXPOSE 8000

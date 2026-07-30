@@ -146,3 +146,17 @@
   şema/kod değişikliği: doğrulaması için gerçek CapERA embedding'i gerekmiyor,
   yalnızca canlı auair verisiyle test edilebiliyor. Amaç, Colab ZIP'i geldiğinde
   §3.2-§3.8'e doğrudan geçebilmek.
+
+## Faz 11 Aşama 4 decisions
+
+- 2026-07-30 — Qwen resmi kaynak `HEAD` değeri doğrudan `git ls-remote` ile
+  `393e2978d27852b0d0230d6994f37f9c15bed73c` olarak çözüldü ve mutable branch
+  yerine env, Compose, script ve dokümanlarda sabitlendi. Model revision promptun
+  verdiği `9f2f7e...7bda` değeridir.
+- 2026-07-30 — CUDA image build'i kaynak/model indirmez. Bundle ayrı hazırlanır,
+  dosya bazında SHA-256 doğrulanır ve read-only mount edilir. Bu yalnız model
+  taşınabilirliğini sağlar; base image, wheel ve NVIDIA runtime ayrıca
+  provision edilmeden tam air-gap iddiası kurulmaz.
+- 2026-07-30 — Gerçek video batch'i tek `Qwen3VLEmbedder.process()` çağrısıdır;
+  adaptör `[batch,2048]` finite float32 ve L2 normunu fail-closed doğrular.
+  GPU yokken sentetik/cached fallback yapılmaz; smoke sonucu `not_run` olur.

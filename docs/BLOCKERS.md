@@ -9,8 +9,11 @@
   `docker compose --env-file .env up -d --build` ve ardından
   `docker compose exec -T api python -m app.ingestion.load_dataset --dataset auair`.
 - **GPU acceptance NOT RUN:** bu macOS/arm64 ortamında `nvidia-smi` bulunmuyor.
-  Qwen GPU smoke, gerçek video throughput ve peak VRAM değeri üretilmedi.
-  NVIDIA kurum makinesinde Faz 11 GPU smoke runner'ı çalıştırılmalıdır.
+  Qwen GPU smoke gerçek komutla çalıştırıldı ve
+  `artifacts/faz11/gpu_smoke.json` içinde `status=not_run` yazdı; gerçek video
+  throughput ve peak VRAM değeri uydurulmadı. Verified bundle ve kurum manifesti
+  bulunan NVIDIA Linux makinesinde:
+  `PYTHONPATH=service python scripts/gpu_smoke.py --dataset datasets/kurum.yaml --data-root /kurum/data --output artifacts/faz11/gpu_smoke.json --windows 10`.
 - **CapERA data acceptance NOT RUN:** güncel çalışma ağacında
   `data/downloads/capera/CapERA_DATASET_train.json` ve
   `artifacts/embeddings/capera_2048.npy` yok. Data-dependent service testleri
