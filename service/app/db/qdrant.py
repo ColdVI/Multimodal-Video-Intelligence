@@ -32,7 +32,7 @@ def health() -> bool:
         return False
 
 
-def init_schema() -> None:
+def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
     from qdrant_client import models
 
     target = client()
@@ -44,7 +44,7 @@ def init_schema() -> None:
         "gimbal_pitch": models.PayloadSchemaType.FLOAT,
         "person_count": models.PayloadSchemaType.INTEGER,
     }
-    for dimension in DIMENSIONS:
+    for dimension in dimensions:
         name = collection_name(dimension)
         if not target.collection_exists(name):
             target.create_collection(

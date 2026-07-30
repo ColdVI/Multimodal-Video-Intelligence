@@ -8,7 +8,6 @@ from app.search.strategies import pgvector_session_settings
 
 
 SCHEMA_SQL = """
-CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS datasets (
   dataset_id text PRIMARY KEY, dataset_version text, source_hash text,
   license text, has_telemetry boolean NOT NULL, has_captions boolean NOT NULL,
@@ -42,11 +41,6 @@ CREATE TABLE IF NOT EXISTS retrieval_groundtruth (
   relevance_rank int NOT NULL, caption_index int, caption_source text NOT NULL,
   PRIMARY KEY (dataset_id,query_id,relevant_segment_id)
 );
-CREATE TABLE IF NOT EXISTS emb_pg_2048 (segment_id text PRIMARY KEY, dataset_id text, v halfvec(2048));
-CREATE TABLE IF NOT EXISTS emb_pg_1024 (segment_id text PRIMARY KEY, dataset_id text, v vector(1024));
-CREATE TABLE IF NOT EXISTS emb_pg_1024h(segment_id text PRIMARY KEY, dataset_id text, v halfvec(1024));
-CREATE TABLE IF NOT EXISTS emb_pg_512  (segment_id text PRIMARY KEY, dataset_id text, v vector(512));
-CREATE TABLE IF NOT EXISTS emb_pg_256  (segment_id text PRIMARY KEY, dataset_id text, v vector(256));
 CREATE INDEX IF NOT EXISTS ix_seg_ds ON segments(dataset_id);
 CREATE INDEX IF NOT EXISTS ix_seg_video ON segments(dataset_id, video_id);
 CREATE INDEX IF NOT EXISTS ix_tel_alt ON segment_telemetry(altitude_m);
@@ -98,11 +92,17 @@ def health() -> bool:
         return False
 
 
-def schema_status() -> dict[str, bool]:
+def schema_status(
+    *, dimensions: tuple[int, ...] = DIMENSIONS, include_vectors: bool = True,
+) -> dict[str, bool]:
     required = {
         "datasets", "videos", "segments", "segment_metadata", "segment_telemetry",
-        "retrieval_groundtruth", *[table for table, _ in VECTOR_TABLES.values()],
+        "retrieval_groundtruth",
     }
+    if include_vectors:
+        required.update(VECTOR_TABLES[dimension][0] for dimension in dimensions)
+        if 1024 in dimensions:
+            required.add("emb_pg_1024h")
     try:
         with connection() as conn, conn.cursor() as cur:
             cur.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'")
@@ -140,9 +140,24 @@ def groundtruth_stats(dataset_id: str) -> dict[str, Any]:
     }
 
 
-def init_schema() -> None:
+def init_schema(
+    *, dimensions: tuple[int, ...] = DIMENSIONS, include_vectors: bool = True,
+) -> None:
     with connection() as conn, conn.cursor() as cur:
         cur.execute(SCHEMA_SQL)
+        if include_vectors:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            for dimension in dimensions:
+                table, vector_type = VECTOR_TABLES[dimension]
+                cur.execute(
+                    f"CREATE TABLE IF NOT EXISTS {table} ("
+                    f"segment_id text PRIMARY KEY, dataset_id text, v {vector_type}({dimension}))"
+                )
+                if dimension == 1024:
+                    cur.execute(
+                        "CREATE TABLE IF NOT EXISTS emb_pg_1024h ("
+                        "segment_id text PRIMARY KEY, dataset_id text, v halfvec(1024))"
+                    )
         conn.commit()
 
 
@@ -243,17 +258,20 @@ def upsert_vectors(dimension: int, rows: Iterable[tuple[str, str, list[float]]],
         conn.commit()
 
 
-def create_vector_indexes() -> None:
-    statements = (
-        "CREATE INDEX IF NOT EXISTS ix_pg_2048_hnsw ON emb_pg_2048 USING hnsw (v halfvec_cosine_ops) WITH (m=16, ef_construction=128)",
-        "CREATE INDEX IF NOT EXISTS ix_pg_1024_hnsw ON emb_pg_1024 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
-        "CREATE INDEX IF NOT EXISTS ix_pg_1024h_hnsw ON emb_pg_1024h USING hnsw (v halfvec_cosine_ops) WITH (m=16, ef_construction=128)",
-        "CREATE INDEX IF NOT EXISTS ix_pg_512_hnsw ON emb_pg_512 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
-        "CREATE INDEX IF NOT EXISTS ix_pg_256_hnsw ON emb_pg_256 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
-    )
+def create_vector_indexes(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
+    statements_by_dimension = {
+        2048: ("CREATE INDEX IF NOT EXISTS ix_pg_2048_hnsw ON emb_pg_2048 USING hnsw (v halfvec_cosine_ops) WITH (m=16, ef_construction=128)",),
+        1024: (
+            "CREATE INDEX IF NOT EXISTS ix_pg_1024_hnsw ON emb_pg_1024 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",
+            "CREATE INDEX IF NOT EXISTS ix_pg_1024h_hnsw ON emb_pg_1024h USING hnsw (v halfvec_cosine_ops) WITH (m=16, ef_construction=128)",
+        ),
+        512: ("CREATE INDEX IF NOT EXISTS ix_pg_512_hnsw ON emb_pg_512 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",),
+        256: ("CREATE INDEX IF NOT EXISTS ix_pg_256_hnsw ON emb_pg_256 USING hnsw (v vector_cosine_ops) WITH (m=16, ef_construction=128)",),
+    }
     with connection() as conn, conn.cursor() as cur:
-        for statement in statements:
-            cur.execute(statement)
+        for dimension in dimensions:
+            for statement in statements_by_dimension[dimension]:
+                cur.execute(statement)
         conn.commit()
 
 
@@ -346,7 +364,9 @@ def hydrate(segment_ids: list[str]) -> list[dict[str, Any]]:
             return [dict(row) for row in cur.fetchall()]
 
 
-def stats() -> list[dict[str, Any]]:
+def stats(
+    *, dimensions: tuple[int, ...] = DIMENSIONS, include_pgvector: bool = True,
+) -> list[dict[str, Any]]:
     with connection() as conn:
         _, extras = _driver()
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
@@ -358,17 +378,26 @@ def stats() -> list[dict[str, Any]]:
             )
             datasets = [dict(row) for row in cur.fetchall()]
             for item in datasets:
-                counts = {}
-                for dimension, (table, _) in VECTOR_TABLES.items():
-                    cur.execute(f"SELECT count(*)::int AS n FROM {table} WHERE dataset_id=%s", (item["dataset_id"],))
-                    counts[str(dimension)] = cur.fetchone()["n"]
-                item["pgvector"] = counts
+                if include_pgvector:
+                    counts = {}
+                    for dimension in dimensions:
+                        table, _ = VECTOR_TABLES[dimension]
+                        cur.execute(f"SELECT count(*)::int AS n FROM {table} WHERE dataset_id=%s", (item["dataset_id"],))
+                        counts[str(dimension)] = cur.fetchone()["n"]
+                    item["pgvector"] = counts
                 cur.execute(
                     "SELECT count(*)::int AS n FROM retrieval_groundtruth WHERE dataset_id=%s",
                     (item["dataset_id"],),
                 )
                 item["groundtruth"] = cur.fetchone()["n"]
             return datasets
+
+
+def table_count(dataset_id: str, dimension: int) -> int:
+    table, _ = VECTOR_TABLES[dimension]
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(f"SELECT count(*)::int FROM {table} WHERE dataset_id=%s", (dataset_id,))
+        return int(cur.fetchone()[0])
 
 
 def facets(dataset_id: str) -> dict[str, Any]:

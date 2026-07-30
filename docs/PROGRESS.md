@@ -5,6 +5,7 @@
 | Date | Stage | Result | Evidence |
 |---|---|---|---|
 | 2026-07-30 | Aşama 0 baseline | Başlangıç SHA/dirty state, root ve service testleri, 192 Python dosyasının syntax kontrolü ve iki mevcut Compose config'i kaydedildi. Root test ortamında eksik `clickhouse_connect`; service koşumunda absent CapERA verisine eager bağlanan iki test açıkça başarısız. | `artifacts/faz11/baseline.json`, `docs/PORTABILITY_AUDIT.md` |
+| 2026-07-30 | Aşama 1 profiles | Kurum defaultu ClickHouse/512/pushdown, benchmark override üç backend/dört boyut, lazy CapERA config, enabled-only health/stats/strategies/schema/ingest, loopback bind, internal DB ports ve boş-secret fail-fast eklendi. | Root `307 passed, 42 skipped`; service `52 passed, 17 skipped`; üç Compose config PASS; Docker daemon kapalı olduğundan canlı AU-AIR smoke NOT RUN. |
 
 ## Faz 8 progress
 

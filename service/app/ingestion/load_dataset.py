@@ -15,6 +15,7 @@ import pandas as pd
 
 from app.config import DIMENSIONS, settings
 from app.db import clickhouse, postgres, qdrant
+from app.db.registry import initialize_enabled_backends
 from app.embedding.router import embed_item
 from app.mrl import truncate_and_normalize
 
@@ -265,11 +266,14 @@ def load_capera_bundle() -> DatasetBundle:
 LOADERS = {"auair": load_auair_bundle, "capera": load_capera_bundle, "seadronessee": load_seadronessee_bundle}
 
 
-def _build_vectors(bundle: DatasetBundle) -> dict[int, list[dict[str, Any]]]:
-    result = {dimension: [] for dimension in DIMENSIONS}
+def _build_vectors(
+    bundle: DatasetBundle,
+    dimensions: tuple[int, ...] = DIMENSIONS,
+) -> dict[int, list[dict[str, Any]]]:
+    result = {dimension: [] for dimension in dimensions}
     for payload in bundle.vector_payload:
         base = embed_item(payload["segment_id"], 2048, dataset_id=payload["dataset_id"])
-        for dimension in DIMENSIONS:
+        for dimension in dimensions:
             vector = base if dimension == 2048 else truncate_and_normalize(base, dimension)
             if not np.isfinite(vector).all() or not np.isclose(np.linalg.norm(vector), 1.0, atol=1e-5):
                 raise AssertionError(f"invalid {dimension}d embedding for {payload['segment_id']}")
@@ -326,9 +330,8 @@ def _write_report(rows: list[dict[str, Any]]) -> None:
 def ingest(dataset_id: str) -> dict[str, Any]:
     if dataset_id not in LOADERS:
         raise ValueError(f"unsupported dataset: {dataset_id}")
-    postgres.init_schema()
-    clickhouse.init_schema()
-    qdrant.init_schema()
+    postgres.init_schema(include_vectors=False)
+    initialize_enabled_backends()
     bundle = LOADERS[dataset_id]()
     started = time.perf_counter()
     provenance = "synthetic" if settings.embedding_mode == "synthetic" else "real"
@@ -336,41 +339,46 @@ def ingest(dataset_id: str) -> dict[str, Any]:
         (*bundle.dataset, provenance), bundle.videos, bundle.segments, bundle.metadata,
         bundle.telemetry, bundle.groundtruth,
     )
-    vectors = _build_vectors(bundle)
+    vectors = _build_vectors(bundle, settings.enabled_dimensions)
     report: list[dict[str, Any]] = []
     for dimension, rows in vectors.items():
-        backend_started = time.perf_counter()
         triples = [(row["segment_id"], dataset_id, row["embedding"]) for row in rows]
-        postgres.upsert_vectors(dimension, triples)
-        if dimension == 1024:
-            postgres.upsert_vectors(dimension, triples, half_1024=True)
-        report.append({
-            "dataset_id": dataset_id, "dimension": dimension, "backend": "pgvector",
-            "row_count": len(rows), "elapsed_s": round(time.perf_counter() - backend_started, 6),
-            "storage_mb": None, "embedding_mode": settings.embedding_mode,
-        })
-        backend_started = time.perf_counter()
-        clickhouse.replace_vectors(dataset_id, dimension, _clickhouse_rows(rows))
-        report.append({
-            "dataset_id": dataset_id, "dimension": dimension, "backend": "clickhouse",
-            "row_count": len(rows), "elapsed_s": round(time.perf_counter() - backend_started, 6),
-            "storage_mb": round(clickhouse.storage_mb(dimension), 6), "embedding_mode": settings.embedding_mode,
-        })
-        backend_started = time.perf_counter()
-        qdrant.replace_vectors(dataset_id, dimension, rows)
-        report.append({
-            "dataset_id": dataset_id, "dimension": dimension, "backend": "qdrant",
-            "row_count": len(rows), "elapsed_s": round(time.perf_counter() - backend_started, 6),
-            "storage_mb": None, "embedding_mode": settings.embedding_mode,
-        })
-    postgres.create_vector_indexes()
+        if "pgvector" in settings.enabled_vector_backends:
+            backend_started = time.perf_counter()
+            postgres.upsert_vectors(dimension, triples)
+            if dimension == 1024:
+                postgres.upsert_vectors(dimension, triples, half_1024=True)
+            report.append({
+                "dataset_id": dataset_id, "dimension": dimension, "backend": "pgvector",
+                "row_count": len(rows), "elapsed_s": round(time.perf_counter() - backend_started, 6),
+                "storage_mb": None, "embedding_mode": settings.embedding_mode,
+            })
+        if "clickhouse" in settings.enabled_vector_backends:
+            backend_started = time.perf_counter()
+            clickhouse.replace_vectors(dataset_id, dimension, _clickhouse_rows(rows))
+            report.append({
+                "dataset_id": dataset_id, "dimension": dimension, "backend": "clickhouse",
+                "row_count": len(rows), "elapsed_s": round(time.perf_counter() - backend_started, 6),
+                "storage_mb": round(clickhouse.storage_mb(dimension), 6), "embedding_mode": settings.embedding_mode,
+            })
+        if "qdrant" in settings.enabled_vector_backends:
+            backend_started = time.perf_counter()
+            qdrant.replace_vectors(dataset_id, dimension, rows)
+            report.append({
+                "dataset_id": dataset_id, "dimension": dimension, "backend": "qdrant",
+                "row_count": len(rows), "elapsed_s": round(time.perf_counter() - backend_started, 6),
+                "storage_mb": None, "embedding_mode": settings.embedding_mode,
+            })
+    if "pgvector" in settings.enabled_vector_backends:
+        postgres.create_vector_indexes(settings.enabled_dimensions)
     _write_quantiles(dataset_id, bundle.quantile_frame)
     _write_report(report)
     return {
         "dataset_id": dataset_id,
         "segments": len(bundle.segments),
         "groundtruth": len(bundle.groundtruth),
-        "dimensions": list(DIMENSIONS),
+        "dimensions": list(settings.enabled_dimensions),
+        "backends": list(settings.enabled_vector_backends),
         "embedding_mode": settings.embedding_mode,
         "elapsed_s": round(time.perf_counter() - started, 6),
     }

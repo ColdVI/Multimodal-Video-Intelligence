@@ -1,5 +1,23 @@
 # Faz 7 blokerleri
 
+## Faz 11 current environment blockers
+
+- **Canlı container smoke NOT RUN:** 30 Temmuz 2026 doğrulamasında Docker
+  daemon'a `unix:///Users/anil/.docker/run/docker.sock` üzerinden bağlanılamadı.
+  Compose parse kontrolleri geçti; hiçbir canlı DB/API sonucu üretilmedi.
+  Docker Desktop/Engine başladıktan sonra kurum profili için:
+  `docker compose --env-file .env up -d --build` ve ardından
+  `docker compose exec -T api python -m app.ingestion.load_dataset --dataset auair`.
+- **GPU acceptance NOT RUN:** bu macOS/arm64 ortamında `nvidia-smi` bulunmuyor.
+  Qwen GPU smoke, gerçek video throughput ve peak VRAM değeri üretilmedi.
+  NVIDIA kurum makinesinde Faz 11 GPU smoke runner'ı çalıştırılmalıdır.
+- **CapERA data acceptance NOT RUN:** güncel çalışma ağacında
+  `data/downloads/capera/CapERA_DATASET_train.json` ve
+  `artifacts/embeddings/capera_2048.npy` yok. Data-dependent service testleri
+  yalnız dosyalar yokken açık gerekçeyle skip edilir; dosyalar geldiğinde aynı
+  testler otomatik çalışır. Bu eksiklik kurumun generic manifest yolunu bloke
+  etmez.
+
 ## Faz 8 open blockers
 
 - A1/quality is not ready: Colab-produced real artifacts for 1391 items and

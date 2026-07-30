@@ -1,0 +1,24 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    expose: ["6333", "6334"]
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    environment:
+      ENABLED_VECTOR_BACKENDS: clickhouse,qdrant,pgvector
+      ENABLED_DIMENSIONS: 2048,1024,512,256
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+volumes:
+  qdrant_data:

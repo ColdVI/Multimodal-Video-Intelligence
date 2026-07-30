@@ -27,7 +27,7 @@ def health() -> bool:
         return False
 
 
-def init_schema() -> None:
+def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
     root = client()
     root.command(f"CREATE DATABASE IF NOT EXISTS {settings.ch_db}")
     root.command(
@@ -39,7 +39,7 @@ def init_schema() -> None:
                gimbal_heading Nullable(Float32), extra Map(String, Float64)
              ) ENGINE=MergeTree ORDER BY (dataset_id,video_id,frame_index)"""
     )
-    for dimension in DIMENSIONS:
+    for dimension in dimensions:
         root.command(
             f"""CREATE TABLE IF NOT EXISTS seg_ch_{dimension} (
                    segment_id String, dataset_id LowCardinality(String), video_id String,
@@ -117,4 +117,3 @@ def storage_mb(dimension: int) -> float:
         parameters={"name": f"seg_ch_{dimension}"},
     )
     return float(result.result_rows[0][0] or 0) / 1024**2 if result.result_rows else 0.0
-

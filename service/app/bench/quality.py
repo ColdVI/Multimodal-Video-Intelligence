@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from app.config import CAPERA_PROTOCOL
+from app.config import capera_protocol
 
 
 DIMENSIONS = (2048, 1024, 512, 256)
@@ -117,12 +117,13 @@ def halfvec_quantization_experiment(
 
 
 def evaluate_capera(root: Path, *, n_resamples: int = 10_000) -> dict[str, Any]:
+    protocol = capera_protocol()
     item_vectors = np.load(root / "capera_2048.npy", mmap_mode="r")
     query_vectors = np.load(root / "capera_queries_2048.npy", mmap_mode="r")
     item_ids = pd.read_parquet(root / "capera_ids.parquet")
     query_ids = pd.read_parquet(root / "capera_query_ids.parquet")
-    expected_items = int(CAPERA_PROTOCOL["items"])
-    expected_queries = int(CAPERA_PROTOCOL["queries"])
+    expected_items = int(protocol["items"])
+    expected_queries = int(protocol["queries"])
     if item_vectors.shape != (expected_items, 2048) or query_vectors.shape != (expected_queries, 2048):
         raise ValueError(f"CapERA quality shape contract failed: {item_vectors.shape}/{query_vectors.shape}")
     segment_to_position = {
@@ -169,7 +170,7 @@ def evaluate_capera(root: Path, *, n_resamples: int = 10_000) -> dict[str, Any]:
         for query_id, marker in (("S17", "no people"), ("S18", "no vehicles"), ("S19", "zzzqqq"))
     }
     return {
-        "dataset_id": "capera", "split": CAPERA_PROTOCOL["split"],
+        "dataset_id": "capera", "split": protocol["split"],
         "items": expected_items, "queries": expected_queries,
         "caption_source": "unknown", "by_dimension": by_dimension,
         "paired_video_cluster_bootstrap": comparisons,

@@ -1,5 +1,26 @@
 # Faz 7 kararları
 
+## Faz 11 decisions
+
+- 2026-07-30 — Kurum çalışma yolu kod varsayılanı olarak
+  `clickhouse` + `512` + `pushdown` seçildi; araştırma yüzeyi ayrı
+  `docker-compose.benchmark.yml` override'ında üç backend ve dört MRL boyutuyla
+  korunuyor. Gerekçe: devre dışı servislerin startup/health/schema/ingest
+  maliyetine girmemesi ve eski benchmark kabiliyetinin silinmemesi.
+- 2026-07-30 — PostgreSQL metadata control-plane olarak her profilde başlıyor;
+  pgvector extension/tablo/indexleri yalnız `pgvector` etkinse oluşturuluyor.
+  Böylece kurum profili metadata ilişkilerini korurken kullanılmayan vector
+  schema yüzeyini yaratmıyor.
+- 2026-07-30 — Canonical Compose gerçek secret sağlamıyor: `.env.example`
+  yalnız `CHANGE_ME_*` placeholder'ları içeriyor ve boş PostgreSQL/ClickHouse
+  parolası Compose interpolation aşamasında fail-fast oluyor. Eski Faz 7 dosyası
+  `.env.faz7` akışını compatibility için koruyor; güvenli kurum varsayılanı
+  canonical `docker-compose.yml`.
+- 2026-07-30 — CapERA kalite protokolü import-time global yerine lazy fonksiyon
+  yapıldı. Gerekçe: kurum config'inde `datasets.capera` bulunmaması API import ve
+  startup'ını bozmamalı; CapERA kalite komutu çağrılırsa eksiklik açık hata olarak
+  kalmalı.
+
 ## Faz 8 decisions
 
 - 2026-07-30 - CapERA quality scope is test only: 1391 videos, 5 captions

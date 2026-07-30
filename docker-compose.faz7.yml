@@ -4,12 +4,13 @@ services:
   pg:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    env_file:
+      - path: .env.faz7
+        required: false
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-uav_search}
       POSTGRES_USER: ${POSTGRES_USER:-uav}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uav_local_only}
-    ports:
-      - "5442:5432"
+    expose: ["5432"]
     volumes:
       - faz7_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,16 +22,18 @@ services:
   ch:
     image: clickhouse/clickhouse-server:25.8
     restart: unless-stopped
+    env_file:
+      - path: .env.faz7
+        required: false
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-uav_search}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
-    ports:
-      - "8143:8123"
-      - "9100:9000"
+    expose: ["8123", "9000"]
     volumes:
       - faz7_ch_data:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      test: ["CMD-SHELL", "clickhouse-client --user '$${CLICKHOUSE_USER:-mvi}' --password '$${CLICKHOUSE_PASSWORD}' --query 'SELECT 1'"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -38,9 +41,7 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.12.4
     restart: unless-stopped
-    ports:
-      - "6343:6333"
-      - "6344:6334"
+    expose: ["6333", "6334"]
     volumes:
       - faz7_qdrant_data:/qdrant/storage
     healthcheck:
@@ -63,11 +64,16 @@ services:
       CLICKHOUSE_HOST: ch
       CLICKHOUSE_PORT: 8123
       QDRANT_URL: http://qdrant:6333
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
+      ENABLED_VECTOR_BACKENDS: clickhouse,qdrant,pgvector
+      ENABLED_DIMENSIONS: 2048,1024,512,256
+      FILTER_EXECUTION_MODE: ${FILTER_EXECUTION_MODE:-pushdown}
+      REQUIRE_SECURE_CREDENTIALS: "true"
       ARTIFACTS_ROOT: /workspace/artifacts
       DATA_ROOT: /workspace/data
       EMBEDDING_MODE: ${EMBEDDING_MODE:-synthetic}
     ports:
-      - "8000:8000"
+      - "${BIND_HOST:-127.0.0.1}:8000:8000"
     volumes:
       - ./artifacts:/workspace/artifacts
       - ./data:/workspace/data:ro
@@ -97,7 +103,7 @@ services:
       API_URL: http://api:8000
       EMBEDDING_MODE: ${EMBEDDING_MODE:-synthetic}
     ports:
-      - "7860:7860"
+      - "${BIND_HOST:-127.0.0.1}:7860:7860"
     depends_on:
       api:
         condition: service_healthy
