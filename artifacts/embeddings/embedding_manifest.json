@@ -1,0 +1,19 @@
+{
+  "dataset_id": "capera",
+  "split": "test",
+  "item_count": 1391,
+  "query_count": 6955,
+  "captions_per_item": 5,
+  "caption_source": "unknown",
+  "dimension": 2048,
+  "model_id": "Qwen/Qwen3-VL-Embedding-2B",
+  "model_revision": "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda",
+  "dtype": "torch.bfloat16",
+  "attention_implementation": "sdpa",
+  "gpu_name": "NVIDIA A100-SXM4-40GB",
+  "frames_per_item": 8,
+  "embedding_mode": "real",
+  "item_elapsed_s": 252.93411771499996,
+  "query_elapsed_s": 27.68225457099993,
+  "test_caption_sha256": "c721cbbece865d154ffac6c3d407e406b4b02cd902c23f7cabba21b220c2dec8"
+}

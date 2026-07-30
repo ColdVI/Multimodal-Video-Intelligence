@@ -239,6 +239,24 @@ def _payload(
     top_k: int,
     repeats: int,
 ) -> dict[str, Any]:
+    metadata_filters = {
+        key: value
+        for key, value in {
+            "event_category": event_category,
+            "split": split,
+            "video_id": video_id,
+        }.items()
+        if value not in (None, "")
+    }
+    telemetry_filters = {
+        key: bounds
+        for key, bounds in {
+            "altitude_m": _range(altitude_min, altitude_max),
+            "velocity_mps": _range(velocity_min, velocity_max),
+            "gimbal_pitch": _range(gimbal_min, gimbal_max),
+        }.items()
+        if bounds is not None
+    }
     return {
         "query": query,
         "dataset_id": dataset_id,
@@ -246,12 +264,8 @@ def _payload(
         "strategy": strategy,
         "dimension": int(dimension),
         "adaptive_mrl": {"enabled": adaptive, "base_dim": int(base_dim), "top_n": int(top_n)},
-        "metadata_filters": {"event_category": event_category, "split": split, "video_id": video_id},
-        "telemetry_filters": {
-            "altitude_m": _range(altitude_min, altitude_max),
-            "velocity_mps": _range(velocity_min, velocity_max),
-            "gimbal_pitch": _range(gimbal_min, gimbal_max),
-        },
+        "metadata_filters": metadata_filters,
+        "telemetry_filters": telemetry_filters,
         "pattern": pattern,
         "top_k": int(top_k),
         "repeats": int(repeats),
@@ -451,7 +465,7 @@ with gr.Blocks(title=f"{PRODUCT_NAME} — Faz 9") as demo:
             with gr.Row():
                 with gr.Column(scale=2):
                     dataset = gr.Dropdown(choices=datasets, value=datasets[0] if datasets else None, label="Dataset")
-                    query = gr.Textbox(label="Serbest metin sorgusu", value="kalabalık trafik", elem_id="mvi-query")
+                    query = gr.Textbox(label="Serbest metin sorgusu", elem_id="mvi-query")
                     if SAMPLE_QUERIES:
                         with gr.Row(elem_classes=["chip-row"]):
                             for sample in SAMPLE_QUERIES:
@@ -575,7 +589,7 @@ with gr.Blocks(title=f"{PRODUCT_NAME} — Faz 9") as demo:
             demo.load(render_header, inputs=[dataset], outputs=[topbar_html, status_badge_html])
 
         with gr.Tab("Karşılaştır", elem_id="mvi-comparison"):
-            compare_query = gr.Textbox(label="Sorgu", value="kalabalık trafik")
+            compare_query = gr.Textbox(label="Sorgu")
             compare_dataset = gr.Dropdown(choices=datasets, value=datasets[0] if datasets else None, label="Dataset")
             compare_backends = gr.CheckboxGroup(["clickhouse", "qdrant", "pgvector"], value=["clickhouse", "qdrant", "pgvector"], label="Backend'ler")
             compare_dimensions = gr.CheckboxGroup([2048, 1024, 512, 256], value=[512, 256], label="Boyutlar")

@@ -1,1 +1,13 @@
-backend,dimension,table,ddl_applied,n_embeddings_loaded
+dataset_id,dimension,backend,row_count,elapsed_s,storage_mb,embedding_mode
+capera,2048,pgvector,1391,5.66717,,cached
+capera,2048,clickhouse,1391,0.312027,38.586102,cached
+capera,2048,qdrant,1391,0.810634,,cached
+capera,1024,pgvector,1391,6.496959,,cached
+capera,1024,clickhouse,1391,0.169553,19.475789,cached
+capera,1024,qdrant,1391,0.655963,,cached
+capera,512,pgvector,1391,2.318265,,cached
+capera,512,clickhouse,1391,0.137248,9.920561,cached
+capera,512,qdrant,1391,0.513497,,cached
+capera,256,pgvector,1391,1.428855,,cached
+capera,256,clickhouse,1391,0.139635,5.13992,cached
+capera,256,qdrant,1391,0.205803,,cached

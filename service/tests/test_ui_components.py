@@ -65,6 +65,28 @@ def test_result_list_falls_back_to_empty_state_for_no_results():
     assert "Sonuç bulunamadı" in html
 
 
+def test_search_payload_omits_unset_filters():
+    payload = ui_app._payload(
+        "dense traffic", "capera", None, None, None,
+        None, None, None, None, None, None,
+        "clickhouse", "prefilter", 512, False, 256, 100, "A", 10, 1,
+    )
+    assert payload["metadata_filters"] == {}
+    assert payload["telemetry_filters"] == {}
+
+
+def test_search_payload_keeps_selected_filters():
+    payload = ui_app._payload(
+        "dense traffic", "capera", "TrafficCongestion", "test", None,
+        10.0, 20.0, None, None, None, None,
+        "clickhouse", "prefilter", 512, False, 256, 100, "A", 10, 1,
+    )
+    assert payload["metadata_filters"] == {
+        "event_category": "TrafficCongestion", "split": "test",
+    }
+    assert payload["telemetry_filters"] == {"altitude_m": [10.0, 20.0]}
+
+
 def test_export_csv_writes_additive_fields_as_columns(tmp_path, monkeypatch):
     raw_response = {
         "results": [{

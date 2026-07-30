@@ -25,5 +25,11 @@
       "upper_1pct": 38.0,
       "upper_0_1pct": 44.62000000000262
     }
+  },
+  "capera": {
+    "altitude_m": null,
+    "velocity_mps": null,
+    "gimbal_pitch": null,
+    "person_count": null
   }
 }

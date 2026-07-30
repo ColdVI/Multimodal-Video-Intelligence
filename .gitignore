@@ -17,6 +17,7 @@ __pycache__/
 .env.faz7
 artifacts/embeddings/*.npy
 artifacts/embeddings/*_ids.parquet
+artifacts/embeddings/query_embeddings.json
 weights/
 runs/
 # dataset_adapters/ - ultralytics kendi otomatik indirdigi veri klasoru icin
@@ -31,6 +32,7 @@ dataset_adapters/*
 *.pt
 artifacts/colab_gpu_bundle.zip
 artifacts/research/Multimodal-Video-Intelligence-phase6.zip
+artifacts/research/*.zip
 # Colab handoff (src/research/colab_paths.py): yerel fallback'te research_root()
 # ana artifact CSV/JSON/MD/parquet SONUCLARINI buraya yazar (bunlar TAKIP
 # EDILIR) - ama datasets/ alt klasoru ham indirilen buyuk dataset dosyalarini
