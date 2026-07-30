@@ -15,8 +15,8 @@
       "expected_files": ["msrvtt_test_1k.json", "videos.zip"]
     },
     "datasets/visdrone": {
-      "purpose": "VisDrone-MOT bench subset (19 sekans, config.yaml: bench.subset) - manifest.json (video sure/fps), videos/*.mp4 (ingest/01_frames_to_video.py ciktisi, ONCEDEN mp4'e donusturulmus), annotations/*.txt (MOT format). Bu depoda data/raw/ gitignore'lu oldugu icin ZIP'in icinde GELMEZ - KULLANICI TARAFINDAN buraya yerlestirilir.",
-      "expected_files": ["manifest.json", "videos/*.mp4", "annotations/*.txt"]
+      "purpose": "VisDrone-MOT bench subset (19 sekans, config.yaml: bench.subset) - `visdrone_bench_subset.zip` (manifest.json + videos/*.mp4 + annotations/*.txt icerir, notebook 02 OTOMATIK /content'e acar) YA DA ayni 3 oge dogrudan klasor olarak. Bu depoda data/raw/ gitignore'lu oldugu icin ZIP'in icinde GELMEZ - KULLANICI TARAFINDAN buraya yerlestirilir.",
+      "expected_files": ["visdrone_bench_subset.zip"]
     },
     "checkpoints": {
       "purpose": "notebook 02'nin embedding checkpoint'leri (resume icin) - her 100 item'da yazilir",

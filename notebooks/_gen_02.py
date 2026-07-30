@@ -287,26 +287,45 @@ else:
 """),
 
 ("md", "## VisDrone-MOT embedding (bench subset - ingest/02_windowing.py ile AYNI pencereleme formulu)\n\n"
-      "Ham video/annotasyon bu depoda YOK (`data/raw/` gitignore'lu) - Drive'da "
-      "`datasets/visdrone/` altina `manifest.json`, `videos/*.mp4` (ingest/01_frames_to_video.py "
-      "ciktisi, 19 sekans bench subset - config.yaml: bench.subset), `annotations/*.txt` "
-      "KULLANICI TARAFINDAN yerlestirilmeli. Yoksa hucre sadece atlanir."),
+      "Ham video/annotasyon bu depoda YOK (`data/raw/` gitignore'lu). `visdrone_bench_subset.zip`'i "
+      "ELLE ACMANIZA GEREK YOK - asagidaki hucre Drive'daki `datasets/visdrone/visdrone_bench_subset.zip`'i "
+      "(manifest.json + videos/*.mp4 + annotations/*.txt icerir) OTOMATIK bulup `/content`'e acar. "
+      "Yoksa hucre sadece atlanir."),
 
-("code", """from common import load_config as _load_raw_config
+("code", """import zipfile
+
+from common import load_config as _load_raw_config
 from ingest.frame_io import read_window_frames
 
 visdrone_ckpt = CKPT_ROOT / "visdrone_qwen2048.ndjson"
 visdrone_embedding_ready = False
 
 VISDRONE_DIR = colab_paths.dataset_root("visdrone")
-visdrone_manifest_path = VISDRONE_DIR / "manifest.json"
+VISDRONE_LOCAL_DIR = pathlib.Path("/content/visdrone_bench")
+VISDRONE_ZIP_IN_DRIVE = VISDRONE_DIR / "visdrone_bench_subset.zip"
+
+def _resolve_visdrone_dir():
+    # Drive'da dogrudan manifest.json/videos/ elle yerlestirildiyse onu
+    # kullan; yoksa tek-zip'i (varsa, AU-AIR/CapERA/MSR-VTT ile AYNI desen) /content'e ac.
+    if (VISDRONE_DIR / "manifest.json").exists():
+        return VISDRONE_DIR
+    if not VISDRONE_ZIP_IN_DRIVE.exists():
+        return None
+    if not (VISDRONE_LOCAL_DIR / "manifest.json").exists():
+        print(f"VisDrone verisi aciliyor: {VISDRONE_ZIP_IN_DRIVE} -> {VISDRONE_LOCAL_DIR} ...")
+        with zipfile.ZipFile(VISDRONE_ZIP_IN_DRIVE) as z:
+            z.extractall(VISDRONE_LOCAL_DIR)
+        print("Acildi.")
+    return VISDRONE_LOCAL_DIR
+
+visdrone_dir = _resolve_visdrone_dir()
 
 if not gpu_available:
     print("[ATLANDI] VisDrone embedding uretimi (GPU yok).")
-elif not visdrone_manifest_path.exists():
-    print(f"[ATLANDI] {visdrone_manifest_path} Drive'da yok - VisDrone atlaniyor.")
+elif visdrone_dir is None:
+    print(f"[ATLANDI] {VISDRONE_DIR}/manifest.json veya {VISDRONE_ZIP_IN_DRIVE} Drive'da yok.")
 else:
-    visdrone_manifest = json.loads(visdrone_manifest_path.read_text(encoding="utf-8"))
+    visdrone_manifest = json.loads((visdrone_dir / "manifest.json").read_text(encoding="utf-8"))
 
     # ingest/02_windowing.py ile AYNI formul. window_size_s/stride_s research
     # cfg'de config.yaml'daki degerlerle AYNI (kilitli sabit) - min_window_s
@@ -333,7 +352,7 @@ else:
     with CheckpointWriter(visdrone_ckpt, flush_every=cfg.embedding_checkpoint_every) as writer:
         for i, win_id in enumerate(todo):
             w = windows_by_id[win_id]
-            video_path = VISDRONE_DIR / "videos" / f"{w['video_id']}.mp4"
+            video_path = visdrone_dir / "videos" / f"{w['video_id']}.mp4"
             if not video_path.exists():
                 n_missing_video += 1
                 continue

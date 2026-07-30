@@ -74,13 +74,12 @@ Ayni GPU runtime'inda, sirayla:
      - notebook 02'nin MSR-VTT hucresi `videos.zip`'i KENDISI
      `/content`'e acar (Drive'a degil). Eksikse hucre sadece atlanir.
    - **VisDrone-MOT (bench subset, 19 sekans):** Bu depoda YOK
-     (`data/raw/` gitignore'lu). Drive'da AYNI kok altinda su klasore atin:
-     `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/visdrone/`
-     - `manifest.json` (bu depodaki `data/raw/manifest.json` ile ayni)
-     - `videos/` (bu depodaki `data/raw/videos/*.mp4`, 19 dosya, ~830 MB -
-       zaten mp4'e donusturulmus, elle bir sey yapmaniza gerek yok)
-     - `annotations/` (bu depodaki `data/raw/VisDrone2019-MOT-train/annotations/*.txt`, ~34 MB)
-     - Eksikse notebook 02'nin VisDrone hucresi sadece atlanir, digerlerini etkilemez.
+     (`data/raw/` gitignore'lu). `visdrone_bench_subset.zip`'i (manifest.json +
+     videos/*.mp4 + annotations/*.txt, ~900 MB - tek dosya, elle ACMADAN)
+     Drive'da su yola atin:
+     `/content/drive/MyDrive/VidEmbedd/phase6_mrl_vector_backend/datasets/visdrone/visdrone_bench_subset.zip`
+     - notebook 02'nin VisDrone hucresi bunu KENDISI `/content`'e acar.
+     Eksikse hucre sadece atlanir, digerlerini etkilemez.
    - `scripts/verify_drive_inputs.py`'yi calistirarak (bir hucrede
      `!python scripts/verify_drive_inputs.py`) hangi dataset'lerin hazir
      oldugunu kontrol edebilirsiniz.
