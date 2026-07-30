@@ -49,6 +49,66 @@ CREATE INDEX IF NOT EXISTS ix_tel_gp  ON segment_telemetry(gimbal_pitch);
 CREATE INDEX IF NOT EXISTS ix_meta_p  ON segment_metadata(person_count);
 CREATE INDEX IF NOT EXISTS ix_gt_dataset ON retrieval_groundtruth(dataset_id);
 CREATE INDEX IF NOT EXISTS ix_gt_video ON retrieval_groundtruth(dataset_id,relevant_video_id);
+CREATE TABLE IF NOT EXISTS schema_versions (
+  component text PRIMARY KEY, version int NOT NULL, applied_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS ingest_runs (
+  run_id uuid PRIMARY KEY, dataset_id text NOT NULL, dataset_version text,
+  status text NOT NULL CHECK (status IN ('created','preflight_passed','ingesting','validating','completed','failed','aborted')),
+  vector_provenance text NOT NULL, model_id text, model_revision text, source_commit text,
+  enabled_backends jsonb NOT NULL, enabled_dimensions jsonb NOT NULL,
+  manifest_hash text NOT NULL, started_at timestamptz NOT NULL, finished_at timestamptz,
+  expected_segments bigint, rows_per_backend jsonb, error_summary jsonb
+);
+CREATE TABLE IF NOT EXISTS dataset_active_runs (
+  dataset_id text PRIMARY KEY, active_run_id uuid NOT NULL REFERENCES ingest_runs(run_id),
+  activated_at timestamptz NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ingest_chunks (
+  run_id uuid NOT NULL REFERENCES ingest_runs(run_id), dataset_id text NOT NULL,
+  video_id text NOT NULL, video_path text NOT NULL, chunk_index int NOT NULL,
+  chunk_start_s double precision NOT NULL, chunk_end_s double precision NOT NULL,
+  expected_segments int, status text NOT NULL CHECK (status IN ('pending','writing','committed','failed')),
+  backend_status jsonb NOT NULL DEFAULT '{}', chunk_hash text, updated_at timestamptz NOT NULL,
+  PRIMARY KEY (run_id,video_id,chunk_index)
+);
+CREATE TABLE IF NOT EXISTS run_videos (
+  run_id uuid NOT NULL REFERENCES ingest_runs(run_id), dataset_id text NOT NULL,
+  video_id text NOT NULL, source_uri text, split text, duration_s double precision,
+  event_category text, PRIMARY KEY(run_id,dataset_id,video_id)
+);
+CREATE TABLE IF NOT EXISTS run_segments (
+  run_id uuid NOT NULL REFERENCES ingest_runs(run_id), segment_id text NOT NULL,
+  dataset_id text NOT NULL, video_id text NOT NULL, t_start double precision NOT NULL,
+  t_end double precision NOT NULL, caption text, chunk_index int NOT NULL,
+  PRIMARY KEY(run_id,segment_id)
+);
+CREATE TABLE IF NOT EXISTS run_segment_metadata (
+  run_id uuid NOT NULL, segment_id text NOT NULL, person_count int, vehicle_count int,
+  bus_count int, object_classes text[], brightness real, camera_motion real,
+  PRIMARY KEY(run_id,segment_id)
+);
+CREATE TABLE IF NOT EXISTS run_segment_telemetry (
+  run_id uuid NOT NULL, segment_id text NOT NULL, timestamp_start timestamptz,
+  timestamp_end timestamptz, latitude double precision, longitude double precision,
+  altitude_m real, velocity_mps real, roll real, pitch real, yaw real, yaw_rate real,
+  gimbal_pitch real, gimbal_heading real, compass_heading real, imu_summary jsonb,
+  extra jsonb NOT NULL DEFAULT '{}', PRIMARY KEY(run_id,segment_id)
+);
+CREATE TABLE IF NOT EXISTS run_retrieval_groundtruth (
+  run_id uuid NOT NULL, dataset_id text NOT NULL, query_id text NOT NULL,
+  query_text text NOT NULL, relevant_segment_id text NOT NULL, relevant_video_id text NOT NULL,
+  relevance_rank int NOT NULL, caption_index int, caption_source text NOT NULL,
+  PRIMARY KEY(run_id,dataset_id,query_id,relevant_segment_id)
+);
+CREATE TABLE IF NOT EXISTS telemetry_field_registry (
+  run_id uuid NOT NULL, dataset_id text NOT NULL, field_name text NOT NULL,
+  source_name text NOT NULL, field_type text NOT NULL, unit text, semantics jsonb NOT NULL DEFAULT '{}',
+  PRIMARY KEY(run_id,field_name)
+);
+CREATE INDEX IF NOT EXISTS ix_run_segments_dataset ON run_segments(run_id,dataset_id);
+CREATE INDEX IF NOT EXISTS ix_run_segments_chunk ON run_segments(run_id,video_id,chunk_index);
+CREATE INDEX IF NOT EXISTS ix_ingest_runs_dataset_status ON ingest_runs(dataset_id,status);
 """
 
 VECTOR_TABLES = {
@@ -152,6 +212,11 @@ def init_schema(
                 cur.execute(
                     f"CREATE TABLE IF NOT EXISTS {table} ("
                     f"segment_id text PRIMARY KEY, dataset_id text, v {vector_type}({dimension}))"
+                )
+                cur.execute(
+                    f"CREATE TABLE IF NOT EXISTS {table}_runs ("
+                    f"run_id uuid NOT NULL, segment_id text NOT NULL, dataset_id text NOT NULL, "
+                    f"chunk_index int NOT NULL, v {vector_type}({dimension}), PRIMARY KEY(run_id,segment_id))"
                 )
                 if dimension == 1024:
                     cur.execute(
@@ -313,6 +378,54 @@ def filter_segment_ids(dataset_id: str, metadata_filters: dict[str, Any], teleme
         return [row[0] for row in cur.fetchall()]
 
 
+def get_active_run_snapshot(dataset_id: str) -> dict[str, Any] | None:
+    """Read the request-wide active run and provenance in one statement."""
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(
+                """SELECT r.run_id::text,r.dataset_id,r.vector_provenance,r.model_id,
+                          r.model_revision,r.source_commit,r.manifest_hash
+                   FROM dataset_active_runs a JOIN ingest_runs r ON r.run_id=a.active_run_id
+                   WHERE a.dataset_id=%s AND r.status='completed'""",
+                (dataset_id,),
+            )
+            row = cur.fetchone()
+            return None if row is None else dict(row)
+
+
+def filter_run_segment_ids(
+    dataset_id: str, run_id: str, metadata_filters: dict[str, Any], telemetry_filters: dict[str, Any],
+) -> list[str]:
+    clauses = ["s.dataset_id=%s", "s.run_id=%s"]
+    params: list[Any] = [dataset_id, run_id]
+    joins = ["JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id"]
+    for key, column in {"event_category": "v.event_category", "split": "v.split", "video_id": "s.video_id"}.items():
+        value = (metadata_filters or {}).get(key)
+        if value not in (None, "", []):
+            clauses.append(f"{column}=%s")
+            params.append(value)
+    if telemetry_filters:
+        joins.append("JOIN run_segment_telemetry t ON t.run_id=s.run_id AND t.segment_id=s.segment_id")
+        for key, column in {
+            "altitude_m": "t.altitude_m", "velocity_mps": "t.velocity_mps",
+            "gimbal_pitch": "t.gimbal_pitch",
+        }.items():
+            bounds = telemetry_filters.get(key)
+            if bounds:
+                lo, hi = bounds
+                if lo is not None:
+                    clauses.append(f"{column}>=%s")
+                    params.append(float(lo))
+                if hi is not None:
+                    clauses.append(f"{column}<=%s")
+                    params.append(float(hi))
+    sql = f"SELECT s.segment_id FROM run_segments s {' '.join(joins)} WHERE {' AND '.join(clauses)} ORDER BY s.segment_id"
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        return [row[0] for row in cur.fetchall()]
+
+
 def search_vectors(
     dataset_id: str,
     dimension: int,
@@ -320,11 +433,19 @@ def search_vectors(
     top_k: int,
     strategy: str,
     candidate_ids: list[str] | None,
+    *,
+    run_id: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     table, vector_type = VECTOR_TABLES[dimension]
+    if run_id is not None:
+        table = f"{table}_runs"
     literal = _vector_literal(query_vector)
     candidate_clause = ""
     params: list[Any] = [literal, dataset_id]
+    run_clause = ""
+    if run_id is not None:
+        run_clause = " AND run_id=%s"
+        params.append(run_id)
     if candidate_ids is not None:
         if not candidate_ids:
             return [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": []}
@@ -332,7 +453,7 @@ def search_vectors(
         params.append(candidate_ids)
     params.extend([literal, top_k])
     sql = f"""SELECT segment_id, 1-(v <=> %s::{vector_type}({dimension})) AS score
-              FROM {table} WHERE dataset_id=%s{candidate_clause}
+              FROM {table} WHERE dataset_id=%s{run_clause}{candidate_clause}
               ORDER BY v <=> %s::{vector_type}({dimension}) LIMIT %s"""
     with connection() as conn, conn.cursor() as cur:
         for statement in pgvector_session_settings(strategy):
@@ -343,9 +464,25 @@ def search_vectors(
     return rows, {"plan_used_vector_index": plan_used, "indexed_vectors_count": None, "notes": []}
 
 
-def hydrate(segment_ids: list[str]) -> list[dict[str, Any]]:
+def hydrate(segment_ids: list[str], *, run_id: str | None = None) -> list[dict[str, Any]]:
     if not segment_ids:
         return []
+    if run_id is not None:
+        with connection() as conn:
+            _, extras = _driver()
+            with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+                cur.execute(
+                    """SELECT s.segment_id,s.video_id,s.t_start,s.t_end,s.caption,v.source_uri AS file_path,
+                              t.altitude_m,t.velocity_mps,t.gimbal_pitch,v.event_category,v.split,
+                              m.person_count,m.vehicle_count,m.bus_count
+                       FROM run_segments s
+                       JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id
+                       LEFT JOIN run_segment_telemetry t ON t.run_id=s.run_id AND t.segment_id=s.segment_id
+                       LEFT JOIN run_segment_metadata m ON m.run_id=s.run_id AND m.segment_id=s.segment_id
+                       WHERE s.run_id=%s AND s.segment_id=ANY(%s)""",
+                    (run_id, segment_ids),
+                )
+                return [dict(row) for row in cur.fetchall()]
     with connection() as conn:
         _, extras = _driver()
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
@@ -398,6 +535,128 @@ def table_count(dataset_id: str, dimension: int) -> int:
     with connection() as conn, conn.cursor() as cur:
         cur.execute(f"SELECT count(*)::int FROM {table} WHERE dataset_id=%s", (dataset_id,))
         return int(cur.fetchone()[0])
+
+
+def write_run_vectors(
+    run_id: str, dataset_id: str, dimension: int, chunk_index: int,
+    rows: Iterable[tuple[str, list[float]]],
+) -> int:
+    table, _ = VECTOR_TABLES[dimension]
+    values = [(run_id, segment_id, dataset_id, chunk_index, _vector_literal(vector)) for segment_id, vector in rows]
+    with connection() as conn, conn.cursor() as cur:
+        _execute_values(
+            cur,
+            f"INSERT INTO {table}_runs(run_id,segment_id,dataset_id,chunk_index,v) VALUES %s "
+            "ON CONFLICT(run_id,segment_id) DO UPDATE SET chunk_index=EXCLUDED.chunk_index,v=EXCLUDED.v",
+            values,
+        )
+        conn.commit()
+    return len(values)
+
+
+def delete_inactive_chunk(run_id: str, dataset_id: str, chunk_index: int, dimension: int) -> int:
+    table, _ = VECTOR_TABLES[dimension]
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM dataset_active_runs WHERE active_run_id=%s", (run_id,))
+        if cur.fetchone():
+            raise ValueError("destructive cleanup of an active run is forbidden")
+        cur.execute(
+            f"DELETE FROM {table}_runs WHERE run_id=%s AND dataset_id=%s AND chunk_index=%s",
+            (run_id, dataset_id, chunk_index),
+        )
+        deleted = cur.rowcount
+        conn.commit()
+        return int(deleted)
+
+
+def count_run(dataset_id: str, run_id: str, dimension: int) -> int:
+    table, _ = VECTOR_TABLES[dimension]
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(f"SELECT count(*) FROM {table}_runs WHERE dataset_id=%s AND run_id=%s", (dataset_id, run_id))
+        return int(cur.fetchone()[0])
+
+
+def delete_run(dataset_id: str, run_id: str, dimension: int) -> int:
+    table, _ = VECTOR_TABLES[dimension]
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM dataset_active_runs WHERE active_run_id=%s", (run_id,))
+        if cur.fetchone():
+            raise ValueError("active run cannot be deleted")
+        cur.execute(f"DELETE FROM {table}_runs WHERE dataset_id=%s AND run_id=%s", (dataset_id, run_id))
+        count = cur.rowcount
+        conn.commit()
+        return int(count)
+
+
+def write_run_metadata_chunk(
+    run_id: str,
+    dataset_id: str,
+    chunk_index: int,
+    videos: list[tuple[Any, ...]],
+    segments: list[tuple[Any, ...]],
+    metadata: list[tuple[Any, ...]],
+    telemetry: list[tuple[Any, ...]],
+) -> int:
+    """Write one run chunk; tuple payloads omit run_id and chunk_index."""
+    with connection() as conn, conn.cursor() as cur:
+        _execute_values(
+            cur,
+            """INSERT INTO run_videos(run_id,dataset_id,video_id,source_uri,split,duration_s,event_category)
+               VALUES %s ON CONFLICT(run_id,dataset_id,video_id) DO UPDATE SET
+               source_uri=EXCLUDED.source_uri,split=EXCLUDED.split,duration_s=EXCLUDED.duration_s,
+               event_category=EXCLUDED.event_category""",
+            [(run_id, *row) for row in videos],
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO run_segments(run_id,segment_id,dataset_id,video_id,t_start,t_end,caption,chunk_index)
+               VALUES %s ON CONFLICT(run_id,segment_id) DO UPDATE SET caption=EXCLUDED.caption,
+               chunk_index=EXCLUDED.chunk_index""",
+            [(run_id, *row, chunk_index) for row in segments],
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO run_segment_metadata(
+                 run_id,segment_id,person_count,vehicle_count,bus_count,object_classes,brightness,camera_motion
+               ) VALUES %s ON CONFLICT(run_id,segment_id) DO UPDATE SET
+                 person_count=EXCLUDED.person_count,vehicle_count=EXCLUDED.vehicle_count,
+                 bus_count=EXCLUDED.bus_count,object_classes=EXCLUDED.object_classes,
+                 brightness=EXCLUDED.brightness,camera_motion=EXCLUDED.camera_motion""",
+            [(run_id, *row) for row in metadata],
+        )
+        _execute_values(
+            cur,
+            """INSERT INTO run_segment_telemetry(
+                 run_id,segment_id,timestamp_start,timestamp_end,latitude,longitude,altitude_m,
+                 velocity_mps,roll,pitch,yaw,yaw_rate,gimbal_pitch,gimbal_heading,compass_heading,imu_summary,extra
+               ) VALUES %s ON CONFLICT(run_id,segment_id) DO UPDATE SET
+                 altitude_m=EXCLUDED.altitude_m,velocity_mps=EXCLUDED.velocity_mps,
+                 gimbal_pitch=EXCLUDED.gimbal_pitch,compass_heading=EXCLUDED.compass_heading,extra=EXCLUDED.extra""",
+            [(run_id, *row) for row in telemetry],
+        )
+        conn.commit()
+    return len(segments)
+
+
+def delete_inactive_metadata_chunk(run_id: str, dataset_id: str, video_id: str, chunk_index: int) -> int:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM dataset_active_runs WHERE active_run_id=%s", (run_id,))
+        if cur.fetchone():
+            raise ValueError("destructive cleanup of an active run is forbidden")
+        cur.execute(
+            "SELECT segment_id FROM run_segments WHERE run_id=%s AND dataset_id=%s AND video_id=%s AND chunk_index=%s",
+            (run_id, dataset_id, video_id, chunk_index),
+        )
+        ids = [row[0] for row in cur.fetchall()]
+        for table in ("run_segment_metadata", "run_segment_telemetry"):
+            cur.execute(f"DELETE FROM {table} WHERE run_id=%s AND segment_id=ANY(%s)", (run_id, ids))
+        cur.execute(
+            "DELETE FROM run_segments WHERE run_id=%s AND dataset_id=%s AND video_id=%s AND chunk_index=%s",
+            (run_id, dataset_id, video_id, chunk_index),
+        )
+        count = cur.rowcount
+        conn.commit()
+        return int(count)
 
 
 def facets(dataset_id: str) -> dict[str, Any]:

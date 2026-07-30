@@ -39,14 +39,20 @@ def _merge_results(hits: list[dict[str, Any]], hydrated: list[dict[str, Any]]) -
     return results
 
 
-def _one_run(request: Any) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any], int, set[str]]:
+def _one_run(
+    request: Any, active_snapshot: dict[str, Any] | None,
+) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any], int, set[str]]:
     started = time.perf_counter()
     filter_started = time.perf_counter()
-    candidate_ids = postgres.filter_segment_ids(
-        request.dataset_id,
-        request.metadata_filters,
-        request.telemetry_filters,
-    )
+    run_id = None if active_snapshot is None else str(active_snapshot["run_id"])
+    if run_id is None:
+        candidate_ids = postgres.filter_segment_ids(
+            request.dataset_id, request.metadata_filters, request.telemetry_filters,
+        )
+    else:
+        candidate_ids = postgres.filter_run_segment_ids(
+            request.dataset_id, run_id, request.metadata_filters, request.telemetry_filters,
+        )
     filter_ms = (time.perf_counter() - filter_started) * 1000.0
     candidate_set = set(candidate_ids)
     if not candidate_ids:
@@ -62,13 +68,14 @@ def _one_run(request: Any) -> tuple[dict[str, float], list[dict[str, Any]], dict
     search_function = BACKENDS[request.backend]
     if request.adaptive_mrl.enabled:
         base_vector = embed_query(request.query, request.adaptive_mrl.base_dim)
+        search_kwargs = {} if run_id is None else {"run_id": run_id}
         base_hits, _ = search_function(
             request.dataset_id,
             request.adaptive_mrl.base_dim,
             base_vector,
             request.adaptive_mrl.top_n,
             request.strategy,
-            candidate_ids,
+            candidate_ids, **search_kwargs,
         )
         rerank_ids = [hit["segment_id"] for hit in base_hits]
         hits, diagnostics = search_function(
@@ -77,24 +84,26 @@ def _one_run(request: Any) -> tuple[dict[str, float], list[dict[str, Any]], dict
             query_vector,
             request.top_k,
             request.strategy,
-            rerank_ids,
+            rerank_ids, **search_kwargs,
         )
         diagnostics.setdefault("notes", []).append(
             f"adaptive MRL {request.adaptive_mrl.base_dim}→{request.dimension}, top_n={request.adaptive_mrl.top_n}"
         )
     else:
+        search_kwargs = {} if run_id is None else {"run_id": run_id}
         hits, diagnostics = search_function(
             request.dataset_id,
             request.dimension,
             query_vector,
             request.top_k,
             request.strategy,
-            candidate_ids,
+            candidate_ids, **search_kwargs,
         )
     vector_search_ms = (time.perf_counter() - search_started) * 1000.0
 
     hydrate_started = time.perf_counter()
-    hydrated = postgres.hydrate([hit["segment_id"] for hit in hits])
+    hydrate_kwargs = {} if run_id is None else {"run_id": run_id}
+    hydrated = postgres.hydrate([hit["segment_id"] for hit in hits], **hydrate_kwargs)
     results = _merge_results(hits, hydrated)
     hydrate_ms = (time.perf_counter() - hydrate_started) * 1000.0
     total_ms = (time.perf_counter() - started) * 1000.0
@@ -119,6 +128,7 @@ def search(request: Any) -> dict[str, Any]:
     validate_strategy(request.backend, request.strategy)
     if request.pattern == "C" and request.backend != "pgvector":
         raise ValueError("pattern C is the pgvector single-store path")
+    active_snapshot = postgres.get_active_run_snapshot(request.dataset_id)
     totals: list[float] = []
     timing_rows: list[dict[str, float]] = []
     results: list[dict[str, Any]] = []
@@ -126,7 +136,7 @@ def search(request: Any) -> dict[str, Any]:
     candidate_count = 0
     candidate_set: set[str] = set()
     for _ in range(request.repeats):
-        timings, results, diagnostics, candidate_count, candidate_set = _one_run(request)
+        timings, results, diagnostics, candidate_count, candidate_set = _one_run(request, active_snapshot)
         timing_rows.append(timings)
         totals.append(timings["total"])
 
@@ -161,7 +171,14 @@ def search(request: Any) -> dict[str, Any]:
     }
     return {
         "embedding_mode": settings.embedding_mode,
-        "vector_provenance": dataset["vector_provenance"],
+        "dataset_id": request.dataset_id,
+        "run_id": None if active_snapshot is None else active_snapshot["run_id"],
+        "vector_provenance": (
+            dataset["vector_provenance"] if active_snapshot is None else active_snapshot["vector_provenance"]
+        ),
+        "model_id": None if active_snapshot is None else active_snapshot.get("model_id"),
+        "model_revision": None if active_snapshot is None else active_snapshot.get("model_revision"),
+        "source_commit": None if active_snapshot is None else active_snapshot.get("source_commit"),
         "backend": request.backend,
         "strategy": request.strategy,
         "dimension": request.dimension,

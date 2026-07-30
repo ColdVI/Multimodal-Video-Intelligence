@@ -20,6 +20,13 @@
   yalnız dosyalar yokken açık gerekçeyle skip edilir; dosyalar geldiğinde aynı
   testler otomatik çalışır. Bu eksiklik kurumun generic manifest yolunu bloke
   etmez.
+- **Faz 11 persisted-schema acceptance NOT RUN:** migration `--plan` komutu bu
+  macOS Python 3.13 test ortamında pinli `psycopg2-binary==2.9.9` için wheel
+  bulunmadığı (`pg_config` yok) ve Docker daemon kapalı olduğu için canlı volume
+  şemasını okuyamadı. Kod/test/dry-run sözleşmesi tamamlandı; artifact
+  `artifacts/faz11/schema_migration_report.json`. Servis container'larında pinli
+  Python 3.11 bağımlılıkları ve DB'ler healthy iken önce `--plan`, operator
+  backup/snapshot onayından sonra ayrıca `--apply` çalıştırılmalıdır.
 
 ## Faz 8 open blockers
 

@@ -51,6 +51,7 @@ def fake_corpus(monkeypatch):
         },
     )
     monkeypatch.setattr(engine.postgres, "hydrate", hydrate)
+    monkeypatch.setattr(engine.postgres, "get_active_run_snapshot", lambda dataset_id: None)
     monkeypatch.setattr(engine, "embed_query", lambda text, dim: np.ones(dim, dtype=np.float32) / np.sqrt(dim))
     for backend in engine.BACKENDS:
         monkeypatch.setitem(engine.BACKENDS, backend, fake_search)
@@ -95,3 +96,41 @@ def test_underfilled_with_enough_candidates_is_ann_filter_loss(fake_corpus, monk
     assert response["diagnostics"]["underfilled"] is True
     assert response["diagnostics"]["underfilled_reason"] == "ann_filter_loss"
     assert response["diagnostics"]["underfilled_expected"] is False
+
+
+def test_active_run_snapshot_is_read_once_and_reused_across_repeats(fake_corpus, monkeypatch):
+    snapshots = [{
+        "run_id": "00000000-0000-0000-0000-000000000001", "vector_provenance": "real",
+        "model_id": "model", "model_revision": "revision", "source_commit": "commit",
+    }, {
+        "run_id": "00000000-0000-0000-0000-000000000002", "vector_provenance": "real",
+    }]
+    observed = []
+
+    def snapshot(dataset_id):
+        return snapshots.pop(0)
+
+    def filter_run(dataset_id, run_id, metadata_filters, telemetry_filters):
+        observed.append(("filter", run_id))
+        return fake_corpus
+
+    def active_search(dataset_id, dimension, vector, top_k, strategy, candidate_ids, *, run_id):
+        observed.append(("search", run_id))
+        return ([{"segment_id": value, "score": 1.0} for value in candidate_ids[:top_k]], {
+            "plan_used_vector_index": True, "indexed_vectors_count": 200, "notes": [],
+        })
+
+    def active_hydrate(ids, *, run_id):
+        observed.append(("hydrate", run_id))
+        return [{"segment_id": value} for value in ids]
+
+    monkeypatch.setattr(engine.postgres, "get_active_run_snapshot", snapshot)
+    monkeypatch.setattr(engine.postgres, "filter_run_segment_ids", filter_run)
+    monkeypatch.setattr(engine.postgres, "hydrate", active_hydrate)
+    monkeypatch.setitem(engine.BACKENDS, "clickhouse", active_search)
+    request = _request()
+    request.repeats = 2
+    response = engine.search(request)
+    assert response["run_id"] == "00000000-0000-0000-0000-000000000001"
+    assert snapshots  # second value was never read
+    assert {value for _, value in observed} == {response["run_id"]}

@@ -10,8 +10,9 @@ from app.search.strategies import qdrant_search_params
 _NAMESPACE = uuid.UUID("17c52443-1998-443e-8c70-00544a9f6ee9")
 
 
-def point_id(segment_id: str) -> str:
-    return str(uuid.uuid5(_NAMESPACE, segment_id))
+def point_id(segment_id: str, run_id: str | None = None) -> str:
+    key = segment_id if run_id is None else f"{run_id}:{segment_id}"
+    return str(uuid.uuid5(_NAMESPACE, key))
 
 
 def client():
@@ -38,6 +39,8 @@ def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
     target = client()
     indexes = {
         "dataset_id": models.PayloadSchemaType.KEYWORD,
+        "run_id": models.PayloadSchemaType.KEYWORD,
+        "chunk_index": models.PayloadSchemaType.INTEGER,
         "video_id": models.PayloadSchemaType.KEYWORD,
         "altitude_m": models.PayloadSchemaType.FLOAT,
         "velocity_mps": models.PayloadSchemaType.FLOAT,
@@ -80,12 +83,14 @@ def replace_vectors(dataset_id: str, dimension: int, rows: list[dict[str, Any]])
         target.upsert(name, points=batch, wait=True)
 
 
-def _filter(dataset_id: str, candidate_ids: list[str] | None):
+def _filter(dataset_id: str, candidate_ids: list[str] | None, run_id: str | None = None):
     from qdrant_client import models
 
     must: list[Any] = [models.FieldCondition(key="dataset_id", match=models.MatchValue(value=dataset_id))]
+    if run_id is not None:
+        must.append(models.FieldCondition(key="run_id", match=models.MatchValue(value=run_id)))
     if candidate_ids is not None:
-        must.append(models.HasIdCondition(has_id=[point_id(value) for value in candidate_ids]))
+        must.append(models.HasIdCondition(has_id=[point_id(value, run_id) for value in candidate_ids]))
     return models.Filter(must=must)
 
 
@@ -96,6 +101,8 @@ def search_vectors(
     top_k: int,
     strategy: str,
     candidate_ids: list[str] | None,
+    *,
+    run_id: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     from qdrant_client import models
 
@@ -106,7 +113,7 @@ def search_vectors(
     result = target.query_points(
         collection_name=collection_name(dimension),
         query=list(query_vector),
-        query_filter=_filter(dataset_id, candidate_ids),
+        query_filter=_filter(dataset_id, candidate_ids, run_id),
         search_params=params,
         limit=top_k,
         with_payload=True,
@@ -138,3 +145,70 @@ def table_count(dataset_id: str, dimension: int) -> int:
         exact=True,
     )
     return int(result.count)
+
+
+def write_run_chunk(
+    run_id: str, dataset_id: str, dimension: int, chunk_index: int, rows: list[dict[str, Any]],
+) -> int:
+    from qdrant_client import models
+
+    points = []
+    for row in rows:
+        payload = {key: value for key, value in row.items() if key != "embedding" and value is not None}
+        payload.update({"run_id": run_id, "dataset_id": dataset_id, "chunk_index": chunk_index})
+        points.append(models.PointStruct(
+            id=point_id(row["segment_id"], run_id), vector=row["embedding"], payload=payload,
+        ))
+    target = client()
+    for offset in range(0, len(points), 256):
+        target.upsert(collection_name(dimension), points=points[offset:offset + 256], wait=True)
+    return len(points)
+
+
+def _run_filter(dataset_id: str, run_id: str, chunk_index: int | None = None):
+    from qdrant_client import models
+
+    must: list[Any] = [
+        models.FieldCondition(key="dataset_id", match=models.MatchValue(value=dataset_id)),
+        models.FieldCondition(key="run_id", match=models.MatchValue(value=run_id)),
+    ]
+    if chunk_index is not None:
+        must.append(models.FieldCondition(key="chunk_index", match=models.MatchValue(value=chunk_index)))
+    return models.Filter(must=must)
+
+
+def count_run(dataset_id: str, run_id: str, dimension: int) -> int:
+    return int(client().count(
+        collection_name=collection_name(dimension), count_filter=_run_filter(dataset_id, run_id), exact=True,
+    ).count)
+
+
+def delete_inactive_chunk(run_id: str, dataset_id: str, chunk_index: int, dimension: int) -> int:
+    from app.db import postgres
+    from qdrant_client import models
+
+    snapshot = postgres.get_active_run_snapshot(dataset_id)
+    if snapshot and snapshot["run_id"] == run_id:
+        raise ValueError("destructive cleanup of an active run is forbidden")
+    target = client()
+    before = count_run(dataset_id, run_id, dimension)
+    target.delete(
+        collection_name(dimension),
+        points_selector=models.FilterSelector(filter=_run_filter(dataset_id, run_id, chunk_index)), wait=True,
+    )
+    return max(0, before - count_run(dataset_id, run_id, dimension))
+
+
+def delete_run(dataset_id: str, run_id: str, dimension: int) -> int:
+    from app.db import postgres
+    from qdrant_client import models
+
+    snapshot = postgres.get_active_run_snapshot(dataset_id)
+    if snapshot and snapshot["run_id"] == run_id:
+        raise ValueError("active run cannot be deleted")
+    count = count_run(dataset_id, run_id, dimension)
+    client().delete(
+        collection_name(dimension),
+        points_selector=models.FilterSelector(filter=_run_filter(dataset_id, run_id)), wait=True,
+    )
+    return count

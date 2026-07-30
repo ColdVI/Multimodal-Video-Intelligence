@@ -160,3 +160,18 @@
 - 2026-07-30 — Gerçek video batch'i tek `Qwen3VLEmbedder.process()` çağrısıdır;
   adaptör `[batch,2048]` finite float32 ve L2 normunu fail-closed doğrular.
   GPU yokken sentetik/cached fallback yapılmaz; smoke sonucu `not_run` olur.
+
+## Faz 11 Aşama 5 decisions
+
+- 2026-07-30 — Persisted legacy tablolar kanıtsız ALTER/DROP edilmedi. Yeni
+  fiziksel storage `run_*`/`*_runs` tablolarıyla additive kuruldu; active pointer
+  bulunmayan dataset araması compatibility için legacy yolu kullanır.
+- 2026-07-30 — Search aktif run/provenance/model snapshot'ını request başında bir
+  kez okur. Aynı değer filter, vector backend ve hydrate boyunca taşınır; request
+  ortasında activation olsa bile iki run karışmaz.
+- 2026-07-30 — Chunk retry yalnız inactive run + aynı chunk verisini temizler.
+  Finalize bütün backend×dimension ve metadata count'ları eşleşmeden active
+  pointer'ı değiştirmez. Eski active run immediate GC yapılmaz.
+- 2026-07-30 — Legacy Qdrant point'lerinde güvenilir run provenance olmadığı için
+  migration bunu yeniden-ID'lemek yerine manifest-driven re-ingest gereksinimi
+  raporlar. Volume veya eski point'ler otomatik silinmez.

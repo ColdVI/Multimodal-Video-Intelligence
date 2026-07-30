@@ -1,0 +1,11 @@
+{
+  "apply_command": "PYTHONPATH=service python scripts/migrate_faz11_schema.py --apply --output artifacts/faz11/schema_migration_report.json",
+  "destructive_actions_performed": [],
+  "expected_environment": "Healthy configured PostgreSQL and enabled vector backends; backup/snapshot managed by the operator; no volume deletion",
+  "generated_at_utc": "2026-07-30T20:34:10.951619+00:00",
+  "mode": "plan",
+  "reason": "database migration could not be inspected on this host: ModuleNotFoundError: No module named 'psycopg2'",
+  "required_command": "PYTHONPATH=service python scripts/migrate_faz11_schema.py --plan --output artifacts/faz11/schema_migration_report.json",
+  "schema_version": 1,
+  "status": "not_run"
+}
