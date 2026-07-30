@@ -32,6 +32,12 @@
   large-corpus candidate transport ve latency/memory ölçümleri üretilmedi.
   `artifacts/faz11/filter_equivalence.json` ve `search_scale_smoke.json` gerekli
   kurum komutlarını içerir; compiler ve request-path contract testleri geçti.
+- **UI/media live acceptance NOT RUN:** Docker daemon, active kurum run'ı/local
+  MP4 ve bu oturumda browser becerisinin ihtiyaç duyduğu Node REPL runtime yoktu.
+  `artifacts/faz11/ui_smoke.png` açıkça NOT RUN etiketlidir; başarılı ekran
+  görüntüsü gibi sunulmaz. Ayrıntı ve tam komut `artifacts/faz11/ui_smoke.json`
+  içindedir. Güvenli path, ffmpeg arg listesi, duration/cache/atomic publish ve UI
+  fallback sözleşmeleri otomatik testlerden geçti.
 
 ## Faz 8 open blockers
 

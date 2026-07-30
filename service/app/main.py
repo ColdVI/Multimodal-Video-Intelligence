@@ -5,13 +5,15 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from app.config import FILTER_EXECUTION_MODES, settings
 from app.db import postgres
+from app.db.telemetry_registry import fields_for_run
 from app.db.registry import enabled_adapters, enabled_health, initialize_enabled_backends
 from app.embedding.router import mode_details
+from app.search.filter_schema import CANONICAL_FILTER_FIELDS, serialize_fields
 from app.search.strategies import SUPPORTED_STRATEGIES
 
 
@@ -82,7 +84,10 @@ def stats() -> dict[str, Any]:
             if adapter.name == "pgvector":
                 continue
             item[adapter.name] = {
-                str(dimension): adapter.table_count(item["dataset_id"], dimension)
+                str(dimension): (
+                    adapter.count_run(item["dataset_id"], item["active_run_id"], dimension)
+                    if item.get("active_run_id") else adapter.table_count(item["dataset_id"], dimension)
+                )
                 for dimension in settings.enabled_dimensions
             }
         item["enabled_backends"] = list(settings.enabled_vector_backends)
@@ -98,6 +103,80 @@ def stats() -> dict[str, Any]:
 @app.get("/facets/{dataset_id}")
 def facets(dataset_id: str) -> dict[str, Any]:
     return {"dataset_id": dataset_id, **postgres.facets(dataset_id)}
+
+
+@app.get("/datasets")
+def datasets() -> dict[str, Any]:
+    return {"datasets": postgres.list_datasets()}
+
+
+@app.get("/datasets/{dataset_id}/runs")
+def dataset_runs(dataset_id: str) -> dict[str, Any]:
+    return {"dataset_id": dataset_id, "runs": postgres.list_runs(dataset_id)}
+
+
+@app.get("/datasets/{dataset_id}/filter-schema")
+def filter_schema(dataset_id: str) -> dict[str, Any]:
+    snapshot = postgres.get_active_run_snapshot(dataset_id)
+    facet_data = postgres.facets(dataset_id)
+    if snapshot is None:
+        names = {"event_category", "split", "video_id"}
+        names.update(name for name, bounds in facet_data.get("telemetry", {}).items() if bounds)
+        names.update(name for name, bounds in facet_data.get("counts", {}).items() if bounds)
+        fields = serialize_fields({name: CANONICAL_FILTER_FIELDS[name] for name in names})
+        run_id = None
+    else:
+        run_id = str(snapshot["run_id"])
+        fields = fields_for_run(dataset_id, run_id)
+        registered = {field["name"] for field in fields}
+        for name in ("event_category", "split", "video_id", "person_count", "vehicle_count", "bus_count", "is_night"):
+            available = (
+                name in {"event_category", "split", "video_id"}
+                or facet_data.get("counts", {}).get(name) is not None
+                or (name == "is_night" and bool(facet_data.get("booleans", {}).get(name)))
+            )
+            if available and name not in registered:
+                fields.extend(serialize_fields({name: CANONICAL_FILTER_FIELDS[name]}))
+    for field in fields:
+        name = field["name"]
+        field["bounds"] = (
+            facet_data.get("telemetry", {}).get(name)
+            or facet_data.get("counts", {}).get(name)
+        )
+        field["values"] = (
+            facet_data.get("event_categories") if name == "event_category" else
+            facet_data.get("splits") if name == "split" else
+            facet_data.get("video_ids") if name == "video_id" else
+            facet_data.get("booleans", {}).get(name)
+        )
+        field["wrap"] = field.get("data_type") == "circular_deg"
+    return {"dataset_id": dataset_id, "run_id": run_id, "fields": fields, "extra_filterable": False}
+
+
+@app.get("/ingest-runs/{run_id}")
+def ingest_run(run_id: str) -> dict[str, Any]:
+    result = postgres.run_info(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="ingest run not found")
+    return result
+
+
+@app.get("/media/{segment_id}/info")
+def media_information(segment_id: str, run_id: str | None = None) -> dict[str, Any]:
+    from app.media import media_info
+
+    return media_info(segment_id, run_id)
+
+
+@app.get("/media/{segment_id}", response_class=FileResponse)
+def media(segment_id: str, run_id: str | None = None):
+    from app.media import MediaError, get_clip
+
+    try:
+        path, _ = get_clip(segment_id, run_id)
+    except MediaError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.reason) from exc
+    return FileResponse(path, media_type="video/mp4", filename=f"{segment_id}.mp4")
 
 
 @app.get("/readiness-data")

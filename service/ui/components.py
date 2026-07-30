@@ -148,7 +148,10 @@ def telemetry_badges(result: dict[str, Any]) -> str:
     return f'<div class="telemetry-badges">{"".join(badges)}</div>'
 
 
-def media_slot(result: dict[str, Any], src: str | None = None) -> str:
+def media_slot(
+    result: dict[str, Any], src: str | None = None, *, reason: str | None = None,
+    source_exists: bool | None = None,
+) -> str:
     if src:
         return (
             '<div class="media-slot media-slot--player">'
@@ -163,12 +166,14 @@ def media_slot(result: dict[str, Any], src: str | None = None) -> str:
         if t_start is not None and t_end is not None
         else "—"
     )
+    reason_text = reason or "Embedding indekslendi — medya önizlemesi bu ortamda servis edilmiyor."
+    source_text = "evet" if source_exists else "hayır" if source_exists is False else "bilinmiyor"
     return (
         '<div class="media-slot">'
         '<span class="media-slot__icon" aria-hidden="true">▤</span>'
         "<div>"
         f'<div class="media-slot__title">Segment {time_label} · {_esc(basename)}</div>'
-        '<div class="media-slot__sub">Embedding indekslendi — medya önizlemesi bu ortamda servis edilmiyor.</div>'
+        f'<div class="media-slot__sub">{_esc(reason_text)} Kaynak mevcut: {_esc(source_text)}</div>'
         "</div></div>"
     )
 
@@ -206,7 +211,10 @@ def result_list(results: list[dict[str, Any]]) -> str:
     return f'<div class="result-list">{"".join(cards)}</div>'
 
 
-def result_detail_panel(result: dict[str, Any], meta: dict[str, Any]) -> str:
+def result_detail_panel(
+    result: dict[str, Any], meta: dict[str, Any], media: dict[str, Any] | None = None,
+) -> str:
+    media = media or {}
     fields = [
         ("Video ID", result.get("video_id")),
         ("Segment ID", result.get("segment_id")),
@@ -222,6 +230,15 @@ def result_detail_panel(result: dict[str, Any], meta: dict[str, Any]) -> str:
         ("Otobüs sayısı", result.get("bus_count")),
         ("Caption", result.get("caption")),
         ("Dosya yolu", result.get("file_path")),
+        ("Active run", meta.get("run_id")),
+        ("Dataset version", meta.get("dataset_version")),
+        ("Vector provenance", meta.get("vector_provenance")),
+        ("Model", meta.get("model_id")),
+        ("Model revision", meta.get("model_revision")),
+        ("Filter mode", meta.get("filter_execution_mode")),
+        ("Clip URL", media.get("clip_url")),
+        ("Kaynak mevcut", media.get("source_exists")),
+        ("Media nedeni", media.get("reason")),
     ]
     items = "".join(
         '<div class="diagnostics-item">'
@@ -232,14 +249,23 @@ def result_detail_panel(result: dict[str, Any], meta: dict[str, Any]) -> str:
         if value is not None
     )
     narrowing = f'{meta.get("candidate_count", "—")} aday → {meta.get("returned_count", "—")} sonuç'
+    extra = result.get("extra") or {}
+    extra_html = ""
+    if extra:
+        extra_html = (
+            '<div class="diagnostics-notes"><strong>Extra telemetry (read-only)</strong>'
+            f'<pre style="white-space:pre-wrap">{_esc(extra)}</pre></div>'
+        )
+    clip_url = media.get("clip_url")
+    media_src = f'{meta.get("api_url", "")}{clip_url}' if clip_url else None
     return (
         '<div class="diagnostics-panel">'
-        f"{media_slot(result)}"
+        f'{media_slot(result, media_src, reason=media.get("reason"), source_exists=media.get("source_exists"))}'
         f'<div class="diagnostics-grid" style="margin-top:var(--space-4)">{items}</div>'
         '<div class="diagnostics-notes">'
         f'backend={_esc(meta.get("backend"))} · strategy={_esc(meta.get("strategy"))} · '
         f'dimension={_esc(meta.get("dimension"))} · filtre daraltması: {_esc(narrowing)}'
-        "</div></div>"
+        f"</div>{extra_html}</div>"
     )
 
 

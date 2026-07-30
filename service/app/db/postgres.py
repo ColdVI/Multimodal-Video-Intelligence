@@ -535,10 +535,20 @@ def stats(
         _, extras = _driver()
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             cur.execute(
-                """SELECT d.dataset_id,d.dataset_version,d.license,d.has_telemetry,d.has_captions,
-                          d.vector_provenance, count(s.segment_id)::int AS segments
+                """SELECT d.dataset_id,coalesce(r.dataset_version,d.dataset_version) AS dataset_version,
+                          d.license,d.has_telemetry,d.has_captions,
+                          coalesce(r.vector_provenance,d.vector_provenance) AS vector_provenance,
+                          (CASE WHEN r.run_id IS NOT NULL
+                            THEN coalesce(r.expected_segments,count(DISTINCT rs.segment_id))
+                            ELSE count(DISTINCT s.segment_id) END)::int AS segments,
+                          r.run_id::text AS active_run_id,r.status AS run_status,
+                          r.model_id,r.model_revision,r.source_commit,r.enabled_backends,
+                          r.enabled_dimensions,r.finished_at AS last_ingest_at
                    FROM datasets d LEFT JOIN segments s ON s.dataset_id=d.dataset_id
-                   GROUP BY d.dataset_id ORDER BY d.dataset_id"""
+                   LEFT JOIN dataset_active_runs a ON a.dataset_id=d.dataset_id
+                   LEFT JOIN ingest_runs r ON r.run_id=a.active_run_id
+                   LEFT JOIN run_segments rs ON rs.run_id=r.run_id AND rs.dataset_id=d.dataset_id
+                   GROUP BY d.dataset_id,r.run_id ORDER BY d.dataset_id"""
             )
             datasets = [dict(row) for row in cur.fetchall()]
             for item in datasets:
@@ -546,7 +556,13 @@ def stats(
                     counts = {}
                     for dimension in dimensions:
                         table, _ = VECTOR_TABLES[dimension]
-                        cur.execute(f"SELECT count(*)::int AS n FROM {table} WHERE dataset_id=%s", (item["dataset_id"],))
+                        if item.get("active_run_id"):
+                            cur.execute(
+                                f"SELECT count(*)::int AS n FROM {table}_runs WHERE dataset_id=%s AND run_id=%s",
+                                (item["dataset_id"], item["active_run_id"]),
+                            )
+                        else:
+                            cur.execute(f"SELECT count(*)::int AS n FROM {table} WHERE dataset_id=%s", (item["dataset_id"],))
                         counts[str(dimension)] = cur.fetchone()["n"]
                     item["pgvector"] = counts
                 cur.execute(
@@ -687,6 +703,9 @@ def delete_inactive_metadata_chunk(run_id: str, dataset_id: str, video_id: str, 
 
 
 def facets(dataset_id: str) -> dict[str, Any]:
+    snapshot = get_active_run_snapshot(dataset_id)
+    if snapshot is not None:
+        return _run_facets(dataset_id, str(snapshot["run_id"]))
     with connection() as conn, conn.cursor() as cur:
         cur.execute(
             """SELECT array_remove(array_agg(DISTINCT v.event_category),NULL),
@@ -727,3 +746,113 @@ def facets(dataset_id: str) -> dict[str, Any]:
             "bus_count": bounds(counts_values[4], counts_values[5]),
         },
     }
+
+
+def _run_facets(dataset_id: str, run_id: str) -> dict[str, Any]:
+    telemetry_names = (
+        "latitude", "longitude", "altitude_m", "velocity_mps", "roll", "pitch", "yaw",
+        "yaw_rate", "gimbal_pitch", "gimbal_heading", "compass_heading",
+    )
+    aggregate = ",".join(f"min(t.{name}),max(t.{name})" for name in telemetry_names)
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT array_remove(array_agg(DISTINCT event_category),NULL),
+                      array_remove(array_agg(DISTINCT split),NULL),array_agg(DISTINCT video_id)
+               FROM run_videos WHERE dataset_id=%s AND run_id=%s""",
+            (dataset_id, run_id),
+        )
+        event_categories, splits, video_ids = cur.fetchone()
+        cur.execute(
+            f"""SELECT {aggregate} FROM run_segment_telemetry t
+                 JOIN run_segments s ON s.run_id=t.run_id AND s.segment_id=t.segment_id
+                 WHERE s.dataset_id=%s AND s.run_id=%s""",
+            (dataset_id, run_id),
+        )
+        values = cur.fetchone()
+        cur.execute(
+            """SELECT min(person_count),max(person_count),min(vehicle_count),max(vehicle_count),
+                      min(bus_count),max(bus_count)
+               FROM run_segment_metadata m JOIN run_segments s ON s.run_id=m.run_id AND s.segment_id=m.segment_id
+               WHERE s.dataset_id=%s AND s.run_id=%s""",
+            (dataset_id, run_id),
+        )
+        counts = cur.fetchone()
+
+    def bounds(lo, hi):
+        return None if lo is None or hi is None else [float(lo), float(hi)]
+
+    telemetry = {
+        name: bounds(values[index * 2], values[index * 2 + 1])
+        for index, name in enumerate(telemetry_names)
+    }
+    return {
+        "run_id": run_id, "event_categories": sorted(event_categories or []),
+        "splits": sorted(splits or []), "video_ids": sorted(video_ids or []),
+        "telemetry": telemetry,
+        "counts": {
+            "person_count": bounds(counts[0], counts[1]),
+            "vehicle_count": bounds(counts[2], counts[3]),
+            "bus_count": bounds(counts[4], counts[5]),
+        },
+        "booleans": {"is_night": [False, True]},
+    }
+
+
+def list_datasets() -> list[dict[str, Any]]:
+    return stats(dimensions=(), include_pgvector=False)
+
+
+def list_runs(dataset_id: str) -> list[dict[str, Any]]:
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(
+                """SELECT r.*, (a.active_run_id=r.run_id) AS is_active
+                   FROM ingest_runs r LEFT JOIN dataset_active_runs a ON a.dataset_id=r.dataset_id
+                   WHERE r.dataset_id=%s ORDER BY r.started_at DESC""",
+                (dataset_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
+def run_info(run_id: str) -> dict[str, Any] | None:
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM ingest_runs WHERE run_id=%s", (run_id,))
+            run = cur.fetchone()
+            if run is None:
+                return None
+            cur.execute(
+                """SELECT status,count(*)::int AS chunks,sum(coalesce(expected_segments,0))::int AS expected_segments
+                   FROM ingest_chunks WHERE run_id=%s GROUP BY status ORDER BY status""", (run_id,),
+            )
+            return {**dict(run), "chunk_summary": [dict(row) for row in cur.fetchall()]}
+
+
+def resolve_media_segment(segment_id: str, run_id: str | None = None) -> dict[str, Any] | None:
+    if run_id is not None:
+        sql = """SELECT s.segment_id,s.run_id::text,s.dataset_id,s.video_id,s.t_start,s.t_end,v.source_uri
+                 FROM run_segments s JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id
+                 WHERE s.run_id=%s AND s.segment_id=%s"""
+        params = (run_id, segment_id)
+    else:
+        sql = """SELECT s.segment_id,s.run_id::text,s.dataset_id,s.video_id,s.t_start,s.t_end,v.source_uri
+                 FROM run_segments s
+                 JOIN dataset_active_runs a ON a.active_run_id=s.run_id AND a.dataset_id=s.dataset_id
+                 JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id
+                 WHERE s.segment_id=%s
+                 UNION ALL
+                 SELECT s.segment_id,NULL::text AS run_id,s.dataset_id,s.video_id,s.t_start,s.t_end,v.source_uri
+                 FROM segments s JOIN videos v ON v.dataset_id=s.dataset_id AND v.video_id=s.video_id
+                 WHERE s.segment_id=%s AND NOT EXISTS (
+                   SELECT 1 FROM run_segments rs JOIN dataset_active_runs a ON a.active_run_id=rs.run_id
+                   WHERE rs.segment_id=%s
+                 ) LIMIT 1"""
+        params = (segment_id, segment_id, segment_id)
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            row = cur.fetchone()
+            return None if row is None else dict(row)

@@ -201,3 +201,20 @@
 - 2026-07-30 — 350°–10° circular aralık OR, normal aralık AND derlenir.
   Adaptive base aynı predicate'i taşır; yalnız bounded `top_n` rerank ID listesi
   olabilir. Legacy benchmark listesi `LEGACY_CANDIDATE_LIMIT` aşarsa fail olur.
+
+## Faz 11 Aşama 8 decisions
+
+- 2026-07-30 — Medya servisi source URI'yi yalnız PostgreSQL active-run snapshot
+  üzerinden çözer; canonical path `DATA_ROOT` dışında kalırsa fail-closed 403 verir.
+  ZIP pseudo-path ve uzak URI'ler oynatılabilir dosya sayılmaz. FFmpeg shell string
+  değil argüman listesiyle çağrılır; browser uyumluluğu için `libx264`, `yuv420p`,
+  AAC ve `faststart` kullanılır. Cache anahtarı source path/stat, zaman aralığı ve
+  codec/CRF ayarlarını kapsar; partial çıktı atomik rename olmadan görünür olmaz.
+- 2026-07-30 — UI canonical alanları registry+bounds kaynağından gösterir. Mevcut
+  altitude/velocity/gimbal slider ve `.release()`/`.select()` yarış önleme kararı
+  korunur; diğer numeric/circular alanlar min/max tablosunda, `is_night` boolean
+  seçiminde görünür. Manifest `extra` alanları yalnız detail panelinde read-only'dir.
+- 2026-07-30 — Backend/dimension/strategy seçeneklerinin tek kaynağı
+  `/strategies` endpoint'idir. API erişilemezse UI'nın import edilebilmesi için
+  kurum profiliyle aynı dar compatibility varsayımı (`clickhouse`, `512`,
+  `prefilter`) kullanılır; disabled benchmark seçenekleri uydurulmaz.

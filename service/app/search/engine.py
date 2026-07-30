@@ -197,11 +197,21 @@ def search(request: Any) -> dict[str, Any]:
         "quality_vs_groundtruth": None,
         "r_at_1": None if settings.embedding_mode == "synthetic" else None,
         "ndcg": None if settings.embedding_mode == "synthetic" else None,
+        "run_id": None if active_snapshot is None else active_snapshot["run_id"],
+        "filter_execution_mode": execution_mode,
+        "candidate_count_source": "backend_pushdown" if execution_mode == "pushdown" else "postgres_candidate_ids",
+        "filter_pushdown_backend": request.backend if execution_mode == "pushdown" else None,
+        "model_id": None if active_snapshot is None else active_snapshot.get("model_id"),
+        "model_revision": None if active_snapshot is None else active_snapshot.get("model_revision"),
+        "vector_provenance": (
+            dataset["vector_provenance"] if active_snapshot is None else active_snapshot["vector_provenance"]
+        ),
     }
     return {
         "embedding_mode": settings.embedding_mode,
         "dataset_id": request.dataset_id,
         "run_id": None if active_snapshot is None else active_snapshot["run_id"],
+        "dataset_version": None if active_snapshot is None else active_snapshot.get("dataset_version"),
         "vector_provenance": (
             dataset["vector_provenance"] if active_snapshot is None else active_snapshot["vector_provenance"]
         ),

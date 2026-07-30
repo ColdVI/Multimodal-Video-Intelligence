@@ -1,0 +1,10 @@
+{
+  "expected_environment": "healthy canonical Docker Compose stack, active real ingest run with DATA_ROOT local MP4, API/UI reachable on loopback, Playwright Chromium installed",
+  "generated_at_utc": "2026-07-30T20:57:11.652636+00:00",
+  "image": "artifacts/faz11/ui_smoke.png",
+  "implementation_contract_tests": "pass",
+  "reason": "Docker daemon, active institutional run/local MP4, and the required in-app browser Node REPL runtime were unavailable; the PNG is explicitly labelled NOT RUN and is not a success screenshot.",
+  "required_command": "RUN_FAZ8_INTEGRATION=1 UI_URL=http://127.0.0.1:7860 PYTHONPATH=service pytest service/tests/test_t10_ui.py -q",
+  "schema_version": 1,
+  "status": "not_run"
+}

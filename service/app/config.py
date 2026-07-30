@@ -80,6 +80,10 @@ class Settings:
     decode_prefetch_windows: int
     embed_batch_size: int
     db_write_batch_size: int
+    media_max_clip_s: float
+    media_cache_max_gb: float
+    media_cache_retention_hours: float
+    media_h264_crf: int
     require_secure_credentials: bool
     pg_host: str
     pg_port: int
@@ -120,6 +124,10 @@ class Settings:
             decode_prefetch_windows=_int(values, "DECODE_PREFETCH_WINDOWS", 8),
             embed_batch_size=_int(values, "EMBED_BATCH_SIZE", 2),
             db_write_batch_size=_int(values, "DB_WRITE_BATCH_SIZE", 512),
+            media_max_clip_s=_float(values, "MEDIA_MAX_CLIP_S", 60.0),
+            media_cache_max_gb=_float(values, "MEDIA_CACHE_MAX_GB", 10.0),
+            media_cache_retention_hours=_float(values, "MEDIA_CACHE_RETENTION_HOURS", 168.0),
+            media_h264_crf=_int(values, "MEDIA_H264_CRF", 23),
             require_secure_credentials=_bool(values, "REQUIRE_SECURE_CREDENTIALS"),
             pg_host=values.get("POSTGRES_HOST", "localhost"),
             pg_port=_int(values, "POSTGRES_PORT", 5442),
@@ -172,6 +180,10 @@ class Settings:
             raise ValueError("DECODE_CHUNK_S must be positive")
         if min(self.decode_prefetch_windows, self.embed_batch_size, self.db_write_batch_size) < 1:
             raise ValueError("decode prefetch, embed batch, and DB write batch sizes must be positive")
+        if min(self.media_max_clip_s, self.media_cache_max_gb, self.media_cache_retention_hours) <= 0:
+            raise ValueError("media clip/cache limits must be positive")
+        if not 0 <= self.media_h264_crf <= 51:
+            raise ValueError("MEDIA_H264_CRF must be in [0,51]")
         if self.require_secure_credentials:
             missing = []
             if not self.pg_password:
