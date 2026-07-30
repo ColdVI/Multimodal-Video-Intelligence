@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: service/Dockerfile.hybrid
+    environment:
+      EMBEDDING_MODE: hybrid_text
+      QWEN_REPO_PATH: /opt/Qwen3-VL-Embedding
+      QWEN_MODEL_PATH: /opt/models/Qwen3-VL-Embedding-2B
+    volumes:
+      - ${QWEN_REPO_HOST_PATH:-./.runtime/Qwen3-VL-Embedding}:/opt/Qwen3-VL-Embedding:ro
+      - ${QWEN_MODEL_HOST_PATH:-./.runtime/huggingface/hub/models--Qwen--Qwen3-VL-Embedding-2B/snapshots/9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda}:/opt/models/Qwen3-VL-Embedding-2B:ro
+  ui:
+    environment:
+      EMBEDDING_MODE: hybrid_text

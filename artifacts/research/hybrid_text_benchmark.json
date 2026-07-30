@@ -1,0 +1,19 @@
+{
+  "model_load_ms": 28029.691,
+  "dtype": "float32",
+  "device": "cpu",
+  "model_id": "Qwen/Qwen3-VL-Embedding-2B",
+  "model_revision": "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda",
+  "cold_query_ms": 43173.451,
+  "warm_query_ms": [
+    4677.343,
+    738.879,
+    573.214
+  ],
+  "warm_p50_ms": 738.879,
+  "warm_limit_ms": 10000.0,
+  "fallback_recommended": false,
+  "fallback_basis": "warm_p50",
+  "selected_mode": "hybrid_text",
+  "synthetic_fallback": false
+}

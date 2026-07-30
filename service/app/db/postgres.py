@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS segment_telemetry (
   gimbal_pitch real, gimbal_heading real, compass_heading real,
   imu_summary jsonb
 );
+CREATE TABLE IF NOT EXISTS retrieval_groundtruth (
+  dataset_id text NOT NULL, query_id text NOT NULL, query_text text NOT NULL,
+  relevant_segment_id text NOT NULL, relevant_video_id text NOT NULL,
+  relevance_rank int NOT NULL, caption_index int, caption_source text NOT NULL,
+  PRIMARY KEY (dataset_id,query_id,relevant_segment_id)
+);
 CREATE TABLE IF NOT EXISTS emb_pg_2048 (segment_id text PRIMARY KEY, dataset_id text, v halfvec(2048));
 CREATE TABLE IF NOT EXISTS emb_pg_1024 (segment_id text PRIMARY KEY, dataset_id text, v vector(1024));
 CREATE TABLE IF NOT EXISTS emb_pg_1024h(segment_id text PRIMARY KEY, dataset_id text, v halfvec(1024));
@@ -45,6 +51,8 @@ CREATE INDEX IF NOT EXISTS ix_tel_alt ON segment_telemetry(altitude_m);
 CREATE INDEX IF NOT EXISTS ix_tel_vel ON segment_telemetry(velocity_mps);
 CREATE INDEX IF NOT EXISTS ix_tel_gp  ON segment_telemetry(gimbal_pitch);
 CREATE INDEX IF NOT EXISTS ix_meta_p  ON segment_metadata(person_count);
+CREATE INDEX IF NOT EXISTS ix_gt_dataset ON retrieval_groundtruth(dataset_id);
+CREATE INDEX IF NOT EXISTS ix_gt_video ON retrieval_groundtruth(dataset_id,relevant_video_id);
 """
 
 VECTOR_TABLES = {
@@ -88,6 +96,48 @@ def health() -> bool:
         return False
 
 
+def schema_status() -> dict[str, bool]:
+    required = {
+        "datasets", "videos", "segments", "segment_metadata", "segment_telemetry",
+        "retrieval_groundtruth", *[table for table, _ in VECTOR_TABLES.values()],
+    }
+    try:
+        with connection() as conn, conn.cursor() as cur:
+            cur.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'")
+            present = {row[0] for row in cur.fetchall()}
+        return {table: table in present for table in sorted(required)}
+    except Exception:
+        return {table: False for table in sorted(required)}
+
+
+def dataset_info(dataset_id: str) -> dict[str, Any] | None:
+    with connection() as conn:
+        _, extras = _driver()
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT dataset_id,has_telemetry,has_captions FROM datasets WHERE dataset_id=%s",
+                (dataset_id,),
+            )
+            row = cur.fetchone()
+            return None if row is None else dict(row)
+
+
+def groundtruth_stats(dataset_id: str) -> dict[str, Any]:
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT count(*),count(DISTINCT query_id),count(DISTINCT relevant_video_id),
+                      count(*) FILTER (WHERE caption_source='unknown'),
+                      count(*) FILTER (WHERE relevant_video_id NOT LIKE 'test__%%')
+               FROM retrieval_groundtruth WHERE dataset_id=%s""",
+            (dataset_id,),
+        )
+        count, queries, videos, unknown, non_test = cur.fetchone()
+    return {
+        "rows": int(count), "unique_queries": int(queries), "videos": int(videos),
+        "caption_source_unknown": int(unknown), "non_test_video_ids": int(non_test),
+    }
+
+
 def init_schema() -> None:
     with connection() as conn, conn.cursor() as cur:
         cur.execute(SCHEMA_SQL)
@@ -106,8 +156,23 @@ def upsert_dataset_bundle(
     segments: list[tuple[Any, ...]],
     metadata: list[tuple[Any, ...]],
     telemetry: list[tuple[Any, ...]],
+    groundtruth: list[tuple[Any, ...]] | None = None,
 ) -> None:
     with connection() as conn, conn.cursor() as cur:
+        dataset_id = str(dataset[0])
+        # Bundle, dataset'in tam snapshot'idir. Bu temizlik onceki train+test
+        # CapERA kalintilarinin test-only kalite kapsaminda kalmasini engeller.
+        cur.execute("DELETE FROM retrieval_groundtruth WHERE dataset_id=%s", (dataset_id,))
+        cur.execute(
+            "DELETE FROM segment_metadata WHERE segment_id IN "
+            "(SELECT segment_id FROM segments WHERE dataset_id=%s)", (dataset_id,)
+        )
+        cur.execute(
+            "DELETE FROM segment_telemetry WHERE segment_id IN "
+            "(SELECT segment_id FROM segments WHERE dataset_id=%s)", (dataset_id,)
+        )
+        cur.execute("DELETE FROM segments WHERE dataset_id=%s", (dataset_id,))
+        cur.execute("DELETE FROM videos WHERE dataset_id=%s", (dataset_id,))
         cur.execute(
             """INSERT INTO datasets VALUES (%s,%s,%s,%s,%s,%s)
                ON CONFLICT (dataset_id) DO UPDATE SET
@@ -147,6 +212,18 @@ def upsert_dataset_bundle(
                gimbal_heading=EXCLUDED.gimbal_heading,compass_heading=EXCLUDED.compass_heading""",
             telemetry,
         )
+        _execute_values(
+            cur,
+            """INSERT INTO retrieval_groundtruth(
+                 dataset_id,query_id,query_text,relevant_segment_id,relevant_video_id,
+                 relevance_rank,caption_index,caption_source
+               ) VALUES %s
+               ON CONFLICT(dataset_id,query_id,relevant_segment_id) DO UPDATE SET
+                 query_text=EXCLUDED.query_text,relevant_video_id=EXCLUDED.relevant_video_id,
+                 relevance_rank=EXCLUDED.relevance_rank,caption_index=EXCLUDED.caption_index,
+                 caption_source=EXCLUDED.caption_source""",
+            groundtruth or [],
+        )
         conn.commit()
 
 
@@ -154,6 +231,8 @@ def upsert_vectors(dimension: int, rows: Iterable[tuple[str, str, list[float]]],
     table = "emb_pg_1024h" if dimension == 1024 and half_1024 else VECTOR_TABLES[dimension][0]
     values = [(segment_id, dataset_id, _vector_literal(vector)) for segment_id, dataset_id, vector in rows]
     with connection() as conn, conn.cursor() as cur:
+        for dataset_id in sorted({row[1] for row in values}):
+            cur.execute(f"DELETE FROM {table} WHERE dataset_id=%s", (dataset_id,))
         _execute_values(
             cur,
             f"INSERT INTO {table}(segment_id,dataset_id,v) VALUES %s ON CONFLICT(segment_id) DO UPDATE SET v=EXCLUDED.v",
@@ -279,6 +358,11 @@ def stats() -> list[dict[str, Any]]:
                     cur.execute(f"SELECT count(*)::int AS n FROM {table} WHERE dataset_id=%s", (item["dataset_id"],))
                     counts[str(dimension)] = cur.fetchone()["n"]
                 item["pgvector"] = counts
+                cur.execute(
+                    "SELECT count(*)::int AS n FROM retrieval_groundtruth WHERE dataset_id=%s",
+                    (item["dataset_id"],),
+                )
+                item["groundtruth"] = cur.fetchone()["n"]
             return datasets
 
 

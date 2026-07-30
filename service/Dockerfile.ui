@@ -2,9 +2,10 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY requirements.txt .
+COPY service/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
-COPY app ./app
-COPY ui ./ui
+COPY service/app ./app
+COPY service/ui ./ui
+COPY config.yaml ./
 EXPOSE 7860
 CMD ["python", "-m", "ui.app"]

@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ./service
-      dockerfile: Dockerfile.gpu
+      context: .
+      dockerfile: service/Dockerfile.gpu
     environment:
       EMBEDDING_MODE: real
     deploy:
@@ -12,4 +12,3 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-

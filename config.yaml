@@ -58,22 +58,25 @@ datasets:
     license: "UNKNOWN (bu oturumda dogrulanamadi - HF repo sayfasi acik lisans metni surmuyordu, taniniz gerekiyor)"
 
   # CapERA (Bashmal ve ark. 2023, MDPI Remote Sensing 15(8):2139) - ERA aerial
-  # event dataset'inin captioning katmani. Video 5 saniye, alt-pencere YOK -
-  # MSR-VTT gibi artifact_matrix backend, ClickHouse'a YAZILMAZ. query_count
-  # gercek: 2864 video x 5 caption = 14320 (dogrulandi: CapERA_DATASET_
-  # {train,test}.json). all_results.json'daki gercek kosum 14315 kullanmis
-  # (1 bozuk video Colab diskinde bulunamadigi icin cikarilmis, notebook
-  # hucre 23) - bu KASITLI bir fark, hata degil (bkz. datasets/capera.py).
+  # event dataset'inin captioning katmani. Faz 8 quality protokolu YALNIZ
+  # test splitidir: 1391 video x 5 caption = 6955 query/GT. Kaynak caption
+  # provenance'i vermedigi icin caption_source daima "unknown" kalir.
   capera:
     adapter: capera
     retrieval_backend: artifact_matrix
     has_structured_filters: false
     has_temporal_windows: false
     evaluation_regime: text_to_video
-    query_count: 14320
+    query_count: 6955
     dataset_version: "CapERA (Bashmal ve ark. 2023) train+test caption release"
+    quality_dataset_version: "CapERA (Bashmal ve ark. 2023) test caption release"
     train_split: data/downloads/capera/CapERA_DATASET_train.json
     test_split: data/downloads/capera/CapERA_DATASET_test.json
+    quality_split: test
+    quality_item_count: 1391
+    captions_per_item: 5
+    quality_query_count: 6955
+    fixed_duration_s: 5.0
     # Colab handoff: ERA_Dataset.zip Colab'in KENDI lokal diskine (/content,
     # Drive DEGIL) acilir - Drive'dan Drive'a acmak 6GB'da 15-30dk surer,
     # /content'e acmak 2-5dk. CapERAAdapter.load_video() var-olmayan bir

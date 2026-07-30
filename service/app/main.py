@@ -3,7 +3,9 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.config import DIMENSIONS, settings
@@ -21,6 +23,11 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Multimodal Video Intelligence — Faz 7", version="7.0.0", lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=400, content={"detail": exc.errors()})
 
 
 class AdaptiveMRL(BaseModel):
@@ -69,6 +76,14 @@ def facets(dataset_id: str) -> dict[str, Any]:
     return {"dataset_id": dataset_id, **postgres.facets(dataset_id)}
 
 
+@app.get("/readiness-data")
+def readiness_data() -> dict[str, Any]:
+    return {
+        "pg_schema": postgres.schema_status(),
+        "capera_groundtruth": postgres.groundtruth_stats("capera"),
+    }
+
+
 @app.get("/strategies")
 def strategies() -> dict[str, Any]:
     return {"strategies": SUPPORTED_STRATEGIES, "dimensions": DIMENSIONS}
@@ -81,5 +96,4 @@ def search(request: SearchRequest) -> dict[str, Any]:
 
         return run_search(request)
     except (ValueError, KeyError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

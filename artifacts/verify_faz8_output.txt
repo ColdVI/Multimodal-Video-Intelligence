@@ -1,0 +1,31 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260730112521
+Username: PC_5812\PC_5812_YD26
+RunAs User: PC_5812\PC_5812_YD26
+Configuration Name: 
+Machine: PC_5812 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File scripts\verify_faz8.ps1
+Process ID: 24116
+PSVersion: 5.1.26100.8875
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8875
+BuildVersion: 10.0.26100.8875
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+[faz8] verify started: 2026-07-30T11:25:21.3823376+03:00
+
+
+
+
+
+
+[faz8] quality readiness is informational until Colab artifacts and cached ingest exist
+[faz8] verify completed: 2026-07-30T11:26:31.1915514+03:00
+**********************
+Windows PowerShell transcript end
+End time: 20260730112631
+**********************

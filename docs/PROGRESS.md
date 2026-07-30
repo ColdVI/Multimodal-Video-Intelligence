@@ -1,5 +1,16 @@
 # Faz 7 ilerleme günlüğü
 
+## Faz 8 progress
+
+| Date | Stage | Result | Evidence |
+|---|---|---|---|
+| 2026-07-30 | Protocol | Local CapERA test JSON counted directly as 1391 items, five captions each and 6955 total. | Real source-file read |
+| 2026-07-30 | Ingest/GT | Loader uses CapERAAdapter test surface, split-qualified IDs and unknown caption source. | 46 target tests passed; 5 readiness skips |
+| 2026-07-30 | Readiness | system/quality, JSON and strict profiles implemented; A1 does not affect system. | Unit tests and CLI contract |
+| 2026-07-30 | Hybrid text | Atomic process-safe revision+text cache, lazy lock, CPU fp32 fallback and warm-p50 decision. | Real CPU: load 28.030 s, cold query 43.173 s, warm p50 0.739 s; hybrid_text selected |
+| 2026-07-30 | Quality | NPY+Parquet bulk queries, video-cluster bootstrap, exploratory controls and separate halfvec experiment. | Code/unit evidence; real T8 waits for A1 |
+| 2026-07-30 | Final validation | System readiness passed; quality readiness remained explicitly blocked on real CapERA artifacts. | 382 passed, 5 skipped; matrix 318 PASS, 1 EXPLORATORY, 3 SKIP, 0 FAIL |
+
 | Zaman (Europe/Istanbul) | Aşama | Sonuç | Kanıt türü |
 |---|---|---|---|
 | 2026-07-30 | Başlangıç | `main` dalının `origin/main` önünde olan önceki 7 commiti başarıyla pushlandı. | GERÇEK git remote işlemi |

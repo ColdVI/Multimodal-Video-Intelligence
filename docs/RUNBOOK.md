@@ -1,5 +1,45 @@
 # Faz 7 runbook
 
+## Faz 8 - Gercek veriye gecis (zorunlu sira)
+
+On kosul: Qwen kaynak kodu ve model snapshot'i .env.faz7 icindeki
+QWEN_REPO_HOST_PATH / QWEN_MODEL_HOST_PATH yollarinda hazir olmalidir. Bu
+hazirlik 10 dakikayi asiyorsa sistem testlerini bloke etmez; A1 eksik kalir.
+
+1. Colab'da notebooks/07_colab_embedding_production.ipynb calistirilir.
+   Yalniz CapERA test split uretilir: 1391 item, 6955 caption query;
+   provenance unknown.
+2. Indirilen capera_embeddings_faz8.zip dosyasi artifacts/embeddings/
+   altina acilir. ZIP'i acmak tek basina A1 hazirligi degildir.
+3. .env.faz7 icinde gecici olarak EMBEDDING_MODE=cached ayarlanir ve cached
+   ingest gercekten calistirilir:
+
+   docker compose -f docker-compose.faz7.yml up -d --build
+   docker compose -f docker-compose.faz7.yml exec -T api python -m app.ingestion.load_dataset --dataset capera
+
+4. GET /stats ile CapERA segments=1391; 2048/1024/512/256 boyutlarinin her
+   birinde pgvector, ClickHouse ve Qdrant sayilarinin ayri ayri 1391 oldugu
+   ve GT sayisinin tam 6955 oldugu dogrulanir.
+5. API/UI hybrid_text imajiyla yeniden baslatilir; ardindan cold model load,
+   cold query ve warm query ayri olculur:
+
+   docker compose -f docker-compose.faz7.yml -f docker-compose.hybrid.yml up -d --build api ui
+   docker compose -f docker-compose.faz7.yml -f docker-compose.hybrid.yml exec -T api python -m app.embedding.text_cpu
+
+   Karar sadece warm_p50_ms uzerindendir. Esik asilirsa artifact
+   selected_mode=cached_only yazar; .env.faz7 cached moda alinir ve servis
+   yeniden baslatilir. Hicbir durumda sentetik fallback yoktur.
+6. Quality readiness strict calistirilir:
+
+   .venv/Scripts/python.exe scripts/readiness_check.py --profile quality --json --strict
+
+7. Yalniz quality profili hazirsa T8 calistirilir:
+
+   PYTHONPATH=service .venv/Scripts/python.exe -m app.bench.matrix --suite T8 --out artifacts/research/test_matrix_T8.csv
+
+Sistem profili ayri bir kapidir: --profile system --strict. CapERA/A1
+eksikligi T1-T7'nin calismasini engellemez.
+
 ## Ayağa kaldırma
 
 ```bash
@@ -24,9 +64,13 @@ UI ekran görüntüsü: UI açıldıktan ve AU-AIR yüklendikten sonra tarayıc�
 
 ## Cached gerçek embedding'e geçiş
 
-Colab'ı aç → GPU seç → Tümünü çalıştır → ZIP'i indir → `artifacts/embeddings/` altına aç → `.env.faz7`'de `EMBEDDING_MODE=cached` → `docker compose -f docker-compose.faz7.yml restart api ui` → UI banner yeşile döner.
+Yukarıdaki zorunlu sırayı kullan. ZIP'i açtıktan sonra cached ingest ve
+`1391 x 4 boyut x 3 backend` ile `6955` GT doğrulaması yapılmadan A1 hazır
+sayılmaz.
 
-`cached` mod model yüklemez. Serbest metin sorguları, Colab'ın ürettiği `artifacts/embeddings/query_embeddings.json` içinde bulunmalıdır; bilinmeyen sorgu sentetik vektöre sessizce düşmez.
+`cached` mod model yüklemez. `query_embeddings.json` yalnız sabit demo
+sorgularını tutar; 6955 quality sorgusu NPY + Parquet dosyalarındadır.
+Bilinmeyen sorgu sentetik vektöre sessizce düşmez.
 
 ## GPU/real modu
 
@@ -42,4 +86,3 @@ docker compose -f docker-compose.faz7.yml -f docker-compose.gpu.yml up -d --buil
 docker compose -f docker-compose.faz7.yml down
 # Verileri de silmek açıkça isteniyorsa ayrıca: docker compose -f docker-compose.faz7.yml down -v
 ```
-

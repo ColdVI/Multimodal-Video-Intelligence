@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,7 @@ class DatasetBundle:
     telemetry: list[tuple[Any, ...]]
     vector_payload: list[dict[str, Any]]
     quantile_frame: pd.DataFrame
+    groundtruth: list[tuple[Any, ...]] = field(default_factory=list)
 
 
 def _sha256(paths: list[Path]) -> str:
@@ -202,39 +203,62 @@ def load_seadronessee_bundle() -> DatasetBundle:
 
 
 def load_capera_bundle() -> DatasetBundle:
-    path = _find_json("capera")
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    records = payload.get("videos", payload.get("annotations", payload if isinstance(payload, list) else []))
+    # ERA_caption semasini burada yeniden implemente etmiyoruz. Tek sozlesme
+    # dataset_adapters.capera.CapERAAdapter'dir.
+    from dataset_adapters.capera import CapERAAdapter
+
+    adapter = CapERAAdapter()
+    capera_cfg = adapter.cfg["datasets"]["capera"]
+    split = str(capera_cfg["quality_split"])
+    expected_items = int(capera_cfg["quality_item_count"])
+    expected_captions = int(capera_cfg["captions_per_item"])
+    expected_queries = int(capera_cfg["quality_query_count"])
+    duration_s = float(capera_cfg["fixed_duration_s"])
+    sequence_ids = adapter.list_sequences(split=split)
+    if len(sequence_ids) != expected_items:
+        raise ValueError(
+            f"CapERA {split} contract failed: expected {expected_items} items, got {len(sequence_ids)}"
+        )
+    manifest = adapter.manifest(split=split)
     videos: list[tuple[Any, ...]] = []
     segments: list[tuple[Any, ...]] = []
     metadata: list[tuple[Any, ...]] = []
     rows: list[dict[str, Any]] = []
-    for item in records:
-        video_id = str(item.get("video_id", item.get("id", item.get("video", ""))))
-        if not video_id:
-            continue
-        captions = item.get("captions", item.get("caption", []))
-        if isinstance(captions, list):
-            caption = str(captions[0]) if captions else None
-        else:
-            caption = str(captions) if captions else None
-        split = item.get("split")
-        source = str(item.get("file_path", item.get("video", video_id)))
-        segment_id = f"capera:{video_id}:0.000:5.000"
-        videos.append(("capera", video_id, source, split, 5.0, item.get("event_category")))
-        segments.append((segment_id, "capera", video_id, 0.0, 5.0, caption))
+    groundtruth: list[tuple[Any, ...]] = []
+    for video_id in sequence_ids:
+        entry = adapter.entry(video_id)
+        captions = adapter.captions(video_id)
+        if len(captions) != expected_captions:
+            raise ValueError(
+                f"CapERA caption contract failed for {video_id}: "
+                f"expected {expected_captions}, got {len(captions)}"
+            )
+        source = str(adapter.load_video(video_id))
+        segment_id = f"capera:{video_id}:0.000:{duration_s:.3f}"
+        videos.append(("capera", video_id, source, split, duration_s, entry["category"]))
+        segments.append((segment_id, "capera", video_id, 0.0, duration_s, captions[0]))
         metadata.append((segment_id, 0, 0, 0, [], None, None))
         rows.append({
             "segment_id": segment_id, "dataset_id": "capera", "video_id": video_id,
-            "t_start": 0.0, "t_end": 5.0, "altitude_m": None, "velocity_mps": None,
+            "t_start": 0.0, "t_end": duration_s, "altitude_m": None, "velocity_mps": None,
             "gimbal_pitch": None, "person_count": 0, "vehicle_count": 0, "is_night": 0,
         })
-    if not segments:
-        raise ValueError("CapERA annotation contained no usable video/caption records")
+        for caption_index, query_text in enumerate(captions):
+            query_id = f"capera:{video_id}:caption:{caption_index}"
+            groundtruth.append(
+                ("capera", query_id, query_text, segment_id, video_id, 1, caption_index, "unknown")
+            )
+    if len(groundtruth) != expected_queries or len({row[1] for row in groundtruth}) != expected_queries:
+        raise ValueError(
+            f"CapERA GT contract failed: expected {expected_queries} unique rows, got {len(groundtruth)}"
+        )
     return DatasetBundle(
-        dataset=("capera", "caption-json", _sha256([path]), "verify CapERA upstream license", False, True),
+        dataset=(
+            "capera", f"{manifest.dataset_version} [{split}]", manifest.source_hash,
+            adapter.license(), False, True,
+        ),
         videos=videos, segments=segments, metadata=metadata, telemetry=[], vector_payload=rows,
-        quantile_frame=pd.DataFrame(),
+        quantile_frame=pd.DataFrame(), groundtruth=groundtruth,
     )
 
 
@@ -307,7 +331,10 @@ def ingest(dataset_id: str) -> dict[str, Any]:
     qdrant.init_schema()
     bundle = LOADERS[dataset_id]()
     started = time.perf_counter()
-    postgres.upsert_dataset_bundle(bundle.dataset, bundle.videos, bundle.segments, bundle.metadata, bundle.telemetry)
+    postgres.upsert_dataset_bundle(
+        bundle.dataset, bundle.videos, bundle.segments, bundle.metadata,
+        bundle.telemetry, bundle.groundtruth,
+    )
     vectors = _build_vectors(bundle)
     report: list[dict[str, Any]] = []
     for dimension, rows in vectors.items():
@@ -341,6 +368,7 @@ def ingest(dataset_id: str) -> dict[str, Any]:
     return {
         "dataset_id": dataset_id,
         "segments": len(bundle.segments),
+        "groundtruth": len(bundle.groundtruth),
         "dimensions": list(DIMENSIONS),
         "embedding_mode": settings.embedding_mode,
         "elapsed_s": round(time.perf_counter() - started, 6),

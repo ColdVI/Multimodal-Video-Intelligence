@@ -4,9 +4,32 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
 
 DIMENSIONS = (2048, 1024, 512, 256)
-EMBEDDING_MODES = {"real", "cached", "synthetic"}
+EMBEDDING_MODES = {"real", "cached", "hybrid_text", "synthetic"}
+
+
+def _capera_protocol() -> dict[str, object]:
+    candidates = (
+        Path(os.getenv("PROJECT_CONFIG_PATH", "config.yaml")),
+        Path(__file__).resolve().parents[2] / "config.yaml",
+        Path(__file__).resolve().parents[1] / "config.yaml",
+    )
+    path = next((candidate for candidate in candidates if candidate.exists()), None)
+    if path is None:
+        raise FileNotFoundError("config.yaml not found for CapERA quality protocol")
+    config = yaml.safe_load(path.read_text(encoding="utf-8"))["datasets"]["capera"]
+    return {
+        "split": str(config["quality_split"]),
+        "items": int(config["quality_item_count"]),
+        "captions_per_item": int(config["captions_per_item"]),
+        "queries": int(config["quality_query_count"]),
+    }
+
+
+CAPERA_PROTOCOL = _capera_protocol()
 
 
 def _int(name: str, default: int) -> int:
@@ -33,6 +56,10 @@ class Settings:
     default_top_k: int = _int("DEFAULT_TOP_K", 10)
     qwen_repo_path: Path = Path(os.getenv("QWEN_REPO_PATH", "/opt/Qwen3-VL-Embedding"))
     qwen_model_path: Path = Path(os.getenv("QWEN_MODEL_PATH", "/opt/Qwen3-VL-Embedding/models/Qwen3-VL-Embedding-2B"))
+    qwen_model_id: str = os.getenv("QWEN_MODEL_ID", "Qwen/Qwen3-VL-Embedding-2B")
+    qwen_model_revision: str = os.getenv("QWEN_MODEL_REVISION", "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda")
+    qwen_text_warm_limit_s: float = float(os.getenv("QWEN_TEXT_WARM_LIMIT_S", "10"))
+    qwen_text_warm_runs: int = _int("QWEN_TEXT_WARM_RUNS", 3)
 
     def validate(self) -> None:
         if self.embedding_mode not in EMBEDDING_MODES:
@@ -41,4 +68,3 @@ class Settings:
 
 settings = Settings()
 settings.validate()
-

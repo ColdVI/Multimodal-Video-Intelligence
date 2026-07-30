@@ -1,0 +1,22 @@
+[
+  {"id":"F01","field":"altitude_m","operator":"lt","selectivity":"100pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F02","field":"altitude_m","operator":"lt","selectivity":"50pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F03","field":"altitude_m","operator":"lt","selectivity":"10pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F04","field":"altitude_m","operator":"lt","selectivity":"1pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F05","field":"altitude_m","operator":"lt","selectivity":"0.1pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F06","field":"velocity_mps","operator":"gt","selectivity":"100pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F07","field":"velocity_mps","operator":"gt","selectivity":"50pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F08","field":"velocity_mps","operator":"gt","selectivity":"10pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F09","field":"velocity_mps","operator":"gt","selectivity":"1pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F10","field":"velocity_mps","operator":"gt","selectivity":"0.1pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F11","field":"person_count","operator":"gte","selectivity":"100pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F12","field":"person_count","operator":"gte","selectivity":"50pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F13","field":"person_count","operator":"gte","selectivity":"10pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F14","field":"person_count","operator":"gte","selectivity":"1pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F15","field":"person_count","operator":"gte","selectivity":"0.1pct","threshold_source":"selectivity_thresholds_v2.json"},
+  {"id":"F16","field":"gimbal_pitch","operator":"between","selectivity":"100pct","threshold_source":"selectivity_thresholds_v2.json","dataset":"seadronessee"},
+  {"id":"F17","field":"gimbal_pitch","operator":"between","selectivity":"50pct","threshold_source":"selectivity_thresholds_v2.json","dataset":"seadronessee"},
+  {"id":"F18","field":"gimbal_pitch","operator":"between","selectivity":"10pct","threshold_source":"selectivity_thresholds_v2.json","dataset":"seadronessee"},
+  {"id":"F19","field":"gimbal_pitch","operator":"between","selectivity":"1pct","threshold_source":"selectivity_thresholds_v2.json","dataset":"seadronessee"},
+  {"id":"F20","field":"gimbal_pitch","operator":"between","selectivity":"0.1pct","threshold_source":"selectivity_thresholds_v2.json","dataset":"seadronessee"}
+]

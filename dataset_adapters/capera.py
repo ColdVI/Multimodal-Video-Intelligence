@@ -35,6 +35,8 @@ from .base import DatasetAdapter, DatasetManifest
 # is 5 seconds, so one video = one chunk" - notebook yazarinin kendi
 # belgeledigi sabit; video dosyasi olmadigi icin bu depoda BAGIMSIZ
 # dogrulanamadi, kaynagi acikca budur.
+# Geriye donuk import uyumlulugu. Uretim loader'i bu degeri config.yaml'daki
+# datasets.capera.fixed_duration_s alanindan okur.
 FIXED_DURATION_S = 5.0
 
 _CATEGORY_RE = re.compile(r"_\d+\.mp4$")
@@ -85,8 +87,18 @@ class CapERAAdapter(DatasetAdapter):
             self._entries_cache = out
         return self._entries_cache
 
-    def list_sequences(self) -> list:
-        return sorted(self._entries())
+    def list_sequences(self, split: str | None = None) -> list:
+        entries = self._entries()
+        if split is None:
+            return sorted(entries)
+        if split not in self._paths():
+            raise ValueError(f"unknown CapERA split: {split}")
+        return sorted(key for key, entry in entries.items() if entry["split"] == split)
+
+    def entry(self, seq_id: str) -> dict:
+        """Adapter tarafindan normalize edilmis tek kaydi guvenli kopya olarak dondurur."""
+        entry = self._entries()[seq_id]
+        return {**entry, "captions": list(entry["captions"])}
 
     def load_video(self, seq_id: str) -> pathlib.Path:
         """videos_dir, ERA_Dataset.zip'in cikarilmasiyla olusan 'Videos/'
@@ -110,7 +122,8 @@ class CapERAAdapter(DatasetAdapter):
         isaret eder (retrieval_unit='video', VisDrone tarzi alt-interval
         lokalizasyonu YOK - bkz. DatasetAdapter.ground_truth docstring'i)."""
         entry = self._entries()[seq_id]
-        return {cap: [(0.0, FIXED_DURATION_S)] for cap in entry["captions"]}
+        duration_s = float(self.cfg["datasets"]["capera"].get("fixed_duration_s", FIXED_DURATION_S))
+        return {cap: [(0.0, duration_s)] for cap in entry["captions"]}
 
     def captions(self, seq_id: str):
         return list(self._entries()[seq_id]["captions"])
@@ -121,18 +134,29 @@ class CapERAAdapter(DatasetAdapter):
     def license(self) -> str:
         return self.cfg["datasets"]["capera"]["license"]
 
-    def manifest(self) -> DatasetManifest:
-        entries = self._entries()
+    def manifest(self, split: str | None = None) -> DatasetManifest:
+        all_entries = self._entries()
+        entries = all_entries if split is None else {
+            key: value for key, value in all_entries.items() if value["split"] == split
+        }
+        if split is not None and split not in self._paths():
+            raise ValueError(f"unknown CapERA split: {split}")
         paths = self._paths()
-        combined_hash = hashlib.sha256(
+        source_bytes = (
             paths["test"].read_bytes() + paths["train"].read_bytes()
-        ).hexdigest()
+            if split is None else paths[split].read_bytes()
+        )
+        combined_hash = hashlib.sha256(source_bytes).hexdigest()
         n_queries = sum(len(e["captions"]) for e in entries.values())
         return DatasetManifest(
             dataset_id=self.dataset_id,
-            dataset_version=self.cfg["datasets"]["capera"]["dataset_version"],
+            dataset_version=(
+                self.cfg["datasets"]["capera"].get("quality_dataset_version")
+                if split is not None
+                else self.cfg["datasets"]["capera"]["dataset_version"]
+            ),
             source_hash=combined_hash,
-            split="train+test (split-nitelenmis kimlik, bkz. modul docstring'i)",
+            split=(split or "train+test (split-nitelenmis kimlik, bkz. modul docstring'i)"),
             item_count=len(entries),
             query_count=n_queries,
             retrieval_unit="video",

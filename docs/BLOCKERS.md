@@ -1,5 +1,15 @@
 # Faz 7 blokerleri
 
+## Faz 8 open blockers
+
+- A1/quality is not ready: Colab-produced real artifacts for 1391 items and
+  6955 queries are absent from artifacts/embeddings. Cached CapERA ingest,
+  the 1391 x 4 x 3 DB count gate, and T8 are not reported as completed.
+  A0/system and T1-T7 remain independent.
+- Playwright is pinned in the test requirements, but a Chromium binary was
+  not installed and verified. T10 skips with this explicit reason while
+  other suites continue.
+
 Kritik yol blokeri yok: üç DB, API ve UI yerel Docker'da healthy; AU-AIR yükleme ve arama çalışıyor.
 
 - Tam L2 benchmark (20 sabit sorgu × 10 tekrar) henüz çalıştırılmadı. Denenen/olan: aynı 150-konfigürasyon matrisi `--smoke` ile hatasız tamamlandı. Neden bırakıldı: sabah sistemi ayağa kaldırma kritik yolunda uzun koşum değil. Sıradaki adım: `python -m app.bench.runner` komutunu `--smoke` olmadan çalıştırmak.

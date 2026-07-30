@@ -1,0 +1,14 @@
+[
+  {"id":"E01","case":"negative_altitude","filters":{"altitude_m":[-100,-50]},"expected":{"returned_count":0,"underfilled_reason":"candidate_shortage"}},
+  {"id":"E02","case":"contradictory_altitude","filters":{"altitude_m":[200,300]},"expected":{"returned_count":0,"underfilled_reason":"candidate_shortage"}},
+  {"id":"E03","case":"inclusive_boundary","threshold_source":"selectivity_thresholds_v2.json","expected":{"deterministic":true}},
+  {"id":"E04","case":"no_filter","expected":{"candidate_count":"corpus_size"}},
+  {"id":"E05","case":"top_k_one","top_k":1,"expected":{"returned_count":1}},
+  {"id":"E06","case":"top_k_over_corpus","top_k_offset":100,"expected":{"returned_count":"corpus_size","underfilled_reason":"candidate_shortage"}},
+  {"id":"E07","case":"clickhouse_top_k_200","top_k":200,"expected":{"http_status":200,"notes_nonempty":true}},
+  {"id":"E08","case":"unknown_dataset","expected":{"http_status":400}},
+  {"id":"E09","case":"unknown_backend_or_strategy","expected":{"http_status":400}},
+  {"id":"E10","case":"foreign_strategy","backend":"qdrant","strategy":"iterative_scan","expected":{"http_status":400}},
+  {"id":"E11","case":"unknown_dimension","dimension":999,"expected":{"http_status":400}},
+  {"id":"E12","case":"concurrent_requests","concurrency":20,"expected":{"all_http_status":200,"row_count_unchanged":true}}
+]

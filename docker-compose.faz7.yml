@@ -51,8 +51,8 @@ services:
 
   api:
     build:
-      context: ./service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: service/Dockerfile
     restart: unless-stopped
     env_file:
       - path: .env.faz7
@@ -71,6 +71,7 @@ services:
     volumes:
       - ./artifacts:/workspace/artifacts
       - ./data:/workspace/data:ro
+      - ./data:/app/data:ro
     depends_on:
       pg:
         condition: service_healthy
@@ -86,8 +87,8 @@ services:
 
   ui:
     build:
-      context: ./service
-      dockerfile: Dockerfile.ui
+      context: .
+      dockerfile: service/Dockerfile.ui
     restart: unless-stopped
     env_file:
       - path: .env.faz7
@@ -147,4 +148,3 @@ volumes:
   faz7_etcd_data:
   faz7_minio_data:
   faz7_milvus_data:
-

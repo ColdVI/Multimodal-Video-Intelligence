@@ -21,6 +21,8 @@ BACKENDS: dict[str, Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]] 
     "numpy_exact": common_exact.search_vectors,
 }
 
+PATTERN_EXECUTION_IMPLEMENTED = False
+
 
 def _percentile(values: list[float], percentile: float) -> float:
     if not values:
@@ -107,6 +109,13 @@ def _one_run(request: Any) -> tuple[dict[str, float], list[dict[str, Any]], dict
 
 
 def search(request: Any) -> dict[str, Any]:
+    dataset = postgres.dataset_info(request.dataset_id)
+    if dataset is None:
+        raise ValueError(f"unknown dataset_id: {request.dataset_id}")
+    if request.telemetry_filters and not dataset["has_telemetry"]:
+        active = {key: value for key, value in request.telemetry_filters.items() if value}
+        if active:
+            raise ValueError(f"dataset {request.dataset_id} has no telemetry fields")
     validate_strategy(request.backend, request.strategy)
     if request.pattern == "C" and request.backend != "pgvector":
         raise ValueError("pattern C is the pgvector single-store path")
@@ -127,10 +136,21 @@ def search(request: Any) -> dict[str, Any]:
     }
     returned_ids = [row["segment_id"] for row in results]
     filter_correctness = all(segment_id in candidate_set for segment_id in returned_ids)
+    underfilled = len(results) < request.top_k
+    candidate_shortage = underfilled and candidate_count < request.top_k
+    ann_filter_loss = underfilled and candidate_count >= request.top_k
     diagnostics = {
         "candidate_count": candidate_count,
         "returned_count": len(results),
-        "underfilled": len(results) < request.top_k,
+        "underfilled": underfilled,
+        "underfilled_reason": (
+            "candidate_shortage" if candidate_shortage
+            else "ann_filter_loss" if ann_filter_loss
+            else None
+        ),
+        "candidate_shortage": candidate_shortage,
+        "ann_filter_loss": ann_filter_loss,
+        "underfilled_expected": candidate_shortage,
         "plan_used_vector_index": diagnostics.get("plan_used_vector_index"),
         "indexed_vectors_count": diagnostics.get("indexed_vectors_count"),
         "filter_correctness": filter_correctness,
@@ -154,4 +174,3 @@ def search(request: Any) -> dict[str, Any]:
         "diagnostics": diagnostics,
         "results": results,
     }
-

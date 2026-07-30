@@ -1,0 +1,5 @@
+{
+  "embedding_mode": "synthetic",
+  "hardware_profile": "Windows-AMD64-docker-cpu",
+  "p50_ms": 159.158
+}

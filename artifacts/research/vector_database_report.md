@@ -1,5 +1,14 @@
 # Notebook 05 - Hybrid sorgu benchmarki sonucu
 
+## Faz 8 synthetic ANN interpretability correction
+
+Synthetic i.i.d. Gaussian unit vectors have no cluster structure. Therefore
+ANN recall values from ClickHouse, pgvector, and Qdrant in synthetic mode
+cannot rank backend quality; Faz 8 rows carry interpretable=false. Valid
+synthetic claims are system integrity, filter correctness, latency, and
+float32 exact agreement with the stable NumPy reference. Backend quality
+must wait for T8 with real CapERA test embeddings.
+
 ## Durum: KANIT_YOK
 
 - can_run_real_benchmark=False
