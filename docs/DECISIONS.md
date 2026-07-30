@@ -218,3 +218,18 @@
   `/strategies` endpoint'idir. API erişilemezse UI'nın import edilebilmesi için
   kurum profiliyle aynı dar compatibility varsayımı (`clickhouse`, `512`,
   `prefilter`) kullanılır; disabled benchmark seçenekleri uydurulmaz.
+
+## Faz 11 Aşama 9 decisions
+
+- 2026-07-30 — `API_TOKEN` boşken loopback development backward-compatible;
+  doluyken `/health` dışındaki API yüzeyi Bearer ister. Non-loopback bind + boş
+  token host preflight'ta config failure'dır. Token Settings repr, response ve
+  log detayına konmaz.
+- 2026-07-30 — HTML video element'i Authorization header ekleyemediği için media
+  auth bypass edilmedi. Authenticated `/media/.../info` cevabı HMAC-SHA256 ile
+  imzalı, kısa ömürlü, segment path + run ID scope'lu clip URL üretir. URL token'ı
+  içermez; expiry veya signature değişirse 401 olur.
+- 2026-07-30 — Resource değerleri donanıma göre env-driven ve opsiyoneldir.
+  Boş API/UI limitleri Compose tarafından limitsiz bırakılır; ClickHouse boş
+  server limitinde kendi otomatik davranışını kullanır. Evrensel kapasite sayısı
+  uydurulmaz; preflight/pilot/GPU artifact ölçümleri esas alınır.

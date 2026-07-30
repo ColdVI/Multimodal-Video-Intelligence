@@ -161,7 +161,7 @@ def media_info(segment_id: str, run_id: str | None = None) -> dict[str, Any]:
             "t_start": float(segment["t_start"]),
             "t_end": float(segment["t_end"]),
         }
-    query = "" if not segment.get("run_id") else f'?run_id={segment["run_id"]}'
+    from app.auth import signed_media_url
     return {
         "available": True,
         "source_exists": True,
@@ -171,7 +171,7 @@ def media_info(segment_id: str, run_id: str | None = None) -> dict[str, Any]:
         "video_id": segment.get("video_id"),
         "t_start": float(segment["t_start"]),
         "t_end": float(segment["t_end"]),
-        "clip_url": f"/media/{segment_id}{query}",
+        "clip_url": signed_media_url(segment_id, segment.get("run_id")),
     }
 
 

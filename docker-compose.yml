@@ -25,6 +25,7 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    command: ["--max_server_memory_usage=${CLICKHOUSE_MAX_MEMORY_BYTES:-0}"]
     expose: ["8123", "9000"]
     volumes:
       - ch_data:/var/lib/clickhouse
@@ -39,6 +40,7 @@ services:
       context: .
       dockerfile: service/Dockerfile
     restart: unless-stopped
+    mem_limit: ${API_MEMORY_LIMIT:-0}
     env_file:
       - path: .env
         required: false
@@ -59,6 +61,7 @@ services:
       REQUIRE_SECURE_CREDENTIALS: "true"
       ARTIFACTS_ROOT: /workspace/artifacts
       DATA_ROOT: /workspace/data
+      API_TOKEN: ${API_TOKEN:-}
     ports:
       - "${BIND_HOST:-127.0.0.1}:8000:8000"
     volumes:
@@ -81,11 +84,13 @@ services:
       context: .
       dockerfile: service/Dockerfile.ui
     restart: unless-stopped
+    mem_limit: ${UI_MEMORY_LIMIT:-0}
     env_file:
       - path: .env
         required: false
     environment:
       API_URL: http://api:8000
+      API_TOKEN: ${API_TOKEN:-}
     ports:
       - "${BIND_HOST:-127.0.0.1}:7860:7860"
     depends_on:

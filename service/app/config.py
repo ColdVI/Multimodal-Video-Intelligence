@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
@@ -84,6 +84,8 @@ class Settings:
     media_cache_max_gb: float
     media_cache_retention_hours: float
     media_h264_crf: int
+    media_url_ttl_s: int
+    api_token: str = field(repr=False)
     require_secure_credentials: bool
     pg_host: str
     pg_port: int
@@ -128,6 +130,8 @@ class Settings:
             media_cache_max_gb=_float(values, "MEDIA_CACHE_MAX_GB", 10.0),
             media_cache_retention_hours=_float(values, "MEDIA_CACHE_RETENTION_HOURS", 168.0),
             media_h264_crf=_int(values, "MEDIA_H264_CRF", 23),
+            media_url_ttl_s=_int(values, "MEDIA_URL_TTL_S", 300),
+            api_token=values.get("API_TOKEN", ""),
             require_secure_credentials=_bool(values, "REQUIRE_SECURE_CREDENTIALS"),
             pg_host=values.get("POSTGRES_HOST", "localhost"),
             pg_port=_int(values, "POSTGRES_PORT", 5442),
@@ -184,6 +188,8 @@ class Settings:
             raise ValueError("media clip/cache limits must be positive")
         if not 0 <= self.media_h264_crf <= 51:
             raise ValueError("MEDIA_H264_CRF must be in [0,51]")
+        if self.media_url_ttl_s < 1:
+            raise ValueError("MEDIA_URL_TTL_S must be positive")
         if self.require_secure_credentials:
             missing = []
             if not self.pg_password:

@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from app.config import FILTER_EXECUTION_MODES, settings
+from app.auth import TokenAuthMiddleware
 from app.db import postgres
 from app.db.telemetry_registry import fields_for_run
 from app.db.registry import enabled_adapters, enabled_health, initialize_enabled_backends
@@ -25,6 +26,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Multimodal Video Intelligence", version="11.0.0", lifespan=lifespan)
+app.add_middleware(TokenAuthMiddleware, token=settings.api_token)
 
 
 @app.exception_handler(RequestValidationError)

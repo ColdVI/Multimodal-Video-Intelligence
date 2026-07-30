@@ -47,6 +47,11 @@ def _host_check(check_id: str, category: str, ok: bool, detail: str) -> dict[str
     return {"check_id": check_id, "category": category, "status": "pass" if ok else "fail", "detail": detail}
 
 
+def _api_exposure_safe(env: dict[str, str]) -> bool:
+    bind_host = env.get("BIND_HOST", "127.0.0.1").strip().lower()
+    return bind_host in {"127.0.0.1", "localhost", "::1"} or bool(env.get("API_TOKEN", "").strip())
+
+
 def run_host_preflight(dataset: Path, env_file: Path) -> dict[str, Any]:
     env = _read_env(env_file)
     checks: list[dict[str, str]] = []
@@ -65,6 +70,10 @@ def run_host_preflight(dataset: Path, env_file: Path) -> dict[str, Any]:
     checks.append(_host_check("required_env", "configuration", not missing, f"missing_or_placeholder={missing}"))
     bind_host = env.get("BIND_HOST", "127.0.0.1")
     checks.append(_host_check("bind_host", "configuration", bool(bind_host), f"BIND_HOST={bind_host}"))
+    checks.append(_host_check(
+        "api_exposure", "configuration", _api_exposure_safe(env),
+        f"BIND_HOST={bind_host}; token_configured={bool(env.get('API_TOKEN', '').strip())}",
+    ))
 
     data_root = Path(env.get("DATA_ROOT", "data")).expanduser()
     if not data_root.is_absolute():

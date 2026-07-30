@@ -1,5 +1,11 @@
 # Faz 7 runbook
 
+> Faz 11 kurum deployment'ı için güncel kaynaklar:
+> [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS.md](OPERATIONS.md),
+> [DATASET_MANIFEST.md](DATASET_MANIFEST.md) ve
+> [RUN_VERSIONING.md](RUN_VERSIONING.md). Aşağıdaki Faz 7/8 bölümleri legacy
+> araştırma/CapERA akışını korur; kurum generic ingest komutlarının yerine geçmez.
+
 ## Faz 8 - Gercek veriye gecis (zorunlu sira)
 
 On kosul: Qwen kaynak kodu ve model snapshot'i .env.faz7 icindeki

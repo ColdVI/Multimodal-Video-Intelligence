@@ -16,6 +16,7 @@ from ui import components
 
 
 API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+API_TOKEN = os.getenv("API_TOKEN", "")
 PRODUCT_NAME = "Multimodal Video Intelligence"
 RESULT_COLUMNS = [
     "video_id", "t_start", "t_end", "score", "caption", "file_path",
@@ -32,16 +33,20 @@ CSS = (Path(__file__).resolve().parent / "static" / "theme.css").read_text(encod
 
 def _get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     with httpx.Client(timeout=30.0) as client:
-        response = client.get(f"{API_URL}{path}", params=params)
+        response = client.get(f"{API_URL}{path}", params=params, headers=_api_headers())
         response.raise_for_status()
         return response.json()
 
 
 def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     with httpx.Client(timeout=300.0) as client:
-        response = client.post(f"{API_URL}{path}", json=payload)
+        response = client.post(f"{API_URL}{path}", json=payload, headers=_api_headers())
         response.raise_for_status()
         return response.json()
+
+
+def _api_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {API_TOKEN}"} if API_TOKEN else {}
 
 
 def _error_detail(exc: httpx.HTTPStatusError) -> str:

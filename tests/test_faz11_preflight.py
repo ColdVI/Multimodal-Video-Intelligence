@@ -1,4 +1,4 @@
-from scripts.preflight import _combined_exit_code, _read_env
+from scripts.preflight import _api_exposure_safe, _combined_exit_code, _read_env
 
 
 def test_env_reader_loads_values_without_overwriting_process_env(tmp_path, monkeypatch):
@@ -27,3 +27,9 @@ def test_missing_env_file_is_not_created(tmp_path):
     path = tmp_path / "missing.env"
     _read_env(path)
     assert not path.exists()
+
+
+def test_public_api_bind_requires_optional_token_to_be_configured():
+    assert _api_exposure_safe({"BIND_HOST": "127.0.0.1", "API_TOKEN": ""})
+    assert not _api_exposure_safe({"BIND_HOST": "0.0.0.0", "API_TOKEN": ""})
+    assert _api_exposure_safe({"BIND_HOST": "0.0.0.0", "API_TOKEN": "secret"})

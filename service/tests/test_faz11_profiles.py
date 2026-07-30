@@ -53,6 +53,14 @@ def test_secure_runtime_rejects_empty_credentials():
         Settings.from_env({"REQUIRE_SECURE_CREDENTIALS": "true"})
 
 
+def test_media_and_token_settings_validate_without_exposing_secret():
+    configured = _settings(API_TOKEN="secret", MEDIA_URL_TTL_S="60", MEDIA_H264_CRF="24")
+    assert configured.api_token == "secret"
+    assert "secret" not in repr(configured)
+    with pytest.raises(ValueError, match="MEDIA_URL_TTL_S"):
+        _settings(MEDIA_URL_TTL_S="0")
+
+
 def test_api_import_does_not_require_capera_config(tmp_path):
     config_path = tmp_path / "config.yaml"
     config_path.write_text(yaml.safe_dump({"datasets": {"auair": {"enabled": True}}}), encoding="utf-8")
