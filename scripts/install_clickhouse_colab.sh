@@ -10,7 +10,11 @@
 #   bash scripts/install_clickhouse_colab.sh health      # HTTP ping (8123)
 #   bash scripts/install_clickhouse_colab.sh stop        # durdur
 #   bash scripts/install_clickhouse_colab.sh cleanup     # veri dizinini sil
-set -euo pipefail
+set -eu
+# pipefail bazi ortamlarda (ör. bash bir POSIX-sh varyantina sembolik link
+# oldugunda) "invalid option name" ile cakiyor - destekleniyorsa acan,
+# desteklenmiyorsa sessizce atlayan taşınabilir kontrol.
+(set -o pipefail 2>/dev/null) && set -o pipefail || true
 
 VERSION="${CLICKHOUSE_VERSION:-24.8.4.13}"
 INSTALL_ROOT="${CLICKHOUSE_INSTALL_ROOT:-/content/vector_bench/clickhouse}"

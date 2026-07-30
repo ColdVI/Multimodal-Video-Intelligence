@@ -7,7 +7,11 @@
 # icindir, baska hicbir sisteme yayilmaz.
 #
 # Kullanim: install | start | health | stop | cleanup
-set -euo pipefail
+set -eu
+# pipefail bazi ortamlarda (ör. bash bir POSIX-sh varyantina sembolik link
+# oldugunda) "invalid option name" ile cakiyor - destekleniyorsa acan,
+# desteklenmiyorsa sessizce atlayan taşınabilir kontrol.
+(set -o pipefail 2>/dev/null) && set -o pipefail || true
 
 PG_VERSION="${PG_VERSION:-16}"
 PGVECTOR_VERSION="${PGVECTOR_VERSION:-v0.8.0}"

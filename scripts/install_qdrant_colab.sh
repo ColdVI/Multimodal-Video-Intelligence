@@ -5,7 +5,11 @@
 # sonucu olarak KULLANILMAZ (bkz. notebook 04/05).
 #
 # Kullanim: install | start | health | stop | cleanup
-set -euo pipefail
+set -eu
+# pipefail bazi ortamlarda (ör. bash bir POSIX-sh varyantina sembolik link
+# oldugunda) "invalid option name" ile cakiyor - destekleniyorsa acan,
+# desteklenmiyorsa sessizce atlayan taşınabilir kontrol.
+(set -o pipefail 2>/dev/null) && set -o pipefail || true
 
 VERSION="${QDRANT_VERSION:-v1.12.4}"
 INSTALL_ROOT="${QDRANT_INSTALL_ROOT:-/content/vector_bench/qdrant}"
