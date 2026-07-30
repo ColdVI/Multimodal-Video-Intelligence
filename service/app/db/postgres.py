@@ -331,10 +331,13 @@ def hydrate(segment_ids: list[str]) -> list[dict[str, Any]]:
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             cur.execute(
                 """SELECT s.segment_id,s.video_id,s.t_start,s.t_end,s.caption,v.source_uri AS file_path,
-                          t.altitude_m,t.velocity_mps,t.gimbal_pitch
+                          t.altitude_m,t.velocity_mps,t.gimbal_pitch,
+                          v.event_category,v.split,
+                          m.person_count,m.vehicle_count,m.bus_count
                    FROM segments s
                    JOIN videos v ON v.dataset_id=s.dataset_id AND v.video_id=s.video_id
                    LEFT JOIN segment_telemetry t ON t.segment_id=s.segment_id
+                   LEFT JOIN segment_metadata m ON m.segment_id=s.segment_id
                    WHERE s.segment_id=ANY(%s)""",
                 (segment_ids,),
             )
@@ -383,6 +386,13 @@ def facets(dataset_id: str) -> dict[str, Any]:
             (dataset_id,),
         )
         values = cur.fetchone()
+        cur.execute(
+            """SELECT min(m.person_count),max(m.person_count),min(m.vehicle_count),max(m.vehicle_count),
+                      min(m.bus_count),max(m.bus_count)
+               FROM segment_metadata m JOIN segments s ON s.segment_id=m.segment_id WHERE s.dataset_id=%s""",
+            (dataset_id,),
+        )
+        counts_values = cur.fetchone()
     def bounds(lo, hi):
         return None if lo is None or hi is None else [float(lo), float(hi)]
     return {
@@ -393,5 +403,10 @@ def facets(dataset_id: str) -> dict[str, Any]:
             "altitude_m": bounds(values[0], values[1]),
             "velocity_mps": bounds(values[2], values[3]),
             "gimbal_pitch": bounds(values[4], values[5]),
+        },
+        "counts": {
+            "person_count": bounds(counts_values[0], counts_values[1]),
+            "vehicle_count": bounds(counts_values[2], counts_values[3]),
+            "bus_count": bounds(counts_values[4], counts_values[5]),
         },
     }

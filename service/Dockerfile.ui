@@ -7,5 +7,6 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 COPY service/app ./app
 COPY service/ui ./ui
 COPY config.yaml ./
+COPY tests/fixtures ./tests/fixtures
 EXPOSE 7860
 CMD ["python", "-m", "ui.app"]

@@ -23,3 +23,51 @@
 - 2026-07-30 — Kullanıcının açık talimatıyla önceki 7 commit ve Faz 7 çalışması doğrudan `main` üzerinde pushlanır; gece talimatındaki “push atma” kuralı bu teslim için geçersizdir.
 - 2026-07-30 — Gradio'da yerleşik çift-tutamaklı range slider bulunmadığı gerçek konteyner importunda doğrulandı; her telemetri alanı aynı min/max semantiğini koruyan yan yana iki slider ile gösterilir.
 - 2026-07-30 — Tam L2 matrisi uzun koşum olarak runner'da korunur; teslim artifact'i tüm 150 konfigürasyonu birer sorguyla ölçen ve `settings_json.execution=smoke` diye açık etiketlenen kısa koşumdur.
+
+## Faz 9 (UI redesign) decisions
+
+- 2026-07-30 — Renk/tipografi/grid: koyu "ops dashboard" teması (`--bg #0b1220` vb.), tek
+  vurgu rengi (camgöbeği `--accent`), success/warning/danger yalnızca durum rozetlerinde.
+  Gerekçe: talimat §1/§3 rengi serbest bırakıyor, öncelik "Jupyter/varsayılan Gradio
+  hissi vermemek"; koyu teknik tema bunu en güçlü ayrıştıran seçenekti.
+- 2026-07-30 — §0.5 additive alanlar UYGULANDI: `postgres.hydrate()` SELECT'ine
+  `event_category, split, person_count, vehicle_count, bus_count` (LEFT JOIN, mevcut
+  alanlar korunarak); `postgres.facets()`'e `counts: {person_count,vehicle_count,bus_count}`
+  bloğu eklendi. Doğrulama: AU-AIR'de bu alanlar dolu (`event_category` hariç — tüm
+  videolarda NULL, kartta otomatik gizleniyor). Testler: `service/tests/test_additive_fields.py`.
+- 2026-07-30 — `facets().counts` bilinçli olarak UI'da bir **filtre** olarak bağlanmadı,
+  yalnızca sonuç kartlarında rozet (`telemetry_badges`) olarak gösteriliyor. Gerekçe:
+  `postgres.filter_segment_ids` yalnızca `event_category/split/video_id` +
+  `altitude_m/velocity_mps/gimbal_pitch` destekliyor; person/vehicle/bus_count'u
+  filtrelenebilir yapmak `filter_segment_ids`'e yeni SQL koşulu eklemek demek, bu da
+  talimat §5'in yasakladığı "retrieval mantığına dokunma" sınırını aşıyor. Aktif
+  olmayan bir slider'ı UI'da göstermek de Pattern A/B/C sorununun bir başka biçimi
+  olurdu (kullanıcıyı yanıltır) — o yüzden hiç eklenmedi.
+- 2026-07-30 — "Open details" (§2.4 madde 8) bir kart-içi accordion yerine ayrı bir
+  "Sonuç Detayı" seçici + panel olarak uygulandı. Gerekçe: Gradio 6'nın `gr.HTML`
+  bileşeni, kart içindeki bir DOM tıklamasını Python callback'ine bağlamak için özel
+  JS-Python köprüsü ister (kırılgan); segment seçici `gr.Dropdown` + `gr.HTML` detay
+  paneli aynı işlevi native Gradio olaylarıyla, kırılmadan sağlıyor.
+- 2026-07-30 — **Regresyon-öncesi bir hata bulundu ve düzeltildi (backend'e dokunmadan):**
+  orijinal UI'da varsayılan arama, gizli telemetri slider'larının (ör. AU-AIR'de
+  `gimbal_pitch` — hiçbir satırda değeri yok) `value=0` varsayılanını her zaman
+  `[0,0]` aktif filtresi olarak `/search`'e gönderdiği için 0 sonuç döndürüyordu.
+  Bunu hem orijinal `service/ui/app.py`'yi ayrı bir portta çalıştırıp hem de ilk
+  redesign taslağımda gözlemleyerek doğruladım — mevcut bir hata, benim eklediğim
+  bir regresyon değil. Düzeltme UI katmanında: `_sanitize_telemetry()`, bir alanın
+  `/facets`'te gerçek bounds'u yoksa o slider'ın değerini backend'e hiç göndermiyor.
+  Detay: `docs/UI_REGRESSION_REPORT.md`.
+- 2026-07-30 — Gradio 6.20 Slider/Dropdown bug: filtre rozetini canlı güncellemek için
+  `.change()` bir slider'ı `inputs=` listesine koyunca, `/facets` yüklemesinin kendi
+  `gr.update(minimum=,maximum=,value=)` batch'iyle yarışıyor — tarayıcı henüz eski
+  değeri gönderirken sunucu zaten yeni `minimum`'u uygulamış oluyor ve Gradio
+  "Value 0 is less than minimum value X" hatası fırlatıyor. Çözüm: rozet
+  güncellemesi slider'larda `.release()`, dropdown'larda `.select()` olaylarına
+  bağlandı — ikisi de yalnızca gerçek kullanıcı etkileşiminde tetikleniyor,
+  `/facets`'in programatik güncellemesiyle asla yarışmıyor.
+- 2026-07-30 — `service/Dockerfile.ui`'ye `COPY tests/fixtures ./tests/fixtures`
+  eklendi (tek satır, additive). Gerekçe: örnek sorgu çipleri (§2.2)
+  `tests/fixtures/queries_semantic.json`'dan okunuyor; bu dosya konteyner imajına
+  hiç kopyalanmıyordu. Yol çözümü `app/config.py::_capera_protocol`'deki aynı
+  iki-adaylı (repo kökü / konteyner `/app`) desenle yapıldı — yeni bir "dead code
+  fallback" icat edilmedi.

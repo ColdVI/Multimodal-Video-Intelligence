@@ -12,14 +12,21 @@ import pandas as pd
 
 from app.embedding.router import mode_details
 from app.search.strategies import SUPPORTED_STRATEGIES
+from ui import components
 
 
 API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+PRODUCT_NAME = "Multimodal Video Intelligence"
 RESULT_COLUMNS = [
     "video_id", "t_start", "t_end", "score", "caption", "file_path",
     "altitude_m", "velocity_mps", "gimbal_pitch",
+    "event_category", "split", "person_count", "vehicle_count", "bus_count",
 ]
 
+CSS = (Path(__file__).resolve().parent / "static" / "theme.css").read_text(encoding="utf-8")
+
+
+# ------------------------------------------------------------- API client --
 
 def _get(path: str) -> dict[str, Any]:
     with httpx.Client(timeout=30.0) as client:
@@ -35,6 +42,17 @@ def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return response.json()
 
 
+def _error_detail(exc: httpx.HTTPStatusError) -> str:
+    try:
+        payload = exc.response.json()
+    except Exception:
+        return exc.response.text
+    detail = payload.get("detail", payload)
+    if isinstance(detail, list):
+        return "; ".join(str(item.get("msg", item)) if isinstance(item, dict) else str(item) for item in detail)
+    return str(detail)
+
+
 def _datasets() -> list[str]:
     try:
         return [row["dataset_id"] for row in _get("/stats").get("datasets", [])]
@@ -48,34 +66,132 @@ def _range(lo: Any, hi: Any) -> list[float] | None:
     return [float(lo), float(hi)]
 
 
-def load_facets(dataset_id: str):
+# --------------------------------------------------------- sample queries --
+# Talimat §2.2: örnek sorgular tests/fixtures/queries_semantic.json'dan okunur,
+# uydurulmaz. app/config.py::_capera_protocol ile aynı iki-adaylı dev/konteyner
+# yol deseni kullanılır (bkz. Dockerfile.ui'deki ek COPY satırı).
+
+def _sample_queries_path() -> Path | None:
+    candidates = (
+        Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "queries_semantic.json",
+        Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "queries_semantic.json",
+    )
+    return next((candidate for candidate in candidates if candidate.exists()), None)
+
+
+def _sample_queries() -> list[dict[str, str]]:
+    path = _sample_queries_path()
+    if path is None:
+        return []
+    wanted = {"S01", "S02", "S03", "S04", "S05", "S06"}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return [row for row in data if row.get("id") in wanted]
+
+
+SAMPLE_QUERIES = _sample_queries()
+
+
+# ------------------------------------------------------------- filter UI ---
+
+def _dropdown_update(values: list[str] | None) -> Any:
+    values = values or []
+    return gr.update(choices=values, value=None, visible=bool(values))
+
+
+def _slider_updates(telemetry: dict[str, Any], name: str) -> tuple[Any, Any]:
+    bounds = telemetry.get(name)
+    if not bounds:
+        return gr.update(visible=False), gr.update(visible=False)
+    lo, hi = bounds
+    return (
+        gr.update(minimum=lo, maximum=hi, value=lo, visible=True),
+        gr.update(minimum=lo, maximum=hi, value=hi, visible=True),
+    )
+
+
+def load_facets(dataset_id: str | None):
     if not dataset_id:
-        empty = gr.update(choices=[], value=None)
         hidden = gr.update(visible=False)
-        return empty, empty, empty, hidden, hidden, hidden, hidden, hidden, hidden, "Dataset yüklenmedi."
+        empty_dd = gr.update(choices=[], value=None, visible=False)
+        return (
+            empty_dd, empty_dd, empty_dd,
+            hidden, hidden, hidden, hidden, hidden, hidden,
+            {}, components.filter_group_header("Filtreler", 0), "",
+        )
     data = _get(f"/facets/{dataset_id}")
     telemetry = data.get("telemetry", {})
 
-    def sliders(name: str):
+    unavailable = []
+    if not data.get("event_categories"):
+        unavailable.append("event category")
+    if not telemetry.get("altitude_m"):
+        unavailable.append("irtifa")
+    if not telemetry.get("velocity_mps"):
+        unavailable.append("hız")
+    if not telemetry.get("gimbal_pitch"):
+        unavailable.append("gimbal pitch")
+    note = (
+        f'<div class="mvi-muted-note">Bu dataset için kullanılamıyor: {", ".join(unavailable)}</div>'
+        if unavailable else ""
+    )
+
+    return (
+        _dropdown_update(data.get("event_categories")),
+        _dropdown_update(data.get("splits")),
+        _dropdown_update(data.get("video_ids")),
+        *_slider_updates(telemetry, "altitude_m"),
+        *_slider_updates(telemetry, "velocity_mps"),
+        *_slider_updates(telemetry, "gimbal_pitch"),
+        data,
+        components.filter_group_header("Filtreler", 0),
+        note,
+    )
+
+
+def _count_active_filters(
+    event_category, split, video_id,
+    altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+    facets_state,
+) -> int:
+    count = sum(1 for value in (event_category, split, video_id) if value)
+    telemetry = (facets_state or {}).get("telemetry", {})
+
+    def changed(name: str, lo_val: Any, hi_val: Any) -> bool:
+        bounds = telemetry.get(name)
+        if not bounds or lo_val is None or hi_val is None:
+            return False
+        lo, hi = bounds
+        return not (abs(float(lo_val) - lo) < 1e-6 and abs(float(hi_val) - hi) < 1e-6)
+
+    count += sum([
+        changed("altitude_m", altitude_min, altitude_max),
+        changed("velocity_mps", velocity_min, velocity_max),
+        changed("gimbal_pitch", gimbal_min, gimbal_max),
+    ])
+    return count
+
+
+def update_filter_badge(*args) -> str:
+    return components.filter_group_header("Filtreler", _count_active_filters(*args))
+
+
+def clear_filters(facets_state):
+    telemetry = (facets_state or {}).get("telemetry", {})
+
+    def reset(name: str):
         bounds = telemetry.get(name)
         if not bounds:
-            return gr.update(visible=False), gr.update(visible=False)
+            return gr.update(), gr.update()
         lo, hi = bounds
-        return (
-            gr.update(minimum=lo, maximum=hi, value=lo, visible=True),
-            gr.update(minimum=lo, maximum=hi, value=hi, visible=True),
-        )
+        return gr.update(value=lo), gr.update(value=hi)
 
-    has_telemetry = any(telemetry.values())
-    altitude_updates = sliders("altitude_m")
-    velocity_updates = sliders("velocity_mps")
-    gimbal_updates = sliders("gimbal_pitch")
+    altitude = reset("altitude_m")
+    velocity = reset("velocity_mps")
+    gimbal = reset("gimbal_pitch")
     return (
-        gr.update(choices=data.get("event_categories", []), value=None),
-        gr.update(choices=data.get("splits", []), value=None),
-        gr.update(choices=data.get("video_ids", []), value=None),
-        *altitude_updates, *velocity_updates, *gimbal_updates,
-        "Gerçek min/max telemetri filtreleri etkin." if has_telemetry else "Bu dataset telemetri içermiyor.",
+        gr.update(value=None), gr.update(value=None), gr.update(value=None),
+        *altitude, *velocity, *gimbal,
+        components.filter_group_header("Filtreler", 0),
     )
 
 
@@ -83,6 +199,23 @@ def update_strategies(backend: str):
     choices = list(SUPPORTED_STRATEGIES.get(backend, ()))
     return gr.update(choices=choices, value=choices[0] if choices else None)
 
+
+# ------------------------------------------------------------- top header --
+
+def render_header(dataset_id: str | None):
+    try:
+        health = _get("/health")
+    except Exception:
+        health = {"pg": False, "ch": False, "qdrant": False, "embedding": {
+            "level": "danger", "message": "API'ye ulaşılamıyor — backend health kontrolü başarısız.",
+        }}
+    embedding = health.get("embedding", {})
+    top_html = components.top_bar(PRODUCT_NAME, dataset_id, health)
+    badge_html = components.status_badge(embedding.get("message", ""), embedding.get("level", "info"))
+    return top_html, badge_html
+
+
+# ----------------------------------------------------------------- search --
 
 def _payload(
     query: str,
@@ -125,32 +258,136 @@ def _payload(
     }
 
 
-def run_search(*args):
+def _sanitize_telemetry(
+    lo: float | None, hi: float | None, name: str, facets_state: dict[str, Any] | None,
+) -> tuple[float | None, float | None]:
+    """A hidden telemetry slider still holds a numeric value (Slider can't be None), so a
+    field the current dataset doesn't have (e.g. gimbal_pitch for AU-AIR) would otherwise leak
+    into the payload as an active [0, 0] range and zero out every candidate. Only forward a
+    slider's value once /facets confirmed the field has real bounds for this dataset."""
+    if not (facets_state or {}).get("telemetry", {}).get(name):
+        return None, None
+    return lo, hi
+
+
+def _detail_meta(response: dict[str, Any]) -> dict[str, Any]:
+    diagnostics = response.get("diagnostics", {})
+    return {
+        "backend": response.get("backend"), "strategy": response.get("strategy"),
+        "dimension": response.get("dimension"),
+        "candidate_count": diagnostics.get("candidate_count"),
+        "returned_count": diagnostics.get("returned_count"),
+    }
+
+
+def run_search(
+    query, dataset_id, event_category, split, video_id,
+    altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+    backend, strategy, dimension, adaptive, base_dim, top_n, pattern, top_k, repeats,
+    facets_state,
+):
     try:
-        response = _post("/search", _payload(*args))
-        timings = response["timings_ms"]
-        stats = response["timings_stats"]
-        latency = {
-            "filter_ms": timings["filter"], "embed_ms": timings["embed"],
-            "vector_search_ms": timings["vector_search"], "hydrate_ms": timings["hydrate"],
-            "total_ms": timings["total"], "p50_ms": stats["p50"], "p95_ms": stats["p95"],
-        }
-        rows = [{column: result.get(column) for column in RESULT_COLUMNS} for result in response.get("results", [])]
-        frame = pd.DataFrame(rows, columns=RESULT_COLUMNS)
-        return latency, response["diagnostics"], frame, response
+        cold_start = _get("/health").get("embedding_mode") == "hybrid_text"
+    except Exception:
+        cold_start = False
+    yield (
+        components.loading_state("Aranıyor…", cold_start=cold_start),
+        gr.update(choices=[], value=None),
+        "",
+        components.loading_state("Ölçülüyor…"),
+        components.loading_state("Ölçülüyor…"),
+        None,
+    )
+
+    altitude_min, altitude_max = _sanitize_telemetry(altitude_min, altitude_max, "altitude_m", facets_state)
+    velocity_min, velocity_max = _sanitize_telemetry(velocity_min, velocity_max, "velocity_mps", facets_state)
+    gimbal_min, gimbal_max = _sanitize_telemetry(gimbal_min, gimbal_max, "gimbal_pitch", facets_state)
+    payload = _payload(
+        query, dataset_id, event_category, split, video_id,
+        altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+        backend, strategy, dimension, adaptive, base_dim, top_n, pattern, top_k, repeats,
+    )
+    try:
+        response = _post("/search", payload)
+    except httpx.HTTPStatusError as exc:
+        detail = _error_detail(exc)
+        if "cached mode has no real embedding" in detail:
+            state_html = components.empty_state("cached_query_missing")
+        else:
+            state_html = components.error_state(
+                f"Arama isteği reddedildi (HTTP {exc.response.status_code}).", detail,
+            )
+        yield state_html, gr.update(choices=[], value=None), "", "", "", None
+        return
+    except (httpx.ConnectError, httpx.ConnectTimeout):
+        yield components.empty_state("backend_unavailable"), gr.update(choices=[], value=None), "", "", "", None
+        return
     except Exception as exc:
-        error = {"error": f"{type(exc).__name__}: {exc}"}
-        return error, error, pd.DataFrame(columns=RESULT_COLUMNS), error
+        state_html = components.error_state("Beklenmeyen bir hata oluştu.", f"{type(exc).__name__}: {exc}")
+        yield state_html, gr.update(choices=[], value=None), "", "", "", None
+        return
+
+    results = response.get("results", [])
+    diagnostics = response.get("diagnostics", {})
+
+    if not results:
+        active_filters = _count_active_filters(
+            event_category, split, video_id,
+            altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+            facets_state,
+        ) > 0
+        if diagnostics.get("underfilled_reason") == "candidate_shortage" and active_filters:
+            results_html = components.empty_state("filter_too_narrow")
+        else:
+            results_html = components.empty_state("no_results")
+    else:
+        results_html = components.result_list(results)
+        if response.get("embedding_mode") == "synthetic":
+            results_html = components.warning_banner(
+                "SENTETİK EMBEDDING — bu sonuçlar sıralama kalitesi için anlamlı değildir, "
+                "yalnızca sistem/gecikme doğrulaması.",
+                "danger",
+            ) + results_html
+
+    detail_choices = [
+        (f"#{index + 1} · {row.get('video_id')} · {row.get('t_start', 0):.1f}s–{row.get('t_end', 0):.1f}s", row["segment_id"])
+        for index, row in enumerate(results)
+    ]
+    first_segment = results[0]["segment_id"] if results else None
+    detail_html = components.result_detail_panel(results[0], _detail_meta(response)) if results else ""
+
+    latency_html = components.latency_panel(response["timings_ms"], response["timings_stats"])
+    diagnostics_html = components.diagnostics_panel(diagnostics, response["embedding_mode"])
+
+    yield (
+        results_html,
+        gr.update(choices=detail_choices, value=first_segment),
+        detail_html,
+        latency_html,
+        diagnostics_html,
+        response,
+    )
+
+
+def show_detail(segment_id: str | None, raw_response: dict[str, Any] | None):
+    if not raw_response or not segment_id:
+        return ""
+    match = next((row for row in raw_response.get("results", []) if row.get("segment_id") == segment_id), None)
+    if match is None:
+        return ""
+    return components.result_detail_panel(match, _detail_meta(raw_response))
 
 
 def export_csv(raw_response: dict[str, Any] | None):
     rows = (raw_response or {}).get("results", [])
-    target = Path(tempfile.gettempdir()) / "faz7_search_results.csv"
-    pd.DataFrame(rows).to_csv(target, index=False)
+    target = Path(tempfile.gettempdir()) / "faz9_search_results.csv"
+    pd.DataFrame(rows, columns=RESULT_COLUMNS if rows else None).to_csv(target, index=False)
     return str(target)
 
 
-def compare(query: str, dataset_id: str, backends: list[str], dimensions: list[int], repeats: int):
+# --------------------------------------------------------------- compare ---
+
+def _run_comparison(query: str, dataset_id: str, backends: list[str], dimensions: list[int], repeats: int):
     rows = []
     for backend in backends or []:
         strategy = SUPPORTED_STRATEGIES[backend][0]
@@ -173,33 +410,64 @@ def compare(query: str, dataset_id: str, backends: list[str], dimensions: list[i
                 })
             except Exception as exc:
                 rows.append({"backend": backend, "strategy": strategy, "dimension": dimension, "error": str(exc)})
-    return pd.DataFrame(rows)
+    return rows
 
+
+def _render_comparison(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return components.empty_state("no_selection")
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        groups.setdefault(row.get("embedding_mode") or "bilinmiyor (hata)", []).append(row)
+    parts = []
+    if any(row.get("embedding_mode") == "synthetic" for row in rows):
+        parts.append(components.warning_banner(
+            "Bu karşılaştırmadaki sonuçlar sentetik embedding ile üretildi — sıralama kalitesi anlamlı değildir.",
+            "danger",
+        ))
+    for mode, group_rows in groups.items():
+        parts.append(components.comparison_group_header(f"embedding_mode: {mode}"))
+        parts.append(components.comparison_grid([components.comparison_card(row) for row in group_rows]))
+    return "".join(parts)
+
+
+def run_compare(query: str, dataset_id: str, backends: list[str], dimensions: list[int], repeats: int):
+    rows = _run_comparison(query, dataset_id, backends, dimensions, repeats)
+    return _render_comparison(rows)
+
+
+# --------------------------------------------------------------- layout ----
 
 datasets = _datasets()
-details = mode_details(datasets[0] if datasets else None)
-banner_class = "faz7-danger" if details["level"] == "danger" else "faz7-success"
+initial_top_html, initial_badge_html = render_header(datasets[0] if datasets else None)
 
-CSS = """
-.faz7-banner {padding: 16px; border-radius: 10px; font-size: 17px; font-weight: 800; text-align: center; margin-bottom: 12px;}
-.faz7-danger {background: #7f1d1d; color: #fff; border: 2px solid #ef4444;}
-.faz7-success {background: #14532d; color: #fff; border: 2px solid #22c55e;}
-"""
+with gr.Blocks(title=f"{PRODUCT_NAME} — Faz 9") as demo:
+    topbar_html = gr.HTML(initial_top_html, elem_id="mvi-topbar")
+    status_badge_html = gr.HTML(initial_badge_html, elem_id="mvi-status-badge")
 
-with gr.Blocks(title="Multimodal Video Intelligence — Faz 7") as demo:
-    gr.HTML(f'<div class="faz7-banner {banner_class}">{details["message"]}</div>')
-    gr.Markdown("# Faz 7 · Çoklu backend video arama ve gecikme laboratuvarı")
     with gr.Tabs():
         with gr.Tab("Ara"):
             with gr.Row():
                 with gr.Column(scale=2):
                     dataset = gr.Dropdown(choices=datasets, value=datasets[0] if datasets else None, label="Dataset")
-                    with gr.Accordion("Metadata filtreleri", open=False):
-                        event_category = gr.Dropdown(label="Event category")
-                        split = gr.Dropdown(label="Split")
-                        video_id = gr.Dropdown(label="Video ID")
-                    with gr.Accordion("Telemetri filtreleri", open=False):
-                        telemetry_note = gr.Markdown("Dataset seçildiğinde gerçek min/max yüklenir.")
+                    query = gr.Textbox(label="Serbest metin sorgusu", value="kalabalık trafik", elem_id="mvi-query")
+                    if SAMPLE_QUERIES:
+                        with gr.Row(elem_classes=["chip-row"]):
+                            for sample in SAMPLE_QUERIES:
+                                gr.Button(
+                                    sample["tr"], size="sm", elem_classes=["chip"],
+                                ).click(
+                                    lambda text=sample["tr"]: text, outputs=[query],
+                                )
+                    top_k = gr.Slider(1, 50, value=10, step=1, label="top_k")
+                    facets_state = gr.State({})
+
+                    with gr.Accordion("Filtreler", open=False, elem_id="mvi-filters"):
+                        filter_badge_html = gr.HTML(components.filter_group_header("Filtreler", 0))
+                        filter_note_html = gr.HTML("")
+                        event_category = gr.Dropdown(label="Event category", visible=False)
+                        split = gr.Dropdown(label="Split", visible=False)
+                        video_id = gr.Dropdown(label="Video ID", visible=False)
                         with gr.Row():
                             altitude_min = gr.Slider(0, 1, label="İrtifa min (m)", visible=False)
                             altitude_max = gr.Slider(0, 1, label="İrtifa max (m)", visible=False)
@@ -209,61 +477,114 @@ with gr.Blocks(title="Multimodal Video Intelligence — Faz 7") as demo:
                         with gr.Row():
                             gimbal_min = gr.Slider(0, 1, label="Gimbal pitch min", visible=False)
                             gimbal_max = gr.Slider(0, 1, label="Gimbal pitch max", visible=False)
-                    with gr.Accordion("Arama yöntemi", open=True):
+                        clear_filters_button = gr.Button("Clear filters", size="sm")
+
+                    with gr.Accordion("Advanced Search Settings", open=False, elem_id="mvi-advanced"):
                         backend = gr.Radio(["clickhouse", "qdrant", "pgvector"], value="clickhouse", label="Backend")
                         strategy = gr.Dropdown(list(SUPPORTED_STRATEGIES["clickhouse"]), value="prefilter", label="Strategy")
                         dimension = gr.Radio([2048, 1024, 512, 256], value=512, label="Dimension")
                         adaptive = gr.Checkbox(False, label="Adaptive MRL")
                         base_dim = gr.Radio([256, 512], value=256, label="Base dimension")
                         top_n = gr.Slider(1, 200, value=100, step=1, label="Adaptive top_N")
-                        pattern = gr.Radio(["A", "B", "C"], value="A", label="Pattern")
-                    top_k = gr.Slider(1, 50, value=10, step=1, label="top_k")
-                    repeats = gr.Slider(1, 20, value=1, step=1, label="Tekrar")
-                    search_button = gr.Button("Search", variant="primary")
-                    ten_button = gr.Button("10 tekrar")
+                        with gr.Row():
+                            pattern = gr.Radio(["A", "B", "C"], value="A", label="Pattern")
+                            gr.HTML(components.pattern_not_implemented_badge())
+                        repeats = gr.Slider(1, 20, value=1, step=1, label="Tekrar")
+
+                    search_button = gr.Button("Search", variant="primary", elem_id="mvi-search-button")
+                    ten_button = gr.Button("10 tekrar", size="sm")
+
                 with gr.Column(scale=3):
-                    query = gr.Textbox(label="Serbest metin sorgusu", value="kalabalık trafik")
-                    gr.Markdown("### Gecikme paneli")
-                    latency = gr.JSON(label="filter / embed / vector_search / hydrate / total / p50 / p95")
-                    gr.Markdown("### Diagnostics")
-                    diagnostics = gr.JSON()
-                    results = gr.Dataframe(headers=RESULT_COLUMNS, interactive=False, label="Sonuçlar")
+                    gr.HTML(components.section_header("Arama sonuçları"))
+                    results_html = gr.HTML(components.empty_state("no_query"), elem_id="mvi-results")
+
+                    gr.HTML(components.section_header("Sonuç detayı"))
+                    detail_selector = gr.Dropdown(
+                        label="Detay için sonuç seç", choices=[], value=None, elem_id="mvi-detail-selector",
+                    )
+                    detail_html = gr.HTML("", elem_id="mvi-detail")
+
+                    with gr.Row():
+                        export_button = gr.Button("Sonucu CSV indir", size="sm")
+                        download = gr.File(label="CSV")
+
                     raw_response = gr.State()
-                    export_button = gr.Button("Sonucu CSV indir")
-                    download = gr.File(label="CSV")
+
+                    gr.HTML(components.section_header("Observability / Diagnostics", "Ana sonuçlardan ayrı — teşhis paneli"))
+                    latency_html = gr.HTML(components.latency_panel({}, {}))
+                    diagnostics_html = gr.HTML(components.diagnostics_panel({}, "—"))
 
             dataset.change(
                 load_facets, inputs=[dataset],
-                outputs=[event_category, split, video_id, altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max, telemetry_note],
+                outputs=[
+                    event_category, split, video_id,
+                    altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+                    facets_state, filter_badge_html, filter_note_html,
+                ],
+            ).then(render_header, inputs=[dataset], outputs=[topbar_html, status_badge_html])
+
+            filter_controls = [
+                event_category, split, video_id,
+                altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+            ]
+            filter_sliders = [altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max]
+            # Both .select (dropdown) and .release (slider) fire only on a genuine user
+            # interaction, never on the programmatic gr.update() batch load_facets sends when a
+            # dataset loads/changes. Using .change instead races that batch: a listener that
+            # takes a slider as input gets invoked with the browser's stale pre-update value
+            # while the server has already applied the new minimum/maximum, and Gradio's input
+            # validation rejects it ("Value 0 is less than minimum value 2.8381").
+            for control in (event_category, split, video_id):
+                control.select(update_filter_badge, inputs=[*filter_controls, facets_state], outputs=[filter_badge_html])
+            for control in filter_sliders:
+                control.release(update_filter_badge, inputs=[*filter_controls, facets_state], outputs=[filter_badge_html])
+
+            clear_filters_button.click(
+                clear_filters, inputs=[facets_state],
+                outputs=[
+                    event_category, split, video_id,
+                    altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+                    filter_badge_html,
+                ],
             )
+
             backend.change(update_strategies, inputs=[backend], outputs=[strategy])
+
             search_inputs = [
                 query, dataset, event_category, split, video_id,
                 altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
                 backend, strategy, dimension, adaptive, base_dim, top_n, pattern, top_k, repeats,
+                facets_state,
             ]
-            search_outputs = [latency, diagnostics, results, raw_response]
+            search_outputs = [results_html, detail_selector, detail_html, latency_html, diagnostics_html, raw_response]
             search_button.click(run_search, inputs=search_inputs, outputs=search_outputs)
             ten_button.click(lambda: 10, outputs=[repeats]).then(run_search, inputs=search_inputs, outputs=search_outputs)
+            detail_selector.change(show_detail, inputs=[detail_selector, raw_response], outputs=[detail_html])
             export_button.click(export_csv, inputs=[raw_response], outputs=[download])
+
             if datasets:
                 demo.load(
                     load_facets, inputs=[dataset],
-                    outputs=[event_category, split, video_id, altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max, telemetry_note],
+                    outputs=[
+                        event_category, split, video_id,
+                        altitude_min, altitude_max, velocity_min, velocity_max, gimbal_min, gimbal_max,
+                        facets_state, filter_badge_html, filter_note_html,
+                    ],
                 )
+            demo.load(render_header, inputs=[dataset], outputs=[topbar_html, status_badge_html])
 
-        with gr.Tab("Karşılaştır"):
+        with gr.Tab("Karşılaştır", elem_id="mvi-comparison"):
             compare_query = gr.Textbox(label="Sorgu", value="kalabalık trafik")
             compare_dataset = gr.Dropdown(choices=datasets, value=datasets[0] if datasets else None, label="Dataset")
             compare_backends = gr.CheckboxGroup(["clickhouse", "qdrant", "pgvector"], value=["clickhouse", "qdrant", "pgvector"], label="Backend'ler")
             compare_dimensions = gr.CheckboxGroup([2048, 1024, 512, 256], value=[512, 256], label="Boyutlar")
             compare_repeats = gr.Slider(1, 20, value=3, step=1, label="Tekrar")
             compare_button = gr.Button("Karşılaştır", variant="primary")
-            compare_table = gr.Dataframe(interactive=False)
+            compare_output = gr.HTML(components.empty_state("no_selection"))
             compare_button.click(
-                compare,
+                run_compare,
                 inputs=[compare_query, compare_dataset, compare_backends, compare_dimensions, compare_repeats],
-                outputs=[compare_table],
+                outputs=[compare_output],
             )
 
 
