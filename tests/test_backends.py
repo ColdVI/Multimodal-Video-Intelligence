@@ -33,9 +33,10 @@ def test_ch_table_ddl_custom_table_name():
 
 def test_qd_hot_filter_fields_match_spec_list():
     fields = dict(qd.HOT_FILTER_FIELDS)
+    assert fields["dataset_id"] == "keyword"
     assert fields["altitude_m"] == "float"
     assert fields["person_count"] == "integer"
-    assert len(qd.HOT_FILTER_FIELDS) == 5
+    assert len(qd.HOT_FILTER_FIELDS) == 6
 
 
 def test_pv_vector_type_for_dimension_switches_at_2000():

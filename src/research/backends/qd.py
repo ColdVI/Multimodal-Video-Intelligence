@@ -6,6 +6,7 @@ from ._runner import run_action
 
 SCRIPT = "install_qdrant_colab.sh"
 HOT_FILTER_FIELDS = [
+    ("dataset_id", "keyword"),  # tek koleksiyon birden fazla dataset tutuyor - sorgular buna gore filtrelenir
     ("altitude_m", "float"), ("velocity_mps", "float"),
     ("person_count", "integer"), ("vehicle_count", "integer"),
     ("is_night", "integer"),
@@ -68,14 +69,20 @@ def indexed_vectors_count(client, collection_name: str) -> dict:
 
 def query(client, collection_name: str, qvec, top_k: int, filter_conditions: dict = None,
          exact: bool = False, hnsw_ef: int = None):
-    """filter_conditions: {"altitude_m": {"lt": 20.0}} gibi basit
-    alan->kosul sozlugu. exact=True -> spec SS7.3 strategy-2 (params exact)."""
-    from qdrant_client.models import FieldCondition, Filter, Range, SearchParams
+    """filter_conditions: alan -> kosul. Kosul bir dict ise (ör.
+    {"lt": 20.0}) sayisal Range filtresi; duz bir deger ise (ör. "auair")
+    tam-eslesme (MatchValue) filtresi - tablolar artik BIRDEN FAZLA
+    dataset'i tek koleksiyonda tuttugu icin (dataset_id kolonu) exact-match
+    gerekli oldu. exact=True -> spec SS7.3 strategy-2 (params exact)."""
+    from qdrant_client.models import FieldCondition, Filter, MatchValue, Range, SearchParams
 
     must = []
     if filter_conditions:
         for field, cond in filter_conditions.items():
-            must.append(FieldCondition(key=field, range=Range(**cond)))
+            if isinstance(cond, dict):
+                must.append(FieldCondition(key=field, range=Range(**cond)))
+            else:
+                must.append(FieldCondition(key=field, match=MatchValue(value=cond)))
     query_filter = Filter(must=must) if must else None
     params = SearchParams(exact=exact, hnsw_ef=hnsw_ef) if (exact or hnsw_ef) else None
     return client.search(collection_name=collection_name, query_vector=qvec, limit=top_k,

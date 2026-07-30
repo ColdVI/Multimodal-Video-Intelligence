@@ -106,7 +106,7 @@ else:
     exact_order_full = {qid: exact_ranking(corpus, np.array(embeddings_by_id[qid], dtype=np.float32))
                         for qid in query_ids}
 
-    def _run_one_query(backend, dim, table, qvec, where):
+    def _run_one_query(backend, dim, table, qvec, where, qd_filter):
         t0 = time.perf_counter()
         if backend == "clickhouse":
             client = ch.get_client()
@@ -115,8 +115,8 @@ else:
             ids = [r[0] for r in rows]
         elif backend == "qdrant":
             client = qd.get_client()
-            hits = qd.query(client, table, qvec, FINAL_K)
-            ids = [h.id for h in hits]
+            hits = qd.query(client, table, qvec, FINAL_K, filter_conditions=qd_filter)
+            ids = [h.payload["segment_id"] for h in hits]
         elif backend == "pgvector":
             conn = pv.get_connection()
             sql = pv.build_query_sql(table, qvec, FINAL_K, where=where)
@@ -132,15 +132,25 @@ else:
         for dim in cfg.dims:
             table = f"seg_{dim}"
             for selectivity in SELECTIVITY_LEVELS:
-                where = "1" if selectivity >= 1.0 else \\
-                    f"altitude_m < {selectivity_thresholds['altitude_m'][str(selectivity)]['threshold']}"
+                # NOT: tablo/koleksiyon artik TUM dataset'leri tutuyor (notebook 04
+                # duzeltmesi) - exact-referans (corpus) SADECE AU-AIR'den kuruldugu
+                # icin sorgu da dataset_id='auair' ile filtrelenmeli, yoksa ANN
+                # sonucu diger dataset'lerden komsu dondurup recall/agreement'i
+                # anlamsizlastirir.
+                qd_filter = {"dataset_id": "auair"}
+                if selectivity >= 1.0:
+                    where = "dataset_id = 'auair'"
+                else:
+                    theta = selectivity_thresholds['altitude_m'][str(selectivity)]['threshold']
+                    where = f"dataset_id = 'auair' AND altitude_m < {theta}"
+                    qd_filter["altitude_m"] = {"lt": theta}
                 for _ in range(WARMUP):
                     qid = query_ids[0]
-                    _run_one_query(backend, dim, table, embeddings_by_id[qid], where)
+                    _run_one_query(backend, dim, table, embeddings_by_id[qid], where, qd_filter)
                 latencies, returned_counts, recalls, agreements = [], [], [], []
                 for qid in query_ids[:REPS] if REPS <= len(query_ids) else query_ids:
                     qvec = embeddings_by_id[qid]
-                    ids, latency = _run_one_query(backend, dim, table, qvec, where)
+                    ids, latency = _run_one_query(backend, dim, table, qvec, where, qd_filter)
                     latencies.append(latency * 1000)
                     returned_counts.append(len(ids))
                     id_to_idx = {sid: i for i, sid in enumerate(ids_with_emb)}

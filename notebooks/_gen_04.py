@@ -73,6 +73,34 @@ if not any_embeddings:
     print("\\n[BILGI] Hicbir embedding bulunamadi - once notebook 02'yi GPU runtime'inda "
          "calistirin. Asagidaki backend kurulum/saglik-kontrolu YINE DE calisir "
          "(altyapi dogrulamasi), ama veri yukleme adimlari ATLANACAK.")
+
+def _video_id_from_item_id(dataset_id: str, item_id: str) -> str:
+    \"\"\"Her dataset'in notebook 02'de yazdigi checkpoint anahtar semasindan
+    (bkz. _gen_02.py) video_id'yi geri cikarir - kesin degil ama tabloda
+    bilgi amacli bir kolon (arama sonucunun DOGRULUGUNU etkilemez, segment_id
+    zaten PRIMARY KEY/tekil kimlik).\"\"\"
+    if dataset_id == "auair":  # segment_id = "auair:{video_id}:{t0}:{t1}"
+        return item_id.split(":")[1] if ":" in item_id else item_id
+    if dataset_id == "capera":  # seq_id = "{split}__{video_id}"
+        return item_id.split("__", 1)[1] if "__" in item_id else item_id
+    if dataset_id == "visdrone":  # win_id = "{video_id}__{t0}_{t1}"
+        return item_id.split("__")[0] if "__" in item_id else item_id
+    return item_id  # msrvtt: item_id zaten video_id
+
+def load_all_embeddings(dimension: int) -> list:
+    \"\"\"TUM dataset'lerin bu boyuttaki embedding'lerini birlestirir -
+    (segment_id, dataset_id, video_id, vector) tuple listesi. Backend
+    tablolari SS4.5 semasina gore tek tablo/koleksiyon (boyut basina),
+    dataset_id kolonuyla ayrilir - dataset basina ayri tablo DEGIL.\"\"\"
+    rows = []
+    for ds in DATASETS:
+        p = EMB_ROOT / f"{ds}_qwen{dimension}.json"
+        if not p.exists():
+            continue
+        emb = _json.loads(p.read_text(encoding="utf-8"))
+        for item_id, vec in emb.items():
+            rows.append((item_id, ds, _video_id_from_item_id(ds, item_id), vec))
+    return rows
 """),
 
 ("md", "## ClickHouse - install / start / health / (yukle) / stop / cleanup"),
@@ -94,25 +122,25 @@ if ch_install["ok"]:
         print(f"ClickHouse health: {ch_health['healthy']}")
         if ch_health["healthy"]:
             ch_status = "healthy"
-            # Veri yukleme: embedding varsa GERCEKTEN yuklenir (burada, GPU
-            # gerektirmeyen bir adim) - yoksa DDL'in kendisi dogrulanir, sahte
-            # satir eklenmez.
+            # Veri yukleme: TUM dataset'lerin embedding'leri (varsa) GERCEKTEN
+            # yuklenir (client.insert - toplu, dataset basina tek cagri).
+            # Metadata/telemetri kolonlari (altitude_m vb.) kapsam disi
+            # birakildi (0/bos default) - notebook 05'te Postgres'ten JOIN
+            # edilecek, burada sadece segment_id/dataset_id/video_id/embedding.
             client = ch.get_client()
             for d in DIMS:
                 ddl = ch.table_ddl(d)
                 client.command(ddl)
-                emb_path = EMB_ROOT / f"auair_qwen{d}.json"
+                rows = load_all_embeddings(d)
                 n_loaded = 0
-                if emb_path.exists():
-                    embeddings = _json.loads(emb_path.read_text(encoding="utf-8"))
-                    n_loaded = len(embeddings)
-                    # gercek insert SS4.5'teki tam sema (metadata/telemetri
-                    # join'i notebook 03'un Postgres ciktisindan) - kapsam
-                    # asimini onlemek icin burada sadece segment_id+embedding
-                    # kolonlari GERCEKTEN yuklenir, digerleri notebook 05'te.
+                if rows:
+                    client.insert(f"seg_{d}", [[r[0], r[1], r[2], r[3]] for r in rows],
+                                  column_names=["segment_id", "dataset_id", "video_id", "embedding"])
+                    n_loaded = len(rows)
                 ingest_report_rows.append({"backend": "clickhouse", "dimension": d,
                                           "table": f"seg_{d}", "ddl_applied": True,
-                                          "n_embeddings_loaded": n_loaded})
+                                          "n_embeddings_loaded": n_loaded,
+                                          "datasets_loaded": sorted({r[1] for r in rows})})
     ch.stop()
 ch.cleanup()
 print(f"ClickHouse durumu: {ch_status}")
@@ -139,15 +167,22 @@ if qd_install["ok"]:
             for d in DIMS:
                 collection = f"seg_{d}"
                 qd.create_collection_and_indexes(client, collection, d)
-                emb_path = EMB_ROOT / f"auair_qwen{d}.json"
+                rows = load_all_embeddings(d)
                 n_loaded = 0
-                if emb_path.exists():
-                    embeddings = _json.loads(emb_path.read_text(encoding="utf-8"))
-                    n_loaded = len(embeddings)
+                if rows:
+                    from qdrant_client.models import PointStruct
+                    points = [PointStruct(id=i, vector=r[3],
+                                          payload={"segment_id": r[0], "dataset_id": r[1], "video_id": r[2]})
+                             for i, r in enumerate(rows)]
+                    # Qdrant tek istekte cok buyuk gonderiyi reddedebilir - parca parca yukle.
+                    for i in range(0, len(points), 500):
+                        client.upsert(collection_name=collection, points=points[i:i + 500])
+                    n_loaded = len(rows)
                 counts = qd.indexed_vectors_count(client, collection)
                 ingest_report_rows.append({"backend": "qdrant", "dimension": d,
                                           "table": collection, "ddl_applied": True,
-                                          "n_embeddings_loaded": n_loaded, **counts})
+                                          "n_embeddings_loaded": n_loaded,
+                                          "datasets_loaded": sorted({r[1] for r in rows}), **counts})
     qd.stop()
 qd.cleanup()
 print(f"Qdrant durumu: {qd_status}")
@@ -171,19 +206,29 @@ if pv_install["ok"]:
         if pv_health["healthy"]:
             pv_status = "healthy"
             conn = pv.get_connection()
+
+            def _pv_insert(table_name, rows):
+                if not rows:
+                    return
+                with conn.cursor() as cur:
+                    cur.executemany(
+                        f"INSERT INTO {table_name} (segment_id, dataset_id, video_id, v) "
+                        f"VALUES (%s,%s,%s,%s) ON CONFLICT (segment_id) DO NOTHING",
+                        [(r[0], r[1], r[2], pv._fmt_vector(r[3])) for r in rows])
+
             for d in DIMS:
                 storage_type = pv.vector_type_for_dimension(d)
                 ddl = pv.table_ddl(d, storage_type)
                 with conn.cursor() as cur:
                     cur.execute(ddl)
-                emb_path = EMB_ROOT / f"auair_qwen{d}.json"
-                n_loaded = 0
-                if emb_path.exists():
-                    embeddings = _json.loads(emb_path.read_text(encoding="utf-8"))
-                    n_loaded = len(embeddings)
+                rows = load_all_embeddings(d)
+                table_name = f"seg_{d}_{storage_type[0]}"
+                _pv_insert(table_name, rows)
+                n_loaded = len(rows)
                 ingest_report_rows.append({"backend": "pgvector", "dimension": d,
-                                          "table": f"seg_{d}_{storage_type[0]}", "ddl_applied": True,
-                                          "storage_type": storage_type, "n_embeddings_loaded": n_loaded})
+                                          "table": table_name, "ddl_applied": True,
+                                          "storage_type": storage_type, "n_embeddings_loaded": n_loaded,
+                                          "datasets_loaded": sorted({r[1] for r in rows})})
                 if d == 1024:
                     # SS7.3 kontrol kosusu: 1024d icin AYRICA vector() de kur
                     alt_type = "vector" if storage_type == "halfvec" else "halfvec"
@@ -191,9 +236,12 @@ if pv_install["ok"]:
                         alt_ddl = pv.table_ddl(d, alt_type)
                         with conn.cursor() as cur:
                             cur.execute(alt_ddl)
+                        alt_table = f"seg_{d}_{alt_type[0]}"
+                        _pv_insert(alt_table, rows)
                         ingest_report_rows.append({"backend": "pgvector", "dimension": d,
-                                                  "table": f"seg_{d}_{alt_type[0]}", "ddl_applied": True,
+                                                  "table": alt_table, "ddl_applied": True,
                                                   "storage_type": alt_type, "n_embeddings_loaded": n_loaded,
+                                                  "datasets_loaded": sorted({r[1] for r in rows}),
                                                   "note": "SS7.3 halfvec-vs-vector kontrol kosusu"})
     pv.stop()
 pv.cleanup()
