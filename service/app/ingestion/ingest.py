@@ -75,7 +75,7 @@ def _metadata_rows(records: list[WindowRecord]) -> tuple[list[tuple], list[tuple
             values.get("altitude_m"), values.get("velocity_mps"), values.get("roll"),
             values.get("pitch"), values.get("yaw"), values.get("yaw_rate"),
             values.get("gimbal_pitch"), values.get("gimbal_heading"), values.get("compass_heading"),
-            None, json.dumps(record.extra),
+            None, json.dumps({**record.extra, "is_night": bool(values.get("is_night"))}),
         ))
     return list(videos.values()), segments, metadata, telemetry
 
@@ -227,7 +227,11 @@ def ingest_manifest(path: Path, *, data_root: Path, resume: bool) -> dict[str, A
             manifest_hash=manifest.manifest_hash, expected_segments=None,
         )
         store.create(run, status="preflight_passed")
+    from app.db.telemetry_registry import replace_fields
     from app.embedding.qwen import embed_videos
+    from app.search.filter_schema import manifest_filter_fields
+
+    replace_fields(manifest.dataset_id, run.run_id, manifest_filter_fields(manifest))
 
     backends = {name: BACKEND_REGISTRY[name] for name in run.enabled_backends}
     return GenericIngestor(

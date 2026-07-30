@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "not_run",
+  "reason": "The institution corpus and live enabled vector backend are unavailable; latency, memory, index-use, and large-corpus candidate transport numbers were not fabricated.",
+  "required_command": "docker compose --env-file .env exec -T api python -m app.bench.runner --suite T9",
+  "expected_environment": "Healthy production-profile services with a completed active institution run at representative scale.",
+  "corpus_segments": 0,
+  "queries_executed": 0
+}

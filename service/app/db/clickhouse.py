@@ -5,6 +5,7 @@ from typing import Any, Iterable
 
 from app.config import DIMENSIONS, settings
 from app.search.strategies import clickhouse_settings
+from app.search.pushdown import normalize_filters
 
 
 def client():
@@ -59,9 +60,14 @@ def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
                    run_id UUID, chunk_index UInt32, segment_id String,
                    dataset_id LowCardinality(String), video_id String,
                    t_start Float32, t_end Float32,
+                   event_category Nullable(String), split Nullable(String),
+                   latitude Nullable(Float64), longitude Nullable(Float64),
                    altitude_m Nullable(Float32), velocity_mps Nullable(Float32),
-                   gimbal_pitch Nullable(Float32), person_count UInt16,
-                   vehicle_count UInt16, is_night UInt8,
+                   roll Nullable(Float32), pitch Nullable(Float32), yaw Nullable(Float32),
+                   yaw_rate Nullable(Float32), gimbal_pitch Nullable(Float32),
+                   gimbal_heading Nullable(Float32), compass_heading Nullable(Float32),
+                   person_count Nullable(UInt16), vehicle_count Nullable(UInt16),
+                   bus_count Nullable(UInt16), is_night Nullable(UInt8),
                    embedding Array(Float32) CODEC(NONE),
                    INDEX idx_vec embedding TYPE vector_similarity('hnsw','cosineDistance',{dimension}) GRANULARITY 100000000,
                    INDEX idx_alt altitude_m TYPE minmax GRANULARITY 4,
@@ -94,6 +100,8 @@ def search_vectors(
     candidate_ids: list[str] | None,
     *,
     run_id: str | None = None,
+    metadata_filters: dict[str, Any] | None = None,
+    telemetry_filters: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     values, notes = clickhouse_settings(strategy, top_k)
     values["allow_experimental_vector_similarity_index"] = 1
@@ -104,6 +112,29 @@ def search_vectors(
         table = f"seg_ch_{dimension}_runs"
         params["run_id"] = run_id
         run_clause = " AND run_id={run_id:UUID}"
+    predicate_clauses = []
+    predicates = normalize_filters(metadata_filters, telemetry_filters)
+    for index, predicate in enumerate(predicates):
+        field = predicate.field
+        if predicate.kind == "equals":
+            type_name = "String" if isinstance(predicate.value, str) else "UInt8"
+            key = f"filter_{index}"
+            params[key] = predicate.value
+            predicate_clauses.append(f"{field}={{{key}:{type_name}}}")
+        elif predicate.wrap and predicate.minimum is not None and predicate.maximum is not None:
+            low, high = f"filter_{index}_lo", f"filter_{index}_hi"
+            params.update({low: predicate.minimum, high: predicate.maximum})
+            predicate_clauses.append(f"({field}>={{{low}:Float64}} OR {field}<={{{high}:Float64}})")
+        else:
+            if predicate.minimum is not None:
+                key = f"filter_{index}_lo"
+                params[key] = predicate.minimum
+                predicate_clauses.append(f"{field}>={{{key}:Float64}}")
+            if predicate.maximum is not None:
+                key = f"filter_{index}_hi"
+                params[key] = predicate.maximum
+                predicate_clauses.append(f"{field}<={{{key}:Float64}}")
+    predicate_clause = "" if not predicate_clauses else " AND " + " AND ".join(predicate_clauses)
     candidate_clause = ""
     if candidate_ids is not None:
         if not candidate_ids:
@@ -112,10 +143,12 @@ def search_vectors(
         candidate_clause = " AND segment_id IN {candidate_ids:Array(String)}"
     sql = f"""SELECT segment_id, 1-cosineDistance(embedding, {{query_vector:Array(Float32)}}) AS score
               FROM {table}
-              WHERE dataset_id={{dataset_id:String}}{run_clause}{candidate_clause}
+              WHERE dataset_id={{dataset_id:String}}{run_clause}{predicate_clause}{candidate_clause}
               ORDER BY cosineDistance(embedding, {{query_vector:Array(Float32)}})
               LIMIT {{top_k:UInt32}}"""
     target = client()
+    count_sql = f"SELECT count() FROM {table} WHERE dataset_id={{dataset_id:String}}{run_clause}{predicate_clause}"
+    candidate_count = int(target.query(count_sql, parameters=params).result_rows[0][0])
     result = target.query(sql, parameters=params, settings=values)
     rows = [{"segment_id": row[0], "score": float(row[1])} for row in result.result_rows]
     plan_used = False
@@ -124,7 +157,10 @@ def search_vectors(
         plan_used = "vector_similarity" in "\n".join(str(row[0]) for row in explain.result_rows)
     except Exception as exc:
         notes.append(f"EXPLAIN unavailable: {type(exc).__name__}")
-    return rows, {"plan_used_vector_index": plan_used, "indexed_vectors_count": None, "notes": notes}
+    return rows, {
+        "plan_used_vector_index": plan_used, "indexed_vectors_count": None,
+        "candidate_count": candidate_count, "notes": notes,
+    }
 
 
 def table_count(dataset_id: str, dimension: int) -> int:
@@ -148,7 +184,9 @@ def write_run_chunk(
 ) -> int:
     columns = [
         "run_id", "chunk_index", "segment_id", "dataset_id", "video_id", "t_start", "t_end",
-        "altitude_m", "velocity_mps", "gimbal_pitch", "person_count", "vehicle_count", "is_night", "embedding",
+        "event_category", "split", "latitude", "longitude", "altitude_m", "velocity_mps",
+        "roll", "pitch", "yaw", "yaw_rate", "gimbal_pitch", "gimbal_heading", "compass_heading",
+        "person_count", "vehicle_count", "bus_count", "is_night", "embedding",
     ]
     data = [[run_id, chunk_index, *[row[column] for column in columns[2:]]] for row in rows]
     if data:

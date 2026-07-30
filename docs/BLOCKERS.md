@@ -27,6 +27,11 @@
   `artifacts/faz11/schema_migration_report.json`. Servis container'larında pinli
   Python 3.11 bağımlılıkları ve DB'ler healthy iken önce `--plan`, operator
   backup/snapshot onayından sonra ayrıca `--apply` çalıştırılmalıdır.
+- **Pushdown scale/equivalence acceptance NOT RUN:** active run ve canlı enabled
+  vector backend yok; bu nedenle backend-native exact eşdeğerlik, index planı,
+  large-corpus candidate transport ve latency/memory ölçümleri üretilmedi.
+  `artifacts/faz11/filter_equivalence.json` ve `search_scale_smoke.json` gerekli
+  kurum komutlarını içerir; compiler ve request-path contract testleri geçti.
 
 ## Faz 8 open blockers
 

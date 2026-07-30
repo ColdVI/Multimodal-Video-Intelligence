@@ -188,3 +188,16 @@
 - 2026-07-30 — Resume kimliği dataset + manifest hash'ten son incomplete run'dır.
   Committed chunk decode edilmez; incomplete chunk'ın run-scoped metadata ve
   vector satırları temizlenip yeniden yazılır. Report/hata yolları run-scoped'tur.
+
+## Faz 11 Aşama 7 decisions
+
+- 2026-07-30 — `pushdown` active run için gerçekten backend-native execution
+  path oldu; Python candidate listesi üretilmez. Active pointer'ı bulunmayan
+  legacy dataset açık `legacy_candidate_ids_compatibility` etiketiyle eski yolu
+  kullanır.
+- 2026-07-30 — Canonical filter registry `(dataset_id,run_id,field_name)`
+  anahtarlıdır. ClickHouse gerçek Nullable canonical kolonları, Qdrant registry
+  kaynaklı payload indexlerini, pgvector tek JOIN SQL'ini kullanır.
+- 2026-07-30 — 350°–10° circular aralık OR, normal aralık AND derlenir.
+  Adaptive base aynı predicate'i taşır; yalnız bounded `top_n` rerank ID listesi
+  olabilir. Legacy benchmark listesi `LEGACY_CANDIDATE_LIMIT` aşarsa fail olur.

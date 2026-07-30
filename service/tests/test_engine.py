@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -130,7 +131,80 @@ def test_active_run_snapshot_is_read_once_and_reused_across_repeats(fake_corpus,
     monkeypatch.setitem(engine.BACKENDS, "clickhouse", active_search)
     request = _request()
     request.repeats = 2
+    request.filter_execution_mode = "legacy_candidate_ids"
     response = engine.search(request)
     assert response["run_id"] == "00000000-0000-0000-0000-000000000001"
     assert snapshots  # second value was never read
     assert {value for _, value in observed} == {response["run_id"]}
+
+
+def test_active_pushdown_never_materializes_candidate_ids(fake_corpus, monkeypatch):
+    run_id = "00000000-0000-0000-0000-000000000003"
+    monkeypatch.setattr(engine.postgres, "get_active_run_snapshot", lambda dataset_id: {
+        "run_id": run_id, "vector_provenance": "real", "model_id": "m",
+        "model_revision": "r", "source_commit": "s",
+    })
+    monkeypatch.setattr(
+        engine.postgres, "filter_run_segment_ids",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("candidate IDs must not be loaded")),
+    )
+
+    def native_search(
+        dataset_id, dimension, vector, top_k, strategy, candidate_ids, *, run_id,
+        metadata_filters, telemetry_filters,
+    ):
+        assert candidate_ids is None
+        assert telemetry_filters == {"altitude_m": [4, 6]}
+        return ([{"segment_id": "s005", "score": 0.9}], {
+            "candidate_count": 7, "plan_used_vector_index": True,
+            "indexed_vectors_count": 200, "notes": [],
+        })
+
+    monkeypatch.setitem(engine.BACKENDS, "clickhouse", native_search)
+    monkeypatch.setattr(engine.postgres, "hydrate", lambda ids, *, run_id: [{
+        "segment_id": "s005", "altitude_m": 5.0,
+    }])
+    request = _request(telemetry_filters={"altitude_m": [4, 6]})
+    request.filter_execution_mode = "pushdown"
+    response = engine.search(request)
+    assert response["filter_execution_mode"] == "pushdown"
+    assert response["diagnostics"]["candidate_count"] == 7
+    assert response["diagnostics"]["filter_correctness"] is True
+
+
+def test_legacy_candidate_mode_fails_before_embedding_when_limit_exceeded(fake_corpus, monkeypatch):
+    monkeypatch.setattr(engine, "settings", replace(engine.settings, legacy_candidate_limit=10))
+    request = _request()
+    request.filter_execution_mode = "legacy_candidate_ids"
+    with pytest.raises(ValueError, match="legacy candidate limit exceeded"):
+        engine.search(request)
+
+
+def test_adaptive_pushdown_reuses_predicate_and_only_passes_bounded_rerank_ids(fake_corpus, monkeypatch):
+    run_id = "00000000-0000-0000-0000-000000000004"
+    monkeypatch.setattr(engine.postgres, "get_active_run_snapshot", lambda dataset_id: {
+        "run_id": run_id, "vector_provenance": "real", "model_id": "m",
+        "model_revision": "r", "source_commit": "s",
+    })
+    observed = []
+
+    def native_search(dataset_id, dimension, vector, top_k, strategy, candidate_ids, **kwargs):
+        observed.append((dimension, candidate_ids, kwargs["telemetry_filters"]))
+        ids = [f"s{index:03d}" for index in range(min(top_k, 4))] if candidate_ids is None else candidate_ids[:top_k]
+        return ([{"segment_id": value, "score": 1.0} for value in ids], {
+            "candidate_count": 50, "plan_used_vector_index": True,
+            "indexed_vectors_count": 50, "notes": [],
+        })
+
+    monkeypatch.setitem(engine.BACKENDS, "clickhouse", native_search)
+    monkeypatch.setattr(engine.postgres, "hydrate", lambda ids, *, run_id: [
+        {"segment_id": value, "altitude_m": 5.0} for value in ids
+    ])
+    request = _request(telemetry_filters={"altitude_m": [4, 6]})
+    request.filter_execution_mode = "pushdown"
+    request.adaptive_mrl.enabled = True
+    request.adaptive_mrl.top_n = 4
+    engine.search(request)
+    assert observed[0] == (256, None, {"altitude_m": [4, 6]})
+    assert observed[1][0] == 512 and len(observed[1][1]) <= 4
+    assert observed[1][2] == observed[0][2]

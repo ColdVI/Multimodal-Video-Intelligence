@@ -5,6 +5,8 @@ from typing import Any, Iterable
 
 from app.config import DIMENSIONS, settings
 from app.search.strategies import pgvector_session_settings
+from app.search.filter_projection import POSTGRES_RUN_COLUMNS
+from app.search.pushdown import normalize_filters, sql_predicates
 
 
 SCHEMA_SQL = """
@@ -104,7 +106,7 @@ CREATE TABLE IF NOT EXISTS run_retrieval_groundtruth (
 CREATE TABLE IF NOT EXISTS telemetry_field_registry (
   run_id uuid NOT NULL, dataset_id text NOT NULL, field_name text NOT NULL,
   source_name text NOT NULL, field_type text NOT NULL, unit text, semantics jsonb NOT NULL DEFAULT '{}',
-  PRIMARY KEY(run_id,field_name)
+  PRIMARY KEY(dataset_id,run_id,field_name)
 );
 CREATE INDEX IF NOT EXISTS ix_run_segments_dataset ON run_segments(run_id,dataset_id);
 CREATE INDEX IF NOT EXISTS ix_run_segments_chunk ON run_segments(run_id,video_id,chunk_index);
@@ -399,27 +401,17 @@ def filter_run_segment_ids(
 ) -> list[str]:
     clauses = ["s.dataset_id=%s", "s.run_id=%s"]
     params: list[Any] = [dataset_id, run_id]
-    joins = ["JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id"]
-    for key, column in {"event_category": "v.event_category", "split": "v.split", "video_id": "s.video_id"}.items():
-        value = (metadata_filters or {}).get(key)
-        if value not in (None, "", []):
-            clauses.append(f"{column}=%s")
-            params.append(value)
-    if telemetry_filters:
-        joins.append("JOIN run_segment_telemetry t ON t.run_id=s.run_id AND t.segment_id=s.segment_id")
-        for key, column in {
-            "altitude_m": "t.altitude_m", "velocity_mps": "t.velocity_mps",
-            "gimbal_pitch": "t.gimbal_pitch",
-        }.items():
-            bounds = telemetry_filters.get(key)
-            if bounds:
-                lo, hi = bounds
-                if lo is not None:
-                    clauses.append(f"{column}>=%s")
-                    params.append(float(lo))
-                if hi is not None:
-                    clauses.append(f"{column}<=%s")
-                    params.append(float(hi))
+    joins = [
+        "JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id",
+        "LEFT JOIN run_segment_telemetry t ON t.run_id=s.run_id AND t.segment_id=s.segment_id",
+        "LEFT JOIN run_segment_metadata m ON m.run_id=s.run_id AND m.segment_id=s.segment_id",
+    ]
+    predicate_sql, predicate_params = sql_predicates(
+        normalize_filters(metadata_filters, telemetry_filters), POSTGRES_RUN_COLUMNS,
+    )
+    if predicate_sql:
+        clauses.append(predicate_sql)
+        params.extend(predicate_params)
     sql = f"SELECT s.segment_id FROM run_segments s {' '.join(joins)} WHERE {' AND '.join(clauses)} ORDER BY s.segment_id"
     with connection() as conn, conn.cursor() as cur:
         cur.execute(sql, params)
@@ -435,6 +427,8 @@ def search_vectors(
     candidate_ids: list[str] | None,
     *,
     run_id: str | None = None,
+    metadata_filters: dict[str, Any] | None = None,
+    telemetry_filters: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     table, vector_type = VECTOR_TABLES[dimension]
     if run_id is not None:
@@ -444,24 +438,54 @@ def search_vectors(
     params: list[Any] = [literal, dataset_id]
     run_clause = ""
     if run_id is not None:
-        run_clause = " AND run_id=%s"
+        run_clause = " AND e.run_id=%s"
         params.append(run_id)
+        joins = (
+            f"{table} e JOIN run_segments s ON s.run_id=e.run_id AND s.segment_id=e.segment_id "
+            "JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id "
+            "LEFT JOIN run_segment_telemetry t ON t.run_id=s.run_id AND t.segment_id=s.segment_id "
+            "LEFT JOIN run_segment_metadata m ON m.run_id=s.run_id AND m.segment_id=s.segment_id"
+        )
+    else:
+        joins = (
+            f"{table} e JOIN segments s ON s.segment_id=e.segment_id "
+            "JOIN videos v ON v.dataset_id=s.dataset_id AND v.video_id=s.video_id "
+            "LEFT JOIN segment_telemetry t ON t.segment_id=s.segment_id "
+            "LEFT JOIN segment_metadata m ON m.segment_id=s.segment_id"
+        )
+    predicate_sql, predicate_params = sql_predicates(
+        normalize_filters(metadata_filters, telemetry_filters), POSTGRES_RUN_COLUMNS,
+    )
+    predicate_clause = "" if not predicate_sql else f" AND {predicate_sql}"
+    params.extend(predicate_params)
     if candidate_ids is not None:
         if not candidate_ids:
             return [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": []}
-        candidate_clause = " AND segment_id=ANY(%s)"
+        candidate_clause = " AND e.segment_id=ANY(%s)"
         params.append(candidate_ids)
     params.extend([literal, top_k])
-    sql = f"""SELECT segment_id, 1-(v <=> %s::{vector_type}({dimension})) AS score
-              FROM {table} WHERE dataset_id=%s{run_clause}{candidate_clause}
-              ORDER BY v <=> %s::{vector_type}({dimension}) LIMIT %s"""
+    sql = f"""SELECT e.segment_id, 1-(e.v <=> %s::{vector_type}({dimension})) AS score
+              FROM {joins} WHERE e.dataset_id=%s{run_clause}{predicate_clause}{candidate_clause}
+              ORDER BY e.v <=> %s::{vector_type}({dimension}) LIMIT %s"""
     with connection() as conn, conn.cursor() as cur:
         for statement in pgvector_session_settings(strategy):
             cur.execute(statement)
+        count_params: list[Any] = [dataset_id]
+        if run_id is not None:
+            count_params.append(run_id)
+        count_params.extend(predicate_params)
+        cur.execute(
+            f"SELECT count(*) FROM {joins} WHERE e.dataset_id=%s{run_clause}{predicate_clause}",
+            count_params,
+        )
+        candidate_count = int(cur.fetchone()[0])
         cur.execute(sql, params)
         rows = [{"segment_id": row[0], "score": float(row[1])} for row in cur.fetchall()]
         plan_used = strategy != "exact"
-    return rows, {"plan_used_vector_index": plan_used, "indexed_vectors_count": None, "notes": []}
+    return rows, {
+        "plan_used_vector_index": plan_used, "indexed_vectors_count": None,
+        "candidate_count": candidate_count, "notes": [],
+    }
 
 
 def hydrate(segment_ids: list[str], *, run_id: str | None = None) -> list[dict[str, Any]]:
@@ -473,8 +497,10 @@ def hydrate(segment_ids: list[str], *, run_id: str | None = None) -> list[dict[s
             with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
                 cur.execute(
                     """SELECT s.segment_id,s.video_id,s.t_start,s.t_end,s.caption,v.source_uri AS file_path,
-                              t.altitude_m,t.velocity_mps,t.gimbal_pitch,v.event_category,v.split,
-                              m.person_count,m.vehicle_count,m.bus_count
+                              t.latitude,t.longitude,t.altitude_m,t.velocity_mps,t.roll,t.pitch,t.yaw,
+                              t.yaw_rate,t.gimbal_pitch,t.gimbal_heading,t.compass_heading,
+                              v.event_category,v.split,m.person_count,m.vehicle_count,m.bus_count,
+                              coalesce((t.extra->>'is_night')::boolean,false) AS is_night,t.extra
                        FROM run_segments s
                        JOIN run_videos v ON v.run_id=s.run_id AND v.dataset_id=s.dataset_id AND v.video_id=s.video_id
                        LEFT JOIN run_segment_telemetry t ON t.run_id=s.run_id AND t.segment_id=s.segment_id
@@ -488,9 +514,10 @@ def hydrate(segment_ids: list[str], *, run_id: str | None = None) -> list[dict[s
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             cur.execute(
                 """SELECT s.segment_id,s.video_id,s.t_start,s.t_end,s.caption,v.source_uri AS file_path,
-                          t.altitude_m,t.velocity_mps,t.gimbal_pitch,
+                          t.latitude,t.longitude,t.altitude_m,t.velocity_mps,t.roll,t.pitch,t.yaw,
+                          t.yaw_rate,t.gimbal_pitch,t.gimbal_heading,t.compass_heading,
                           v.event_category,v.split,
-                          m.person_count,m.vehicle_count,m.bus_count
+                          m.person_count,m.vehicle_count,m.bus_count,false AS is_night,'{}'::jsonb AS extra
                    FROM segments s
                    JOIN videos v ON v.dataset_id=s.dataset_id AND v.video_id=s.video_id
                    LEFT JOIN segment_telemetry t ON t.segment_id=s.segment_id

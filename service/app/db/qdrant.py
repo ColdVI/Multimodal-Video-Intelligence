@@ -5,6 +5,8 @@ from typing import Any, Iterable
 
 from app.config import DIMENSIONS, settings
 from app.search.strategies import qdrant_search_params
+from app.search.filter_schema import CANONICAL_FILTER_FIELDS
+from app.search.pushdown import normalize_filters
 
 
 _NAMESPACE = uuid.UUID("17c52443-1998-443e-8c70-00544a9f6ee9")
@@ -37,16 +39,16 @@ def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
     from qdrant_client import models
 
     target = client()
-    indexes = {
-        "dataset_id": models.PayloadSchemaType.KEYWORD,
-        "run_id": models.PayloadSchemaType.KEYWORD,
-        "chunk_index": models.PayloadSchemaType.INTEGER,
-        "video_id": models.PayloadSchemaType.KEYWORD,
-        "altitude_m": models.PayloadSchemaType.FLOAT,
-        "velocity_mps": models.PayloadSchemaType.FLOAT,
-        "gimbal_pitch": models.PayloadSchemaType.FLOAT,
-        "person_count": models.PayloadSchemaType.INTEGER,
-    }
+    indexes = {"dataset_id": models.PayloadSchemaType.KEYWORD, "run_id": models.PayloadSchemaType.KEYWORD,
+               "chunk_index": models.PayloadSchemaType.INTEGER}
+    for field in CANONICAL_FILTER_FIELDS.values():
+        if not field.indexed:
+            continue
+        indexes[field.name] = (
+            models.PayloadSchemaType.KEYWORD if field.data_type == "keyword" else
+            models.PayloadSchemaType.INTEGER if field.data_type in {"integer", "boolean"} else
+            models.PayloadSchemaType.FLOAT
+        )
     for dimension in dimensions:
         name = collection_name(dimension)
         if not target.collection_exists(name):
@@ -83,7 +85,10 @@ def replace_vectors(dataset_id: str, dimension: int, rows: list[dict[str, Any]])
         target.upsert(name, points=batch, wait=True)
 
 
-def _filter(dataset_id: str, candidate_ids: list[str] | None, run_id: str | None = None):
+def _filter(
+    dataset_id: str, candidate_ids: list[str] | None, run_id: str | None = None,
+    metadata_filters: dict[str, Any] | None = None, telemetry_filters: dict[str, Any] | None = None,
+):
     from qdrant_client import models
 
     must: list[Any] = [models.FieldCondition(key="dataset_id", match=models.MatchValue(value=dataset_id))]
@@ -91,6 +96,21 @@ def _filter(dataset_id: str, candidate_ids: list[str] | None, run_id: str | None
         must.append(models.FieldCondition(key="run_id", match=models.MatchValue(value=run_id)))
     if candidate_ids is not None:
         must.append(models.HasIdCondition(has_id=[point_id(value, run_id) for value in candidate_ids]))
+    for predicate in normalize_filters(metadata_filters, telemetry_filters):
+        if predicate.kind == "equals":
+            must.append(models.FieldCondition(
+                key=predicate.field, match=models.MatchValue(value=predicate.value),
+            ))
+        elif predicate.wrap and predicate.minimum is not None and predicate.maximum is not None:
+            must.append(models.Filter(should=[
+                models.FieldCondition(key=predicate.field, range=models.Range(gte=predicate.minimum)),
+                models.FieldCondition(key=predicate.field, range=models.Range(lte=predicate.maximum)),
+            ]))
+        else:
+            must.append(models.FieldCondition(
+                key=predicate.field,
+                range=models.Range(gte=predicate.minimum, lte=predicate.maximum),
+            ))
     return models.Filter(must=must)
 
 
@@ -103,6 +123,8 @@ def search_vectors(
     candidate_ids: list[str] | None,
     *,
     run_id: str | None = None,
+    metadata_filters: dict[str, Any] | None = None,
+    telemetry_filters: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     from qdrant_client import models
 
@@ -113,7 +135,7 @@ def search_vectors(
     result = target.query_points(
         collection_name=collection_name(dimension),
         query=list(query_vector),
-        query_filter=_filter(dataset_id, candidate_ids, run_id),
+        query_filter=_filter(dataset_id, candidate_ids, run_id, metadata_filters, telemetry_filters),
         search_params=params,
         limit=top_k,
         with_payload=True,
@@ -122,7 +144,12 @@ def search_vectors(
         {"segment_id": point.payload["segment_id"], "score": float(point.score)}
         for point in result.points
     ]
-    return rows, diagnostics(dimension)
+    info = diagnostics(dimension)
+    info["candidate_count"] = int(target.count(
+        collection_name=collection_name(dimension),
+        count_filter=_filter(dataset_id, None, run_id, metadata_filters, telemetry_filters), exact=True,
+    ).count)
+    return rows, info
 
 
 def diagnostics(dimension: int) -> dict[str, Any]:

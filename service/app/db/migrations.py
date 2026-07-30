@@ -113,7 +113,9 @@ def _copy_clickhouse_legacy(spec: RunSpec) -> dict[str, int]:
     target = clickhouse.client()
     for dimension in spec.enabled_dimensions:
         target.command(
-            f"""INSERT INTO seg_ch_{dimension}_runs
+            f"""INSERT INTO seg_ch_{dimension}_runs(
+                       run_id,chunk_index,segment_id,dataset_id,video_id,t_start,t_end,
+                       altitude_m,velocity_mps,gimbal_pitch,person_count,vehicle_count,is_night,embedding)
                 SELECT toUUID({{run_id:String}}),0,segment_id,dataset_id,video_id,t_start,t_end,
                        if(isNaN(altitude_m),NULL,altitude_m),
                        if(isNaN(velocity_mps),NULL,velocity_mps),

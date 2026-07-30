@@ -11,6 +11,7 @@ from app.db import clickhouse, milvus, postgres, qdrant
 from app.embedding.router import embed_query
 from app.search import common_exact
 from app.search.strategies import validate_strategy
+from app.search.pushdown import matches, normalize_filters
 
 
 BACKENDS: dict[str, Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]] = {
@@ -40,12 +41,15 @@ def _merge_results(hits: list[dict[str, Any]], hydrated: list[dict[str, Any]]) -
 
 
 def _one_run(
-    request: Any, active_snapshot: dict[str, Any] | None,
+    request: Any, active_snapshot: dict[str, Any] | None, execution_mode: str,
 ) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any], int, set[str]]:
     started = time.perf_counter()
     filter_started = time.perf_counter()
     run_id = None if active_snapshot is None else str(active_snapshot["run_id"])
-    if run_id is None:
+    native_pushdown = execution_mode == "pushdown"
+    if native_pushdown:
+        candidate_ids = None
+    elif run_id is None:
         candidate_ids = postgres.filter_segment_ids(
             request.dataset_id, request.metadata_filters, request.telemetry_filters,
         )
@@ -54,8 +58,12 @@ def _one_run(
             request.dataset_id, run_id, request.metadata_filters, request.telemetry_filters,
         )
     filter_ms = (time.perf_counter() - filter_started) * 1000.0
-    candidate_set = set(candidate_ids)
-    if not candidate_ids:
+    candidate_set = set(candidate_ids or [])
+    if not native_pushdown and len(candidate_set) > settings.legacy_candidate_limit:
+        raise ValueError(
+            f"legacy candidate limit exceeded: {len(candidate_set)} > {settings.legacy_candidate_limit}; use pushdown"
+        )
+    if candidate_ids == []:
         total_ms = (time.perf_counter() - started) * 1000.0
         timings = {"filter": filter_ms, "embed": 0.0, "vector_search": 0.0, "hydrate": 0.0, "total": total_ms}
         return timings, [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": ["filters matched zero candidates"]}, 0, candidate_set
@@ -69,7 +77,11 @@ def _one_run(
     if request.adaptive_mrl.enabled:
         base_vector = embed_query(request.query, request.adaptive_mrl.base_dim)
         search_kwargs = {} if run_id is None else {"run_id": run_id}
-        base_hits, _ = search_function(
+        if native_pushdown:
+            search_kwargs.update(
+                metadata_filters=request.metadata_filters, telemetry_filters=request.telemetry_filters,
+            )
+        base_hits, base_diagnostics = search_function(
             request.dataset_id,
             request.adaptive_mrl.base_dim,
             base_vector,
@@ -78,19 +90,27 @@ def _one_run(
             candidate_ids, **search_kwargs,
         )
         rerank_ids = [hit["segment_id"] for hit in base_hits]
-        hits, diagnostics = search_function(
-            request.dataset_id,
-            request.dimension,
-            query_vector,
-            request.top_k,
-            request.strategy,
-            rerank_ids, **search_kwargs,
-        )
+        if rerank_ids:
+            hits, diagnostics = search_function(
+                request.dataset_id,
+                request.dimension,
+                query_vector,
+                request.top_k,
+                request.strategy,
+                rerank_ids, **search_kwargs,
+            )
+            diagnostics.setdefault("candidate_count", base_diagnostics.get("candidate_count"))
+        else:
+            hits, diagnostics = [], base_diagnostics
         diagnostics.setdefault("notes", []).append(
             f"adaptive MRL {request.adaptive_mrl.base_dim}→{request.dimension}, top_n={request.adaptive_mrl.top_n}"
         )
     else:
         search_kwargs = {} if run_id is None else {"run_id": run_id}
+        if native_pushdown:
+            search_kwargs.update(
+                metadata_filters=request.metadata_filters, telemetry_filters=request.telemetry_filters,
+            )
         hits, diagnostics = search_function(
             request.dataset_id,
             request.dimension,
@@ -114,7 +134,8 @@ def _one_run(
         "hydrate": hydrate_ms,
         "total": total_ms,
     }
-    return timings, results, diagnostics, len(candidate_ids), candidate_set
+    candidate_count = int(diagnostics.get("candidate_count", len(candidate_ids or [])))
+    return timings, results, diagnostics, candidate_count, candidate_set
 
 
 def search(request: Any) -> dict[str, Any]:
@@ -129,6 +150,8 @@ def search(request: Any) -> dict[str, Any]:
     if request.pattern == "C" and request.backend != "pgvector":
         raise ValueError("pattern C is the pgvector single-store path")
     active_snapshot = postgres.get_active_run_snapshot(request.dataset_id)
+    requested_mode = getattr(request, "filter_execution_mode", None) or settings.filter_execution_mode
+    execution_mode = requested_mode if active_snapshot is not None else "legacy_candidate_ids_compatibility"
     totals: list[float] = []
     timing_rows: list[dict[str, float]] = []
     results: list[dict[str, Any]] = []
@@ -136,7 +159,9 @@ def search(request: Any) -> dict[str, Any]:
     candidate_count = 0
     candidate_set: set[str] = set()
     for _ in range(request.repeats):
-        timings, results, diagnostics, candidate_count, candidate_set = _one_run(request, active_snapshot)
+        timings, results, diagnostics, candidate_count, candidate_set = _one_run(
+            request, active_snapshot, execution_mode,
+        )
         timing_rows.append(timings)
         totals.append(timings["total"])
 
@@ -145,7 +170,11 @@ def search(request: Any) -> dict[str, Any]:
         for stage in ("filter", "embed", "vector_search", "hydrate", "total")
     }
     returned_ids = [row["segment_id"] for row in results]
-    filter_correctness = all(segment_id in candidate_set for segment_id in returned_ids)
+    if execution_mode == "pushdown":
+        predicates = normalize_filters(request.metadata_filters, request.telemetry_filters)
+        filter_correctness = all(matches(row, predicates) for row in results)
+    else:
+        filter_correctness = all(segment_id in candidate_set for segment_id in returned_ids)
     underfilled = len(results) < request.top_k
     candidate_shortage = underfilled and candidate_count < request.top_k
     ann_filter_loss = underfilled and candidate_count >= request.top_k
@@ -179,6 +208,7 @@ def search(request: Any) -> dict[str, Any]:
         "model_id": None if active_snapshot is None else active_snapshot.get("model_id"),
         "model_revision": None if active_snapshot is None else active_snapshot.get("model_revision"),
         "source_commit": None if active_snapshot is None else active_snapshot.get("source_commit"),
+        "filter_execution_mode": execution_mode,
         "backend": request.backend,
         "strategy": request.strategy,
         "dimension": request.dimension,

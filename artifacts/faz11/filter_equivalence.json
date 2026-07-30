@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "not_run",
+  "reason": "Compiler and in-memory predicate equivalence tests pass, but no live active run exists on enabled ClickHouse/pgvector/Qdrant backends in this host environment.",
+  "required_command": "docker compose --env-file .env exec -T api python -m app.search.equivalence --dataset-id kurum_ucuslari --backend clickhouse --dimension 512 --telemetry-filters '{\"altitude_m\":{\"min\":10,\"max\":30}}' --output /workspace/artifacts/faz11/filter_equivalence.json",
+  "expected_environment": "A completed active institution run in each enabled backend/dimension for live legacy-vs-pushdown ID comparison.",
+  "contract_tests": {
+    "circular_wrap": "pass",
+    "range_keyword_boolean_integer": "pass",
+    "active_snapshot_native_path": "pass",
+    "unknown_filter_fail_closed": "pass"
+  },
+  "live_backend_comparisons": 0
+}
