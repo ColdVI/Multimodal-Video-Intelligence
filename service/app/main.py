@@ -34,6 +34,11 @@ async def validation_error(_: Request, exc: RequestValidationError):
     return JSONResponse(status_code=400, content={"detail": exc.errors()})
 
 
+ADAPTIVE_MRL_ALLOWED_PAIRS: frozenset[tuple[int, int]] = frozenset({
+    (256, 512), (256, 1024), (256, 2048), (512, 1024), (512, 2048),
+})
+
+
 class AdaptiveMRL(BaseModel):
     enabled: bool = False
     base_dim: Literal[256, 512] = 256
@@ -221,6 +226,25 @@ def search(request: SearchRequest) -> dict[str, Any]:
             raise ValueError(
                 f"dimension {request.dimension} is disabled; enabled dimensions: {settings.enabled_dimensions}"
             )
+        if request.adaptive_mrl.enabled:
+            base_dim = request.adaptive_mrl.base_dim
+            if base_dim not in settings.enabled_dimensions:
+                raise ValueError(
+                    f"adaptive_mrl.base_dim {base_dim} is disabled; enabled dimensions: {settings.enabled_dimensions}"
+                )
+            if base_dim >= request.dimension:
+                raise ValueError(
+                    f"adaptive_mrl.base_dim {base_dim} must be smaller than dimension {request.dimension}"
+                )
+            if (base_dim, request.dimension) not in ADAPTIVE_MRL_ALLOWED_PAIRS:
+                raise ValueError(
+                    f"adaptive_mrl pair (base_dim={base_dim}, dimension={request.dimension}) is not in the "
+                    f"supported allow-list {sorted(ADAPTIVE_MRL_ALLOWED_PAIRS)}"
+                )
+            if request.adaptive_mrl.top_n < request.top_k:
+                raise ValueError(
+                    f"adaptive_mrl.top_n {request.adaptive_mrl.top_n} must be >= top_k {request.top_k}"
+                )
         from app.search.engine import search as run_search
 
         return run_search(request)
