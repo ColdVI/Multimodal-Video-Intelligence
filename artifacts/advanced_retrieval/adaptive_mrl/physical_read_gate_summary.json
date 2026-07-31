@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T15:10:00Z",
+  "plan_reference": "Sec.4.5 physical-read red gate / Ek A item 1",
+  "hardware_profile": "live video-search-faz7-ch-1 container (ClickHouse 25.8), reached from the dev venv via current-HEAD code",
+  "method": "20,000-row synthetic seg_ch_512 corpus (own dedicated dataset_id, cleaned up after), 50 distinct video_id groups x 400 rows each. Measured app.search.exact_rerank.rerank_candidates_exact()'s real ClickHouse read_rows/read_bytes (from clickhouse_connect's QueryResult.summary, itself sourced from ClickHouse's X-ClickHouse-Summary) at candidate_count in {25,50,100,200,500}, then repeated with a second query shape using (video_id, t_start) IN (...) instead of segment_id IN (...) -- the plan's own suggested additive alternative (Sec.4.5's option list item 4).",
+  "finding": {
+    "segment_id_in_clause": "FAILED at every tested candidate_count (25-500): read_rows was exactly 20000 (the full corpus) in all five measurements, regardless of how few candidates were requested. rows_per_candidate ranged 40x-800x depending on candidate_count, all far above any reasonable tolerance. Raw data: physical_read_segment_id_20k.json.",
+    "video_id_t_start_in_clause": "ALSO read_rows=20000 in all five measurements -- no improvement over segment_id IN (...) at this scale. Raw data: physical_read_video_t_start_20k.json.",
+    "critical_caveat": "This result for the (video_id,t_start) alternative is NOT conclusive evidence that sort-key-aligned lookups don't help. At ClickHouse's default index_granularity=8192, a 20,000-row table has only ~3 granules total -- there are not enough granules for primary-key-based skipping to have room to matter regardless of query shape. A fair test of whether (video_id,t_start) actually engages granule-level pruning requires a scale where the candidate set is a small fraction of the total granule count (e.g. 200K-1M rows, matching the plan's own Sec.20 backend-benchmark scale), which this session did not run due to time budget -- building and indexing a 1M-row table alone takes tens of seconds to minutes per this repo's own prior measurement (docs/agents/TASKS.md Faz 2)."
+  },
+  "verdict": {
+    "stage2_physical_read_gate": "failed",
+    "adaptive_mrl_exact_rerank_production_status": "experimental",
+    "reasoning": "Per Sec.4.5: 'rows_read ve bytes_read candidate sayisiyla yaklasik olceklenmiyorsa exact candidate rerank production'a kabul edilmez.' Confirmed not scaling at 20K rows for the implemented segment_id IN (...) approach. Neither this session's one alternative attempt nor a production decision on which additive option (skip index/projection for segment_id, side-table, applicable-scale (video_id,t_start) retest, or application-side exact rerank) resolves it is settled -- none is pre-selected per the plan's own rule ('Olcumden once seceneklerden biri pesinen secilmez')."
+  },
+  "required_followup": {
+    "command": "Re-run this same measurement (rerank_candidates_exact against seg_ch_512/seg_ch_512_runs) at 200K-1M rows with EXPLAIN indexes=1 captured alongside read_rows/read_bytes, for both segment_id IN (...) and (video_id,t_start) IN (...), before deciding among the plan's additive options.",
+    "expected_environment": "Same live ClickHouse container is sufficient (no GPU needed) -- purely a time-budget deferral, not an environment blocker."
+  },
+  "correctness_note": "Independent of the physical-read result, rerank_candidates_exact's ranking output was verified to exactly match app.search.common_exact (the project's designated brute-force correctness reference) on the same candidate set -- see service/tests/test_exact_rerank.py::test_rerank_candidates_exact_matches_brute_force_ranking_live. The exact-rerank LOGIC is correct; only its physical read cost is unresolved."
+}

@@ -43,6 +43,7 @@ class AdaptiveMRL(BaseModel):
     enabled: bool = False
     base_dim: Literal[256, 512] = 256
     top_n: int = Field(default=100, ge=1, le=10000)
+    exact_rerank: bool = False
 
 
 class SearchRequest(BaseModel):

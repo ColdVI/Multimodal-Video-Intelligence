@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "corpus_size": 20000,
+  "method": "(video_id,t_start) IN (...)",
+  "measurements": [
+    {
+      "candidate_count": 25,
+      "rows_read": 20000,
+      "bytes_read": 41720000,
+      "elapsed_ms": 28.93,
+      "gate_status": "failed",
+      "rows_per_candidate": 800.0,
+      "gate_reason": "rows_read=20000 is >=90% of partition_size=20000 despite only 25 candidates requested -- looks like a full partition scan, not a candidate-scoped read",
+      "returned": 10
+    },
+    {
+      "candidate_count": 50,
+      "rows_read": 20000,
+      "bytes_read": 41720000,
+      "elapsed_ms": 61.1,
+      "gate_status": "failed",
+      "rows_per_candidate": 400.0,
+      "gate_reason": "rows_read=20000 is >=90% of partition_size=20000 despite only 50 candidates requested -- looks like a full partition scan, not a candidate-scoped read",
+      "returned": 10
+    },
+    {
+      "candidate_count": 100,
+      "rows_read": 20000,
+      "bytes_read": 41720000,
+      "elapsed_ms": 68.58,
+      "gate_status": "failed",
+      "rows_per_candidate": 200.0,
+      "gate_reason": "rows_read=20000 is >=90% of partition_size=20000 despite only 100 candidates requested -- looks like a full partition scan, not a candidate-scoped read",
+      "returned": 10
+    },
+    {
+      "candidate_count": 200,
+      "rows_read": 20000,
+      "bytes_read": 41720000,
+      "elapsed_ms": 64.62,
+      "gate_status": "failed",
+      "rows_per_candidate": 100.0,
+      "gate_reason": "rows_read=20000 is >=90% of partition_size=20000 despite only 200 candidates requested -- looks like a full partition scan, not a candidate-scoped read",
+      "returned": 10
+    },
+    {
+      "candidate_count": 500,
+      "rows_read": 20000,
+      "bytes_read": 41720000,
+      "elapsed_ms": 83.47,
+      "gate_status": "failed",
+      "rows_per_candidate": 40.0,
+      "gate_reason": "rows_read=20000 is >=90% of partition_size=20000 despite only 500 candidates requested -- looks like a full partition scan, not a candidate-scoped read",
+      "returned": 10
+    }
+  ]
+}

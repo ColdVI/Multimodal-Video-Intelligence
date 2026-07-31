@@ -110,7 +110,22 @@ def _one_run(
             candidate_ids, **search_kwargs, **search_extra,
         )
         rerank_ids = [hit["segment_id"] for hit in base_hits]
-        if rerank_ids:
+        exact_rerank = bool(getattr(request.adaptive_mrl, "exact_rerank", False)) or settings.adaptive_mrl_exact_rerank
+        if rerank_ids and exact_rerank:
+            # EXPERIMENTAL (plan Sec.4.5 physical-read gate failed at 20K-row measured
+            # scale -- artifacts/advanced_retrieval/adaptive_mrl/physical_read_gate_summary.json):
+            # stage-2 becomes a true exact rerank restricted to rerank_ids, never the
+            # same ANN strategy as stage-1. Only ClickHouse is wired; other backends
+            # report exact_rerank_unsupported and the caller should not have set this
+            # flag for them (main.py does not currently reject it per-backend -- a
+            # request-time validation gap tracked in KNOWN_LIMITATIONS.md).
+            from app.search.exact_rerank import rerank_candidates_exact
+
+            hits, stage2_diagnostics = rerank_candidates_exact(
+                request.dataset_id, request.dimension, query_vector, rerank_ids, request.top_k,
+                run_id=run_id, backend=request.backend,
+            )
+        elif rerank_ids:
             hits, stage2_diagnostics = search_function(
                 request.dataset_id,
                 request.dimension,
@@ -361,7 +376,9 @@ def search(request: Any) -> dict[str, Any]:
         "execution_policy": {
             "parser_mode": parser_mode,
             "filter_relaxation_mode": getattr(request, "filter_relaxation_mode", None) or settings.filter_relaxation_mode,
-            "adaptive_exact_rerank": bool(getattr(request, "adaptive_mrl", None) and getattr(request.adaptive_mrl, "exact_rerank", False)),
+            "adaptive_exact_rerank": bool(
+                getattr(request, "adaptive_mrl", None) and getattr(request.adaptive_mrl, "exact_rerank", False)
+            ) or settings.adaptive_mrl_exact_rerank,
             "vlm_rerank_mode": settings.vlm_rerank_mode,
         },
         "results": results,
