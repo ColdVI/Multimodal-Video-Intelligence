@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T16:15:00Z",
+  "plan_reference": "Sec.20",
+  "raw_data": "artifacts/advanced_retrieval/backends/benchmark_5000rows.json",
+  "method": "Real 5,000-row corpus with identical synthetic embeddings written to all three enableable backends (ClickHouse seg_ch_512, pgvector emb_pg_512 with an HNSW index, Qdrant segments_512), same 20 queries, strategy=exact on each. numpy_exact (app.search.common_exact) used strictly as the project's own designated brute-force correctness reference, never presented as a fourth production candidate.",
+  "scale_honesty": "5,000 rows is a real, executed measurement, NOT the 100K/1M-row scale the plan calls for (Sec.20/10) to make a production backend decision. Building/indexing at 100K-1M scale takes materially longer per this repo's own prior measurement (docs/agents/TASKS.md Faz 2: 100K/512d took 35.6s insert + 38.7s index build on ClickHouse alone; pgvector's HNSW index build is typically slower than ClickHouse's at comparable scale, consistent with the 12.9s this session measured at 5K already being ~14x ClickHouse's 0.9s for the same row count) and was not attempted given remaining session time budget after 12 code phases.",
+  "findings": {
+    "correctness": "20/20 query agreement with the numpy_exact brute-force reference for all three backends (ClickHouse, pgvector, qdrant) at strategy=exact -- all three are ranking-correct at this scale. This required fixing a real methodology bug in this session's own benchmark script first: the first run reported pgvector at 0/20 agreement, which turned out to be an INNER JOIN against empty segments/videos rows (a benchmark-script bug -- postgres.search_vectors() requires those rows to exist), not a pgvector defect. Recorded honestly rather than silently discarded.",
+    "latency_p50_ms": {"pgvector": 36.51, "qdrant": 47.87, "clickhouse": 64.03, "numpy_exact_reference": 282.88},
+    "ingest_time_s_for_5000_rows": {"clickhouse": 0.9, "qdrant": 2.2, "pgvector": 12.9},
+    "caveat": "This is one cold measurement at one small scale on one host, strategy=exact only (no ANN/prefilter/postfilter comparison, no filtered-recall, no concurrency, no cold/warm split) -- it is evidence that all three backends work correctly together at this scale, not a latency ranking claim at production scale. The plan's own R1/R2 findings already on record in this repo (docs/agents/TASKS.md Faz 2: ClickHouse HNSW strategy='auto' returning 0 rows under a selective filter at 100K scale) are a much stronger, already-proven basis for backend/strategy defaults than this session's single 5K-row exact-only run."
+  },
+  "verdict": {
+    "production_vector_backend": "clickhouse",
+    "production_defaults_changed": false,
+    "reasoning": "No evidence gathered this session rises to the plan's own bar for changing the production default (Sec.20: 'Kanit yetersizse production default ClickHouse olarak kalmalidir'). ClickHouse remains the default, unchanged.",
+    "milvus": "not benchmarked -- remains non-production per artifacts/baseline_contract/backend_reachability.json and this plan's Sec.20 ('Milvus yalniz full production adapter sozlesmesi tamamlandiysa benchmarka dahil edilebilir')."
+  },
+  "required_followup": {
+    "description": "100K-1M row multi-strategy (exact/ann/prefilter/postfilter), filtered-recall, and concurrency benchmark across all three backends, matching the depth of this repo's own existing Faz 2 ClickHouse-only study.",
+    "expected_environment": "Same live containers are sufficient (no GPU needed); purely a time-budget deferral."
+  }
+}

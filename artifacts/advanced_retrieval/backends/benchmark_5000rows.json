@@ -1,0 +1,35 @@
+{
+  "status": "completed",
+  "corpus_size": 5000,
+  "dimension": 512,
+  "top_k": 10,
+  "n_queries": 20,
+  "ingest_times_s": {
+    "clickhouse": 0.9,
+    "pgvector": 12.9,
+    "qdrant": 2.2
+  },
+  "exact_strategy_latency": {
+    "clickhouse": {
+      "p50_ms": 64.03,
+      "p95_ms": 71.25
+    },
+    "pgvector": {
+      "p50_ms": 36.51,
+      "p95_ms": 53.03
+    },
+    "qdrant": {
+      "p50_ms": 47.87,
+      "p95_ms": 68.31
+    },
+    "numpy_exact_reference": {
+      "p50_ms": 282.88,
+      "p95_ms": 492.99
+    }
+  },
+  "exact_top_k_agreement_vs_numpy_exact_reference": {
+    "clickhouse": "20/20 queries exact-match numpy_exact top-10 set",
+    "pgvector": "20/20 queries exact-match numpy_exact top-10 set",
+    "qdrant": "20/20 queries exact-match numpy_exact top-10 set"
+  }
+}
