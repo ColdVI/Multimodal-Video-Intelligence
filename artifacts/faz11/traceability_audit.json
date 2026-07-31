@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T07:45:00Z",
+  "audited_baseline_sha": "045ea81b83de366b3597c84a051d5c5f039603d5",
+  "audit_environment": {
+    "platform": "Windows 11 (host differs from original macOS/arm64 build host)",
+    "python": "3.14.6 (.venv)",
+    "pytest": "9.1.1",
+    "docker_cli": true,
+    "docker_daemon": false,
+    "nvidia_smi": true,
+    "gpu_name": "NVIDIA GeForce GT 1030 (4GB VRAM)",
+    "note": "Docker CLI/Compose and a GPU are present here unlike the original build host, but the Docker daemon was not running this session and the GT 1030 is not representative institution hardware; live container/GPU acceptance was still not attempted."
+  },
+  "independent_test_rerun": {
+    "service_tests_before_fix": {"passed": 106, "skipped": 15, "failed": 0},
+    "service_tests_after_fix": {"passed": 113, "skipped": 15, "failed": 0},
+    "root_tests": {"passed": 356, "skipped": 0, "failed": 0},
+    "py_compile": "pass",
+    "git_diff_check": "pass"
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "title": "DECODE_PREFETCH_WINDOWS and DB_WRITE_BATCH_SIZE were dead configuration",
+      "status": "fixed_this_session",
+      "evidence_before": "service/app/ingestion/ingest.py:151 (pre-fix) drove decode, embed, and DB writes off a single batched(..., settings.embed_batch_size) loop; DECODE_PREFETCH_WINDOWS had zero references outside config.py; docs/DECISIONS.md:184-187 documented the collapse as intentional.",
+      "fix_files": ["service/app/ingestion/ingest.py"],
+      "new_tests": [
+        "service/tests/test_faz11_pipeline_bounds.py::test_decode_prefetch_bound_is_enforced",
+        "service/tests/test_faz11_pipeline_bounds.py::test_embed_batch_size_is_independent",
+        "service/tests/test_faz11_pipeline_bounds.py::test_db_write_batch_size_is_independent",
+        "service/tests/test_faz11_pipeline_bounds.py::test_frames_are_released_after_each_batch",
+        "service/tests/test_faz11_pipeline_bounds.py::test_producer_exception_reaches_ingestor",
+        "service/tests/test_faz11_pipeline_bounds.py::test_db_failure_does_not_commit_chunk",
+        "service/tests/test_faz11_pipeline_bounds.py::test_resume_after_partial_batch_is_idempotent"
+      ],
+      "residual_gap": "If the decode source raises mid-way through filling a DECODE_PREFETCH_WINDOWS-sized prefetch group, already-decoded frames in that partial group are not explicitly released (relies on CPython refcounting). Bounded impact (<= DECODE_PREFETCH_WINDOWS records), not fixed this session."
+    },
+    {
+      "id": "F2",
+      "severity": "medium",
+      "title": "Frame ownership in iter_chunk_windows relied on implicit GC, not explicit close()",
+      "status": "fixed_this_session",
+      "evidence_before": "service/app/ingestion/video.py iter_chunk_windows (pre-fix): source decode frame and last_frame were never explicitly .close()'d; no try/finally around the generator body, so an early GeneratorExit left buffered collected[] frames unclosed.",
+      "fix_files": ["service/app/ingestion/video.py"],
+      "new_tests": [],
+      "residual_gap": "No dedicated test added this session for early-GeneratorExit cleanup of iter_chunk_windows specifically; existing test_faz11_streaming.py suite (9 tests) still passes unchanged, confirming no behavior regression."
+    }
+  ],
+  "spot_checked_clean": [
+    {"id": "clickhouse_pushdown", "evidence": "service/app/db/clickhouse.py:94-153 builds real parametrized SQL with canonical predicates and run_id scoping; candidate_ids only used in legacy_candidate_ids mode."},
+    {"id": "qdrant_pushdown", "evidence": "service/app/db/qdrant.py:89-114 builds real qdrant_client.models.Filter/FieldCondition/HasIdCondition objects."},
+    {"id": "pgvector_pushdown", "evidence": "service/app/db/postgres.py:429-454 issues one SQL statement joining run_segments/run_videos/run_segment_telemetry/run_segment_metadata."},
+    {"id": "pattern_label_honesty", "evidence": "service/app/search/engine.py:25 PATTERN_EXECUTION_IMPLEMENTED = False constant retained; pattern field does not drive execution_mode."},
+    {"id": "run_versioning_invariant_tests", "evidence": "service/tests/test_faz11_run_versioning.py has real assertion-based tests for finalize-failure-preserves-active, finalize-success-atomic-activation, retry-scoped-to-inactive-run, gc-never-selects-active."},
+    {"id": "ui_smoke_artifact_honesty", "evidence": "scripts/write_ui_not_run_artifact.py generates a real PIL-rendered 1440x900 PNG explicitly labelled NOT RUN, with matching ui_smoke.json status=not_run and reason."},
+    {"id": "gpu_smoke_artifact_honesty", "evidence": "artifacts/faz11/gpu_smoke.json has result=not_run, windows_embedded=0, gpu_name=null; no fabricated throughput/VRAM numbers."}
+  ],
+  "not_deeply_reverified_this_session": [
+    "model_bundle_hash_chain (scripts/prepare_model_bundle.py, service/app/embedding/bundle.py)",
+    "migration_additivity_and_idempotency (scripts/migrate_faz11_schema.py, service/app/db/migrations.py) - not attempted live even though this host has psycopg installed",
+    "media_path_traversal_and_symlink_escape (service/app/media.py)",
+    "preflight_no_write_guarantee (service/app/preflight.py)",
+    "manifest_telemetry_semantic_correctness (docs/DATASET_MANIFEST.md, service/app/ingestion/telemetry.py)"
+  ],
+  "acceptance_matrix_deltas": [
+    {"id": "generic_ingest_resume_contract", "previous": "pass", "current": "pass_with_expanded_evidence", "note": "F1 fixed; 7 new tests added"},
+    {"id": "streaming_video_window_contract", "previous": "pass", "current": "pass_no_behavior_change", "note": "F2 fixed; existing 9 tests still pass unchanged"}
+  ],
+  "overall_status": "implementation_complete_hardware_acceptance_pending",
+  "next_session_priorities": [
+    "Close the F1 residual gap (partial-prefetch-group decode exception frame cleanup)",
+    "Add an early-GeneratorExit test for iter_chunk_windows",
+    "Attempt scripts/migrate_faz11_schema.py --plan on this host now that psycopg is available",
+    "Line-by-line re-verification of media path containment and preflight no-write guarantee"
+  ]
+}
