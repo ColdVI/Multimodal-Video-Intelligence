@@ -1,149 +1,263 @@
-# Hibrit video arama — POC
+# Multimodal Video Intelligence
 
-## Faz 7: çalışan sistem
+Doğal dil sorgularını yapısal telemetri filtreleriyle birleştirerek büyük video arşivlerinde **video kimliği + zaman aralığı** döndüren hibrit multimodal arama sistemi.
 
-GPU gerektirmeyen varsayılan `synthetic` modla Postgres/pgvector,
-ClickHouse, Qdrant, FastAPI ve Gradio birlikte ayağa kalkar:
-
-```bash
-cp .env.faz7.example .env.faz7
-docker compose -f docker-compose.faz7.yml up -d --build
-docker compose -f docker-compose.faz7.yml exec -T api python -m app.ingestion.load_dataset --dataset auair
+```text
+"100 metrenin altında, insanların görüldüğü gece uçuşları"
+        ↓
+flight_0042   00:14:08–00:14:16   score=0.812
+flight_0117   01:02:24–01:02:32   score=0.774
 ```
 
-- UI: <http://localhost:7860>
-- API/OpenAPI: <http://localhost:8000/docs>
-- Sağlık: <http://localhost:8000/health>
+Video embedding'leri ingest sırasında bir kez üretilir. Arama sırasında videolar tekrar işlenmez; yalnız sorgu metni embed edilir.
 
-UI'daki kırmızı banner bilinçlidir: `synthetic` sonuç sıralamaları semantik
-kalite iddiası taşımaz; yalnız sistem ve gecikme doğrulamasıdır. Gerçek Qwen
-embedding üretimi `notebooks/07_colab_embedding_production.ipynb`, cached moda
-geçiş ve tam işletim adımları `docs/getting-started/COLAB_RUNBOOK.md`
-dosyasındadır.
+> **Durum:** `implementation_complete_hardware_acceptance_pending`
+>
+> Donanımdan bağımsız implementasyon ve testler tamamlandı. Güncel kabul matrisi **28 PASS, 0 FAIL, 12 NOT RUN**. Gerçek NVIDIA hedef host, kurum verisi, canlı backend'ler ve UI playback kabulü tamamlanınca durum `fully_accepted_on_target_environment` olabilir. Ayrıntı: [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md).
+
+## En kolay başlangıç
+
+Kendi video/CSV datasetinizi hazırlamak, kolonları eşlemek, manifest üretmek ve uygun ortamda ingest başlatmak için:
+
+**[VideoSearch Unified Runner notebook](notebooks/production/VideoSearch_Unified_Runner.ipynb)**
+
+Notebook veri kaynağı olarak yerel klasör, ZIP, opsiyonel Google Drive, HTTPS/presigned URL veya küçük sentetik örnek dataset kullanabilir. Google Drive zorunlu değildir.
+
+| Mod | Amaç | Docker |
+|---|---|---|
+| `prepare_dataset` | CSV profiling, mapping, manifest ve preflight | Gerekmez |
+| `portable_embedding` | Qwen window embedding ve 2048/1024/512/256 export | Gerekmez |
+| `docker_ingest` | Aynı hosttaki FAZ11 servisine `ingest --resume` | Gerekir |
+
+Colab ile uzak kurum sunucusu aynı dosya sistemini paylaşmaz. Colab yolu kalıcı full-stack deployment değil, dataset/embedding artifact üretim yoludur.
+
+---
+
+## FAZ11 kurum kurulumu
+
+### Ön koşullar
+
+- NVIDIA Linux veya WSL2 Ubuntu
+- çalışan NVIDIA sürücüsü
+- Docker Engine / Docker Desktop ve Compose v2
+- NVIDIA Container Toolkit
+- Python 3.11+
+- kurum video dosyaları ve varsa telemetry CSV'leri
+- pinlenmiş Qwen3-VL-Embedding model bundle'ı
+
+```bash
+nvidia-smi
+docker version
+docker compose version
+docker run --rm --gpus all nvidia/cuda:12.1.1-runtime-ubuntu22.04 nvidia-smi
+```
+
+### 1. Repository ve ortam
+
+```bash
+git clone https://github.com/ColdVI/Multimodal-Video-Intelligence.git
+cd Multimodal-Video-Intelligence
+
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+cp .env.example .env
+```
+
+`.env` içinde bütün `CHANGE_ME` değerlerini ve yolları düzenleyin:
+
+```dotenv
+POSTGRES_PASSWORD=<guvenli-parola>
+CLICKHOUSE_PASSWORD=<guvenli-parola>
+DATA_ROOT=/absolute/path/to/institution-dataset
+MODEL_BUNDLE_ROOT=/absolute/path/to/mvi-model-bundle
+
+ENABLED_VECTOR_BACKENDS=clickhouse
+ENABLED_DIMENSIONS=512
+FILTER_EXECUTION_MODE=pushdown
+EMBEDDING_MODE=real
+```
+
+Canonical kurum profili ClickHouse + 512d + native pushdown'dır. Qdrant, pgvector ve diğer boyutlar benchmark profiline aittir.
+
+### 2. Dataset
+
+```text
+DATA_ROOT/
+├── videos/
+│   ├── flight_001.mp4
+│   └── flight_002.mp4
+├── telemetry/
+│   ├── flight_001.csv
+│   └── flight_002.csv
+└── pairing.csv
+```
+
+Docker, `DATA_ROOT` klasörünü container içinde `/workspace/data` olarak salt okunur mount eder.
+
+```bash
+cp datasets/example_institution.yaml datasets/kurum.yaml
+```
+
+Kurum CSV'sini bizim kolon adlarımıza dönüştürmek gerekmez. Manifest source kolonlarını canonical veya extra alanlara eşler:
+
+```yaml
+telemetry:
+  format: generic_csv
+  timestamp_column: FlightTime
+  fields:
+    altitude_m:
+      source: RelAltitude
+      unit: m
+      reference: AGL
+      type: continuous
+    velocity_mps:
+      source: GroundSpd
+      unit: m/s
+      kind: ground_speed
+      type: continuous
+    compass_heading:
+      source: Heading
+      unit: deg
+      type: circular_deg
+  extra:
+    battery_v:
+      source: BatteryVoltage
+      unit: V
+      type: continuous
+```
+
+Ayrıntı: [Dataset onboarding](docs/datasets/DATASET_ONBOARDING_GUIDE.md).
+
+### 3. Model bundle
+
+```bash
+python scripts/prepare_model_bundle.py \
+  --model-id Qwen/Qwen3-VL-Embedding-2B \
+  --model-revision 9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda \
+  --source-repo https://github.com/QwenLM/Qwen3-VL-Embedding.git \
+  --source-commit 393e2978d27852b0d0230d6994f37f9c15bed73c \
+  --bundle-root /absolute/path/to/mvi-model-bundle
+```
+
+### 4. Read-only preflight
+
+```bash
+python scripts/preflight.py \
+  --dataset datasets/kurum.yaml \
+  --env-file .env \
+  --json-out artifacts/faz11/preflight.json
+```
+
+`status=pass` ve exit code `0` olmadan ingest başlatmayın.
+
+### 5. Servisleri başlatın
+
+```bash
+docker compose \
+  --env-file .env \
+  -f docker-compose.yml \
+  -f docker-compose.gpu.yml \
+  up -d --build
+
+docker compose --env-file .env ps
+curl -fsS http://127.0.0.1:8000/health
+```
+
+- UI: <http://127.0.0.1:7860>
+- API/OpenAPI: <http://127.0.0.1:8000/docs>
+- Health: <http://127.0.0.1:8000/health>
+
+### 6. İlk ingest
+
+```bash
+docker compose --env-file .env exec api \
+  python -m app.ingestion.ingest \
+  --dataset /workspace/datasets/kurum.yaml \
+  --resume
+```
+
+`--resume` tamamlanmış chunk'ları tekrar decode etmez. Başarısız yeni run tamamen doğrulanmadan eski active run değişmez.
+
+### 7. Hedef ortam kabulü
+
+```bash
+python scripts/run_faz11_acceptance.py \
+  --dataset datasets/kurum.yaml \
+  --env-file .env \
+  --live \
+  --output artifacts/faz11/target_acceptance.json
+```
+
+---
+
+## Normal kullanıcı
+
+1. UI'ı açar.
+2. Dataset seçer.
+3. Doğal dil sorgusu yazar.
+4. Gerekirse filtreleri seçer.
+5. Sonuç video zaman aralığını açar.
+
+Normal kullanıcının SQL yazması, embedding üretmesi veya ClickHouse/Qwen yapılandırması gerekmez.
+
+---
+
+## Benchmark profili
+
+```bash
+docker compose \
+  --env-file .env \
+  -f docker-compose.yml \
+  -f docker-compose.gpu.yml \
+  -f docker-compose.benchmark.yml \
+  up -d --build
+```
+
+Bu profil normal deployment'ın zorunlu parçası değildir.
+
+---
+
+## Güvenlik ve işletim
+
+- Dataset ve model bundle salt okunur mount edilir.
+- `DATA_ROOT` dışına çıkan path'ler reddedilir.
+- Public bind için güçlü `API_TOKEN` gerekir.
+- DB portları canonical profilde hosta açılmaz.
+- Normal kapatmada `down -v` kullanmayın.
+
+```bash
+docker compose --env-file .env ps
+docker compose --env-file .env logs -f api
+docker compose --env-file .env logs -f ui
+docker compose --env-file .env down
+```
+
+---
+
+## Bilinen sınırlar
+
+- GT 1030 hedef kurum kabulü için temsilî değildir.
+- Colab kalıcı PostgreSQL + ClickHouse + API + UI production ortamı değildir.
+- Küçük dataset mekanik smoke için yeterli olabilir; retrieval kalitesi kararı için yeterli değildir.
+- Dimension seçimi gerçek kurum golden set'iyle doğrulanmalıdır.
+- `fully_accepted_on_target_environment` yalnız gerçek hedef host kabulü geçince kullanılmalıdır.
+
+---
 
 ## Dokümantasyon
 
-- [Hızlı başlangıç](docs/getting-started/OPERATOR_QUICKSTART.md)
-- [Kendi datasetini ekleme](docs/datasets/DATASET_ONBOARDING_GUIDE.md)
-- [Colab kullanımı](docs/getting-started/COLAB_RUNBOOK.md)
-- [Güncel mimari](docs/architecture/CURRENT_SYSTEM.md)
-- [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md)
 - [Tüm dokümanlar](docs/README.md)
+- [Operatör hızlı başlangıç](docs/getting-started/OPERATOR_QUICKSTART.md)
+- [Son kullanıcı kılavuzu](docs/getting-started/END_USER_GUIDE.md)
+- [Dataset onboarding](docs/datasets/DATASET_ONBOARDING_GUIDE.md)
+- [Güncel mimari](docs/architecture/CURRENT_SYSTEM.md)
+- [Deployment](docs/operations/DEPLOYMENT.md)
+- [Operasyonlar](docs/operations/OPERATIONS.md)
+- [Hedef ortam kabulü](docs/operations/TARGET_ENVIRONMENT_ACCEPTANCE.md)
+- [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md)
+- [Notebook rehberi](notebooks/README.md)
 
-> Codex ile devam edecekseniz önce [docs/agents/START_HERE.md](docs/agents/START_HERE.md) dosyasını açın.
-> Prompter ve handoff notları `docs/agents/prompts/` ve `docs/agents/`
-> altındadır.
-
-Dogal dil sorgusundan (`"otobus ve yuruyen adam"`) video zaman araligina
-(`uav0000086 0:00:12-0:00:41 (skor 0.91)`) giden hibrit retrieval hattinin
-kucuk olcekli, acik-veri dogrulamasi.
-
- Arka plan ve tasarim kararlarinin gerekcesi: `docs/architecture/CURRENT_SYSTEM.md`
- Coding agent talimatlari (ne test edildi ve ne edilmedi): `docs/agents/AGENT_INSTRUCTIONS.md`
- Faz bazli gorev listesi: `docs/agents/TASKS.md`
- Guncel uygulanmis durum ve olcumler: `docs/operations/STATUS.md`
- Terminal gerektirmeyen Colab dashboard: `docs/getting-started/COLAB_README.md`
- Web sohbetine tek mesajlik eksiksiz devir baglami: `docs/agents/WEB_CHAT_HANDOFF.md`
- CPU / GT 1030 / Tesla T4 ve model benchmark'i: `docs/operations/benchmarks/BENCHMARK_CPU_GT1030_T4.md`
-
-## Colab GPU + gorsel Control Room
- Portable yukleme paketi
- `video-search-poc-colab.zip` olarak teslim edilir; kullanim adimlari
- `docs/getting-started/COLAB_README.md` dosyasindadir.
- Model basina ayri ClickHouse tablosu (`clips_<model>`) — nedeni
-  `docs/architecture/CURRENT_SYSTEM.md`.
- ClickHouse, gercek X-CLIP inference ve YOLO gerçek VisDrone smoke testleri gecti;
-  tam kanit ve sureler `docs/operations/STATUS.md`'de.
- SigLIP2 gerçek 1152d inference/load/eval geçti; 5-videolu smoke model kalite
-  ayrımı için yetersizdir (`docs/operations/benchmarks/RESULTS_SMOKE.md`).
- Detektor kolonlari (`person_count` vb.) uretimdeki telemetrinin POC
-  vekilidir; gercek IHA verisine geciste degisecek tek katman budur
-  (bkz. `docs/architecture/CURRENT_SYSTEM.md`, Faz 5).
-
-## Hemen dogrulanabilir kisim (veri/GPU/ClickHouse gerekmez)
-
-Windows PowerShell:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 test
-```
-
-Linux/macOS:
-
-```bash
-pip install -r requirements.txt
-make test
-```
-
-46 test, saf mantik ve veri/SQL sözleşmeleri (interval birlestirme, temporal IoU, sorgu ayristirma,
-ground-truth turetme). Bu depoyu teslim etmeden once calistirdim, hepsi
-gecti - detay AGENTS.md'de.
-
-## Tam kurulum
-
-```bash
-pip install -r requirements.txt
-make infra-up      # ClickHouse + MinIO
-make schema
-
-make download-data # resmî Task 4 MOT trainseti + boyut/SHA/veri sözleşmesi
-
-make ingest MODEL=xclip_hf_zeroshot
-make ingest MODEL=siglip2_frameavg
-make groundtruth
-make eval
-make fiftyone       # sonuclari gozle incele
-```
-
-## ClickHouse Search Lab
-
-Exact kolon filtresi, exact brute-force vector search, HNSW, hybrid prefilter
-ve postfilter/rescore SQL'lerinin tek kaynagi `sql/search_lab/` dizinidir.
-ClickHouse `/play` ekraninda bu dosyalar kopyalanabilir; test ve rapor kodu da
-ayni SQL'i okur.
-
-```bash
-make search-report
-```
-
-Windows'ta `scripts/poc.ps1 search-report` ayni isi yapar. Ciktilar
-`artifacts/clickhouse_search_report.html` ve `.json` dosyalaridir. Rapor her
-sorgunun sonucunu, sunucu/HTTP suresini, aktif vector ayarlarini ve
-`EXPLAIN indexes = 1` planini saklar.
-
-Windows'ta ayni gorevler:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 infra-up
-powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 schema
-powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 download-data
-# Önce tek gerçek sekans smoke'u:
-powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 ingest -Model xclip_hf_zeroshot -Sequence uav0000138_00000_v
-```
-
-## Neden bu yapi
-
-- `models/` — her embedding modeli ayni arayuzu (`VideoTextEmbedder`) uygular;
-  `models/__init__.py`'deki registry'e bir satir ekleyerek yeni model eklenir.
-- `search/parser.py` — kural tabanli; arayuzu (`ParsedQuery`) sabit tutarak
-  LLM tabanli ayristiriciya geciste yalnizca bu dosyanin ici degisecek.
-- `eval/make_groundtruth.py` — VisDrone'un kutu+track anotasyonundan sorgu
-  bazli ground truth otomatik turetiyor, elle etiketleme yok.
-- Her sayisal sabit (pencere boyutu, gap tolerance, IoU esigi) `config.yaml`'da.
-- Model basina ayri ClickHouse tablosu (`clips_<model>`) — nedeni
-  `docs/architecture/CURRENT_SYSTEM.md`.
-
-## Bilinen sinirlar
-
-- ClickHouse, gercek X-CLIP inference ve YOLO gerçek VisDrone smoke testleri gecti;
-  tam kanit ve sureler `docs/operations/STATUS.md`'de.
-- VisDrone verisi hazır; 5 gerçek sekans/7 pencere iki-model ingest/GT/eval geçti. Tam 56-sekans
-  ingest ve FiftyOne görsel denetimi çalıştırılmadı.
-- SigLIP2 gerçek 1152d inference/load/eval geçti; 5-videolu smoke model kalite
-  ayrımı için yetersizdir (`RESULTS_SMOKE.md`).
-- Bu makinedeki Torch CPU-only; tam veri turlari icin GPU'lu ortam onerilir.
-- Detektor kolonlari (`person_count` vb.) uretimdeki telemetrinin POC
-  vekilidir; gercek IHA verisine geciste degisecek tek katman budur
-  (bkz. `docs/architecture/CURRENT_SYSTEM.md`, Faz 5).
+Coding agent girişi: [AGENTS.md](AGENTS.md).
