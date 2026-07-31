@@ -13,6 +13,11 @@ VECTOR_BACKENDS = ("clickhouse", "qdrant", "pgvector")
 EMBEDDING_MODES = {"real", "cached", "hybrid_text", "synthetic"}
 FILTER_EXECUTION_MODES = {"pushdown", "legacy_candidate_ids"}
 ATTENTION_IMPLEMENTATIONS = {"sdpa", "flash_attention_2"}
+QUERY_PARSER_MODES = {"none", "rules", "llm"}
+QUERY_PARSER_LLM_PROVIDERS = {"transformers_local", "vllm_openai_compatible"}
+FILTER_RELAXATION_MODES = {"off", "diagnose_only", "auto_soft"}
+CAPTION_MODES = {"off", "sampled", "event_only"}
+VLM_RERANK_MODES = {"off", "auto", "force"}
 
 
 def capera_protocol() -> dict[str, object]:
@@ -112,6 +117,14 @@ class Settings:
     attn_impl: str
     qwen_text_warm_limit_s: float
     qwen_text_warm_runs: int
+    query_parser_mode: str
+    query_parser_llm_provider: str
+    query_parser_llm_model_id: str
+    query_parser_llm_base_url: str
+    filter_relaxation_mode: str
+    adaptive_mrl_exact_rerank: bool
+    caption_mode: str
+    vlm_rerank_mode: str
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -160,6 +173,14 @@ class Settings:
             attn_impl=values.get("ATTN_IMPL", "sdpa").lower(),
             qwen_text_warm_limit_s=_float(values, "QWEN_TEXT_WARM_LIMIT_S", 10.0),
             qwen_text_warm_runs=_int(values, "QWEN_TEXT_WARM_RUNS", 3),
+            query_parser_mode=values.get("QUERY_PARSER_MODE", "none").lower(),
+            query_parser_llm_provider=values.get("QUERY_PARSER_LLM_PROVIDER", "transformers_local").lower(),
+            query_parser_llm_model_id=values.get("QUERY_PARSER_LLM_MODEL_ID", ""),
+            query_parser_llm_base_url=values.get("QUERY_PARSER_LLM_BASE_URL", ""),
+            filter_relaxation_mode=values.get("FILTER_RELAXATION_MODE", "off").lower(),
+            adaptive_mrl_exact_rerank=_bool(values, "ADAPTIVE_MRL_EXACT_RERANK", False),
+            caption_mode=values.get("CAPTION_MODE", "off").lower(),
+            vlm_rerank_mode=values.get("VLM_RERANK_MODE", "off").lower(),
         )
         instance.validate()
         return instance
@@ -167,6 +188,16 @@ class Settings:
     def validate(self) -> None:
         if self.embedding_mode not in EMBEDDING_MODES:
             raise ValueError(f"EMBEDDING_MODE must be one of {sorted(EMBEDDING_MODES)}")
+        if self.query_parser_mode not in QUERY_PARSER_MODES:
+            raise ValueError(f"QUERY_PARSER_MODE must be one of {sorted(QUERY_PARSER_MODES)}")
+        if self.query_parser_llm_provider not in QUERY_PARSER_LLM_PROVIDERS:
+            raise ValueError(f"QUERY_PARSER_LLM_PROVIDER must be one of {sorted(QUERY_PARSER_LLM_PROVIDERS)}")
+        if self.filter_relaxation_mode not in FILTER_RELAXATION_MODES:
+            raise ValueError(f"FILTER_RELAXATION_MODE must be one of {sorted(FILTER_RELAXATION_MODES)}")
+        if self.caption_mode not in CAPTION_MODES:
+            raise ValueError(f"CAPTION_MODE must be one of {sorted(CAPTION_MODES)}")
+        if self.vlm_rerank_mode not in VLM_RERANK_MODES:
+            raise ValueError(f"VLM_RERANK_MODE must be one of {sorted(VLM_RERANK_MODES)}")
         known_backends = set(VECTOR_BACKENDS)
         unknown_backends = sorted(set(self.enabled_vector_backends) - known_backends)
         if unknown_backends:

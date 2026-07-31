@@ -9,6 +9,8 @@ import numpy as np
 from app.config import settings
 from app.db import clickhouse, milvus, postgres, qdrant
 from app.embedding.router import embed_query, embed_query_multi
+from app.query_planning.models import QueryExecutionPlan, RelaxationPolicy
+from app.query_planning.planner import plan_query
 from app.search import common_exact
 from app.search.strategies import validate_strategy
 from app.search.pushdown import matches, normalize_filters
@@ -42,6 +44,7 @@ def _merge_results(hits: list[dict[str, Any]], hydrated: list[dict[str, Any]]) -
 
 def _one_run(
     request: Any, active_snapshot: dict[str, Any] | None, execution_mode: str,
+    *, metadata_filters: dict[str, Any], telemetry_filters: dict[str, Any],
 ) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any], int, set[str]]:
     started = time.perf_counter()
     filter_started = time.perf_counter()
@@ -51,11 +54,11 @@ def _one_run(
         candidate_ids = None
     elif run_id is None:
         candidate_ids = postgres.filter_segment_ids(
-            request.dataset_id, request.metadata_filters, request.telemetry_filters,
+            request.dataset_id, metadata_filters, telemetry_filters,
         )
     else:
         candidate_ids = postgres.filter_run_segment_ids(
-            request.dataset_id, run_id, request.metadata_filters, request.telemetry_filters,
+            request.dataset_id, run_id, metadata_filters, telemetry_filters,
         )
     filter_ms = (time.perf_counter() - filter_started) * 1000.0
     candidate_set = set(candidate_ids or [])
@@ -96,9 +99,7 @@ def _one_run(
     if request.adaptive_mrl.enabled:
         search_kwargs = {} if run_id is None else {"run_id": run_id}
         if native_pushdown:
-            search_kwargs.update(
-                metadata_filters=request.metadata_filters, telemetry_filters=request.telemetry_filters,
-            )
+            search_kwargs.update(metadata_filters=metadata_filters, telemetry_filters=telemetry_filters)
         base_hits, base_diagnostics = search_function(
             request.dataset_id,
             request.adaptive_mrl.base_dim,
@@ -143,9 +144,7 @@ def _one_run(
     else:
         search_kwargs = {} if run_id is None else {"run_id": run_id}
         if native_pushdown:
-            search_kwargs.update(
-                metadata_filters=request.metadata_filters, telemetry_filters=request.telemetry_filters,
-            )
+            search_kwargs.update(metadata_filters=metadata_filters, telemetry_filters=telemetry_filters)
         hits, diagnostics = search_function(
             request.dataset_id,
             request.dimension,
@@ -174,6 +173,36 @@ def _one_run(
     return timings, results, diagnostics, candidate_count, candidate_set
 
 
+def _plan_query_for_request(request: Any, parser_mode: str) -> QueryExecutionPlan | None:
+    """parser_mode="none" (the default) skips this entirely -- no extra Postgres round
+    trip for available_field_names() on the hot path when nothing needs it."""
+    if parser_mode == "none":
+        return None
+    from app.query_planning.coverage import available_field_names
+
+    available_fields = available_field_names(request.dataset_id)
+    relaxation_mode = getattr(request, "filter_relaxation_mode", None) or settings.filter_relaxation_mode
+    min_results = getattr(request, "min_results", None) or request.top_k
+    return plan_query(
+        request.query, available_fields, parser_mode=parser_mode,
+        llm_provider=settings.query_parser_llm_provider,
+        llm_model_id=settings.query_parser_llm_model_id,
+        llm_base_url=settings.query_parser_llm_base_url,
+        relaxation_policy=RelaxationPolicy(mode=relaxation_mode, min_results=min_results),
+    )
+
+
+def _merge_planned_filters(request: Any, plan: QueryExecutionPlan | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Parser-derived constraints are soft, additive, and never override an explicit
+    request filter on the same field -- explicit values are applied last so they win."""
+    if plan is None:
+        return dict(request.metadata_filters), dict(request.telemetry_filters)
+    merged = plan.active_filter_dict()
+    merged.update(request.metadata_filters)
+    merged.update(request.telemetry_filters)
+    return merged, {}
+
+
 def search(request: Any) -> dict[str, Any]:
     dataset = postgres.dataset_info(request.dataset_id)
     if dataset is None:
@@ -188,6 +217,11 @@ def search(request: Any) -> dict[str, Any]:
     active_snapshot = postgres.get_active_run_snapshot(request.dataset_id)
     requested_mode = getattr(request, "filter_execution_mode", None) or settings.filter_execution_mode
     execution_mode = requested_mode if active_snapshot is not None else "legacy_candidate_ids_compatibility"
+
+    parser_mode = getattr(request, "parser_mode", None) or settings.query_parser_mode
+    plan = _plan_query_for_request(request, parser_mode)
+    merged_metadata_filters, merged_telemetry_filters = _merge_planned_filters(request, plan)
+
     totals: list[float] = []
     timing_rows: list[dict[str, float]] = []
     results: list[dict[str, Any]] = []
@@ -197,6 +231,7 @@ def search(request: Any) -> dict[str, Any]:
     for _ in range(request.repeats):
         timings, results, diagnostics, candidate_count, candidate_set = _one_run(
             request, active_snapshot, execution_mode,
+            metadata_filters=merged_metadata_filters, telemetry_filters=merged_telemetry_filters,
         )
         timing_rows.append(timings)
         totals.append(timings["total"])
@@ -207,7 +242,7 @@ def search(request: Any) -> dict[str, Any]:
     }
     returned_ids = [row["segment_id"] for row in results]
     if execution_mode == "pushdown":
-        predicates = normalize_filters(request.metadata_filters, request.telemetry_filters)
+        predicates = normalize_filters(merged_metadata_filters, merged_telemetry_filters)
         filter_correctness = all(matches(row, predicates) for row in results)
     else:
         filter_correctness = all(segment_id in candidate_set for segment_id in returned_ids)
@@ -255,6 +290,7 @@ def search(request: Any) -> dict[str, Any]:
         "vector_provenance": (
             dataset["vector_provenance"] if active_snapshot is None else active_snapshot["vector_provenance"]
         ),
+        "parser": plan.parsed_query.diagnostics.as_dict() if plan is not None else None,
     }
     return {
         "embedding_mode": settings.embedding_mode,
@@ -279,5 +315,11 @@ def search(request: Any) -> dict[str, Any]:
             "n_repeats": request.repeats,
         },
         "diagnostics": diagnostics,
+        "execution_policy": {
+            "parser_mode": parser_mode,
+            "filter_relaxation_mode": getattr(request, "filter_relaxation_mode", None) or settings.filter_relaxation_mode,
+            "adaptive_exact_rerank": bool(getattr(request, "adaptive_mrl", None) and getattr(request.adaptive_mrl, "exact_rerank", False)),
+            "vlm_rerank_mode": settings.vlm_rerank_mode,
+        },
         "results": results,
     }

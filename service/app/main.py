@@ -60,6 +60,9 @@ class SearchRequest(BaseModel):
     filter_execution_mode: Literal["pushdown", "legacy_candidate_ids"] | None = None
     diagnose: bool = False
     explain: bool = False
+    parser_mode: Literal["none", "rules", "llm"] | None = None
+    filter_relaxation_mode: Literal["off", "diagnose_only", "auto_soft"] | None = None
+    min_results: int | None = Field(default=None, ge=0)
 
 
 @app.get("/health")
