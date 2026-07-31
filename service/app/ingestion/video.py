@@ -235,34 +235,50 @@ def iter_chunk_windows(
     target_positions = [0 for _ in specs]
     last_frame: Image.Image | None = None
     next_emit = 0
-    for timestamp, frame in _iter_decoded_frames(chunk):
-        last_frame = frame
-        for index, (_, _, targets) in enumerate(specs):
-            if index < next_emit or targets[0] > timestamp + 1e-9:
+    try:
+        for timestamp, frame in _iter_decoded_frames(chunk):
+            for index, (_, _, targets) in enumerate(specs):
+                if index < next_emit or targets[0] > timestamp + 1e-9:
+                    continue
+                position = target_positions[index]
+                while position < len(targets) and targets[position] <= timestamp + 1e-9:
+                    collected[index].append(frame.copy())
+                    position += 1
+                target_positions[index] = position
+            # The source decode frame is only needed to produce copies for matching
+            # windows and as the pad_last fallback; once superseded it is closed
+            # explicitly rather than left for GC, per the explicit ownership contract.
+            if last_frame is not None:
+                last_frame.close()
+            last_frame = frame
+            while next_emit < len(specs) and len(collected[next_emit]) == len(specs[next_emit][2]):
+                start, end, _ = specs[next_emit]
+                frames = collected[next_emit]
+                collected[next_emit] = []
+                yield DecodedWindow(chunk.chunk_index, start, end, frames)
+                next_emit += 1
+        for index in range(next_emit, len(specs)):
+            start, end, targets = specs[index]
+            frames = collected[index]
+            collected[index] = []
+            if len(frames) < len(targets) and partial_window_policy == "pad_last" and (frames or last_frame):
+                pad = frames[-1] if frames else last_frame
+                while len(frames) < len(targets):
+                    frames.append(pad.copy())  # type: ignore[union-attr]
+            if len(frames) != len(targets):
+                for frame in frames:
+                    frame.close()
                 continue
-            position = target_positions[index]
-            while position < len(targets) and targets[position] <= timestamp + 1e-9:
-                collected[index].append(frame.copy())
-                position += 1
-            target_positions[index] = position
-        while next_emit < len(specs) and len(collected[next_emit]) == len(specs[next_emit][2]):
-            start, end, _ = specs[next_emit]
-            frames = collected[next_emit]
-            collected[next_emit] = []
             yield DecodedWindow(chunk.chunk_index, start, end, frames)
-            next_emit += 1
-    for index in range(next_emit, len(specs)):
-        start, end, targets = specs[index]
-        frames = collected[index]
-        if len(frames) < len(targets) and partial_window_policy == "pad_last" and (frames or last_frame):
-            pad = frames[-1] if frames else last_frame
-            while len(frames) < len(targets):
-                frames.append(pad.copy())  # type: ignore[union-attr]
-        if len(frames) != len(targets):
-            for frame in frames:
+    finally:
+        # Reached on normal exhaustion (no-op: last_frame/collected are already
+        # cleared above) and on early generator close (GeneratorExit from a
+        # caller that stops consuming mid-chunk): release whatever is still held.
+        if last_frame is not None:
+            last_frame.close()
+        for leftover in collected:
+            for frame in leftover:
                 frame.close()
-            continue
-        yield DecodedWindow(chunk.chunk_index, start, end, frames)
 
 
 __all__ = [

@@ -103,6 +103,32 @@ class GenericIngestor:
         self.report_root = report_root or settings.artifacts_root / "faz11" / "ingest_runs" / run.run_id
         self.coordinator = RunCoordinator(store, backends)
 
+    def _flush_pending(
+        self,
+        chunk_index: int,
+        pending: list[tuple[WindowRecord, np.ndarray]],
+        backend_rows: dict[str, int],
+    ) -> int:
+        """Write buffered (record, vector) pairs to Postgres metadata and every enabled
+        vector backend. Called once per DB_WRITE_BATCH_SIZE slice, independent of the
+        embed batch size that produced the vectors."""
+        if not pending:
+            return 0
+        records = [record for record, _ in pending]
+        vectors = np.stack([vector for _, vector in pending])
+        video_rows, segment_rows, metadata_rows, telemetry_rows = _metadata_rows(records)
+        count = postgres.write_run_metadata_chunk(
+            self.run_spec.run_id, self.manifest.dataset_id, chunk_index,
+            video_rows, segment_rows, metadata_rows, telemetry_rows,
+        )
+        for dimension in self.run_spec.enabled_dimensions:
+            rows = _vector_rows(records, vectors, dimension)
+            for backend_name in self.run_spec.enabled_backends:
+                backend_rows[f"{backend_name}:{dimension}"] += self.backends[backend_name].write_chunk(
+                    self.run_spec.run_id, self.manifest.dataset_id, dimension, chunk_index, rows,
+                )
+        return count
+
     def run(self, *, resume: bool = False) -> dict[str, Any]:
         started = time.perf_counter()
         self.report_root.mkdir(parents=True, exist_ok=True)
@@ -148,25 +174,29 @@ class GenericIngestor:
                 }
                 metadata_count = 0
                 chunk_records_for_hash: list[WindowRecord] = []
-                for batch in batched(itertools.chain([first], group_iterator), settings.embed_batch_size):
-                    try:
-                        vectors = self.embed_videos([record.frames for record in batch])
-                        if vectors.shape != (len(batch), 2048) or vectors.dtype != np.float32 or not np.isfinite(vectors).all():
-                            raise RuntimeError(f"invalid Qwen batch output: shape={vectors.shape}; dtype={vectors.dtype}")
-                        video_rows, segment_rows, metadata_rows, telemetry_rows = _metadata_rows(batch)
-                        metadata_count += postgres.write_run_metadata_chunk(
-                            self.run_spec.run_id, self.manifest.dataset_id, chunk_index,
-                            video_rows, segment_rows, metadata_rows, telemetry_rows,
-                        )
-                        for dimension in self.run_spec.enabled_dimensions:
-                            rows = _vector_rows(batch, vectors, dimension)
-                            for backend_name in self.run_spec.enabled_backends:
-                                backend_rows[f"{backend_name}:{dimension}"] += self.backends[backend_name].write_chunk(
-                                    self.run_spec.run_id, self.manifest.dataset_id, dimension, chunk_index, rows,
-                                )
-                        chunk_records_for_hash.extend(batch)
-                    finally:
-                        release_frames(batch)
+                pending: list[tuple[WindowRecord, np.ndarray]] = []
+                # Three independently-sized stages, per FAZ11 spec §6.2/§6.4:
+                # decode_prefetch_windows bounds how many decoded (frame-holding) windows
+                # are pulled off the lazy decode iterator at once (RAM bound); embed_batch_size
+                # is the Qwen call granularity (VRAM bound); db_write_batch_size is the
+                # Postgres/vector-backend write granularity (DB/network bound). None of the
+                # three may be collapsed into another.
+                decode_source = itertools.chain([first], group_iterator)
+                for prefetch_group in batched(decode_source, settings.decode_prefetch_windows):
+                    for embed_batch in batched(prefetch_group, settings.embed_batch_size):
+                        try:
+                            vectors = self.embed_videos([record.frames for record in embed_batch])
+                            if vectors.shape != (len(embed_batch), 2048) or vectors.dtype != np.float32 or not np.isfinite(vectors).all():
+                                raise RuntimeError(f"invalid Qwen batch output: shape={vectors.shape}; dtype={vectors.dtype}")
+                            pending.extend(zip(embed_batch, vectors))
+                            chunk_records_for_hash.extend(embed_batch)
+                        finally:
+                            release_frames(embed_batch)
+                        while len(pending) >= settings.db_write_batch_size:
+                            write_batch, pending = pending[:settings.db_write_batch_size], pending[settings.db_write_batch_size:]
+                            metadata_count += self._flush_pending(chunk_index, write_batch, backend_rows)
+                metadata_count += self._flush_pending(chunk_index, pending, backend_rows)
+                pending = []
                 completed_spec = replace(provisional, expected_segments=metadata_count)
                 statuses = self.coordinator.commit_chunk(
                     completed_spec, self.run_spec, backend_rows, metadata_rows=metadata_count,
