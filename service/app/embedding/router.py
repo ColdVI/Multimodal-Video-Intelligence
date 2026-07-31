@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Iterable
+
 import numpy as np
 
 from app.config import settings
@@ -8,25 +10,38 @@ from app.embedding.synthetic import synthetic_embedding
 from app.mrl import truncate_and_normalize
 
 
-def embed_query(text: str, dimension: int) -> np.ndarray:
+def embed_query_raw(text: str) -> np.ndarray:
+    """Compute the un-truncated base query embedding exactly once. embed_query() and
+    embed_query_multi() both build on this so a query never triggers more than one
+    model forward pass (in `real` mode) regardless of how many dimensions are needed."""
     if settings.embedding_mode == "synthetic":
-        base = synthetic_embedding(f"query:{text}")
-    elif settings.embedding_mode == "cached":
-        base = cache.query(text, settings.qwen_model_revision)
-    elif settings.embedding_mode == "hybrid_text":
+        return synthetic_embedding(f"query:{text}")
+    if settings.embedding_mode == "cached":
+        return cache.query(text, settings.qwen_model_revision)
+    if settings.embedding_mode == "hybrid_text":
         base = cache.query_or_none(text, settings.qwen_model_revision)
         if base is None:
             from app.embedding.text_cpu import embed_text
 
             base = embed_text(text)
             cache.put_query(text, settings.qwen_model_revision, base)
-    elif settings.embedding_mode == "real":
+        return base
+    if settings.embedding_mode == "real":
         from app.embedding.qwen import embed_text
 
-        base = embed_text(text)
-    else:  # settings.validate() normalde buraya izin vermez.
-        raise RuntimeError(f"unsupported embedding mode: {settings.embedding_mode}")
-    return truncate_and_normalize(base, dimension)
+        return embed_text(text)
+    raise RuntimeError(f"unsupported embedding mode: {settings.embedding_mode}")  # settings.validate() normalde buraya izin vermez.
+
+
+def embed_query(text: str, dimension: int) -> np.ndarray:
+    return truncate_and_normalize(embed_query_raw(text), dimension)
+
+
+def embed_query_multi(text: str, dimensions: Iterable[int]) -> dict[int, np.ndarray]:
+    """Derive several MRL dimensions from a single raw embedding call -- used by adaptive
+    MRL so the base/rerank dimensions never cost two model forward passes for one query."""
+    base = embed_query_raw(text)
+    return {dimension: truncate_and_normalize(base, dimension) for dimension in dimensions}
 
 
 def embed_item(key: str, dimension: int, *, dataset_id: str, media: str | list[str] | None = None) -> np.ndarray:

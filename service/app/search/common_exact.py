@@ -35,21 +35,51 @@ def search_vectors(
     top_k: int,
     strategy: str,
     candidate_ids: list[str] | None,
+    *,
+    run_id: str | None = None,
+    metadata_filters: dict[str, Any] | None = None,
+    telemetry_filters: dict[str, Any] | None = None,
+    diagnose: bool = False,
+    explain: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Benchmark correctness reference: brute-force float32 cosine over the run-scoped or
+    base table. Has no native metadata/telemetry filter pushdown -- callers must resolve
+    filters to candidate_ids first (legacy_candidate_ids mode); passing filters without
+    candidate_ids raises rather than silently returning unfiltered results."""
+    if candidate_ids is None and (metadata_filters or telemetry_filters):
+        raise ValueError(
+            "numpy_exact has no native filter pushdown; resolve metadata_filters/"
+            "telemetry_filters to candidate_ids before calling, or omit them."
+        )
+    notes = ["stable float32 reference"]
+    table = f"seg_ch_{dimension}_runs" if run_id is not None else f"seg_ch_{dimension}"
     params: dict[str, Any] = {"dataset_id": dataset_id}
+    run_clause = ""
+    if run_id is not None:
+        params["run_id"] = run_id
+        run_clause = " AND run_id={run_id:UUID}"
     clause = ""
     if candidate_ids is not None:
         if not candidate_ids:
-            return [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": ["stable float32 reference"]}
+            return [], {
+                "plan_used_vector_index": None, "indexed_vectors_count": None, "notes": notes,
+                "filtered_corpus_count": 0, "candidate_input_count": 0, "candidate_count": 0,
+                "candidate_count_status": "computed", "explain_status": "not_applicable_for_backend",
+            }
         clause = " AND segment_id IN {candidate_ids:Array(String)}"
         params["candidate_ids"] = candidate_ids
     result = clickhouse.client().query(
-        f"SELECT segment_id,embedding FROM seg_ch_{dimension} "
-        f"WHERE dataset_id={{dataset_id:String}}{clause} ORDER BY segment_id",
+        f"SELECT segment_id,embedding FROM {table} "
+        f"WHERE dataset_id={{dataset_id:String}}{run_clause}{clause} ORDER BY segment_id",
         parameters=params,
     )
     rows = result.result_rows
     ids = [row[0] for row in rows]
     matrix = np.stack([_parse_vector(row[1]) for row in rows]) if rows else np.empty((0, dimension), dtype=np.float32)
-    result = stable_top_k(matrix, np.asarray(query_vector, dtype=np.float32), ids, top_k) if rows else []
-    return result, {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": ["stable float32 reference"]}
+    top = stable_top_k(matrix, np.asarray(query_vector, dtype=np.float32), ids, top_k) if rows else []
+    return top, {
+        "plan_used_vector_index": None, "indexed_vectors_count": None, "notes": notes,
+        "filtered_corpus_count": len(ids), "candidate_input_count": len(candidate_ids) if candidate_ids is not None else None,
+        "candidate_count": len(ids), "candidate_count_status": "computed",
+        "explain_status": "not_applicable_for_backend",
+    }

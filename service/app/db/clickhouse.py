@@ -91,6 +91,19 @@ def replace_vectors(dataset_id: str, dimension: int, rows: list[dict[str, Any]])
         target.insert(f"seg_ch_{dimension}", data, column_names=columns)
 
 
+def _empty_diagnostics(notes: list[str]) -> dict[str, Any]:
+    return {
+        "plan_used_vector_index": None, "indexed_vectors_count": None, "notes": notes,
+        "filtered_corpus_count": 0, "candidate_input_count": 0, "candidate_count": 0,
+        "candidate_count_status": "computed", "explain_status": "not_requested",
+    }
+
+
+def _corpus_count(target: Any, table: str, run_clause: str, predicate_clause: str, params: dict[str, Any]) -> int:
+    sql = f"SELECT count() FROM {table} WHERE dataset_id={{dataset_id:String}}{run_clause}{predicate_clause}"
+    return int(target.query(sql, parameters=params).result_rows[0][0])
+
+
 def search_vectors(
     dataset_id: str,
     dimension: int,
@@ -102,7 +115,13 @@ def search_vectors(
     run_id: str | None = None,
     metadata_filters: dict[str, Any] | None = None,
     telemetry_filters: dict[str, Any] | None = None,
+    diagnose: bool = False,
+    explain: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Search seg_ch_{dimension}[_runs]. count()/EXPLAIN never run unconditionally on the
+    hot path: count() only runs when the result is actually underfilled (needed to tell
+    candidate_shortage apart from ann_filter_loss) or when diagnose=True is requested;
+    EXPLAIN only runs when explain=True is requested."""
     values, notes = clickhouse_settings(strategy, top_k)
     values["allow_experimental_vector_similarity_index"] = 1
     params: dict[str, Any] = {"dataset_id": dataset_id, "query_vector": list(query_vector), "top_k": top_k}
@@ -138,7 +157,7 @@ def search_vectors(
     candidate_clause = ""
     if candidate_ids is not None:
         if not candidate_ids:
-            return [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": notes}
+            return [], _empty_diagnostics(notes)
         params["candidate_ids"] = candidate_ids
         candidate_clause = " AND segment_id IN {candidate_ids:Array(String)}"
     sql = f"""SELECT segment_id, 1-cosineDistance(embedding, {{query_vector:Array(Float32)}}) AS score
@@ -147,19 +166,35 @@ def search_vectors(
               ORDER BY cosineDistance(embedding, {{query_vector:Array(Float32)}})
               LIMIT {{top_k:UInt32}}"""
     target = client()
-    count_sql = f"SELECT count() FROM {table} WHERE dataset_id={{dataset_id:String}}{run_clause}{predicate_clause}"
-    candidate_count = int(target.query(count_sql, parameters=params).result_rows[0][0])
     result = target.query(sql, parameters=params, settings=values)
     rows = [{"segment_id": row[0], "score": float(row[1])} for row in result.result_rows]
-    plan_used = False
-    try:
-        explain = target.query(f"EXPLAIN indexes = 1 {sql}", parameters=params, settings=values)
-        plan_used = "vector_similarity" in "\n".join(str(row[0]) for row in explain.result_rows)
-    except Exception as exc:
-        notes.append(f"EXPLAIN unavailable: {type(exc).__name__}")
+    underfilled = len(rows) < top_k
+    candidate_input_count = len(candidate_ids) if candidate_ids is not None else None
+    filtered_corpus_count: int | None = None
+    candidate_count: int | None = None
+    candidate_count_status = "not_requested"
+    if diagnose or underfilled:
+        filtered_corpus_count = _corpus_count(target, table, run_clause, predicate_clause, params)
+        if candidate_clause:
+            candidate_count = _corpus_count(target, table, run_clause, predicate_clause + candidate_clause, params)
+        else:
+            candidate_count = filtered_corpus_count
+        candidate_count_status = "computed"
+    plan_used: bool | None = None
+    explain_status = "not_requested"
+    if explain:
+        explain_status = "computed"
+        try:
+            explain_result = target.query(f"EXPLAIN indexes = 1 {sql}", parameters=params, settings=values)
+            plan_used = "vector_similarity" in "\n".join(str(row[0]) for row in explain_result.result_rows)
+        except Exception as exc:
+            notes.append(f"EXPLAIN unavailable: {type(exc).__name__}")
+            explain_status = "unavailable"
     return rows, {
         "plan_used_vector_index": plan_used, "indexed_vectors_count": None,
-        "candidate_count": candidate_count, "notes": notes,
+        "candidate_count": candidate_count, "filtered_corpus_count": filtered_corpus_count,
+        "candidate_input_count": candidate_input_count, "candidate_count_status": candidate_count_status,
+        "explain_status": explain_status, "notes": notes,
     }
 
 

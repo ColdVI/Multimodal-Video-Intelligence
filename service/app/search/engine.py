@@ -8,7 +8,7 @@ import numpy as np
 
 from app.config import settings
 from app.db import clickhouse, milvus, postgres, qdrant
-from app.embedding.router import embed_query
+from app.embedding.router import embed_query, embed_query_multi
 from app.search import common_exact
 from app.search.strategies import validate_strategy
 from app.search.pushdown import matches, normalize_filters
@@ -66,16 +66,34 @@ def _one_run(
     if candidate_ids == []:
         total_ms = (time.perf_counter() - started) * 1000.0
         timings = {"filter": filter_ms, "embed": 0.0, "vector_search": 0.0, "hydrate": 0.0, "total": total_ms}
-        return timings, [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": ["filters matched zero candidates"]}, 0, candidate_set
+        empty_diagnostics = {
+            "plan_used_vector_index": None, "indexed_vectors_count": None,
+            "notes": ["filters matched zero candidates"],
+            "filtered_corpus_count": 0, "candidate_input_count": 0, "candidate_count": 0,
+            "candidate_count_status": "computed", "explain_status": "not_requested",
+        }
+        return timings, [], empty_diagnostics, 0, candidate_set
+
+    diagnose = bool(getattr(request, "diagnose", False))
+    explain = bool(getattr(request, "explain", False))
+    search_extra: dict[str, Any] = {}
+    if diagnose:
+        search_extra["diagnose"] = True
+    if explain:
+        search_extra["explain"] = True
 
     embed_started = time.perf_counter()
-    query_vector = embed_query(request.query, request.dimension)
+    search_function = BACKENDS[request.backend]
+    if request.adaptive_mrl.enabled:
+        vectors = embed_query_multi(request.query, (request.dimension, request.adaptive_mrl.base_dim))
+        query_vector = vectors[request.dimension]
+        base_vector = vectors[request.adaptive_mrl.base_dim]
+    else:
+        query_vector = embed_query(request.query, request.dimension)
     embed_ms = (time.perf_counter() - embed_started) * 1000.0
 
     search_started = time.perf_counter()
-    search_function = BACKENDS[request.backend]
     if request.adaptive_mrl.enabled:
-        base_vector = embed_query(request.query, request.adaptive_mrl.base_dim)
         search_kwargs = {} if run_id is None else {"run_id": run_id}
         if native_pushdown:
             search_kwargs.update(
@@ -87,21 +105,38 @@ def _one_run(
             base_vector,
             request.adaptive_mrl.top_n,
             request.strategy,
-            candidate_ids, **search_kwargs,
+            candidate_ids, **search_kwargs, **search_extra,
         )
         rerank_ids = [hit["segment_id"] for hit in base_hits]
         if rerank_ids:
-            hits, diagnostics = search_function(
+            hits, stage2_diagnostics = search_function(
                 request.dataset_id,
                 request.dimension,
                 query_vector,
                 request.top_k,
                 request.strategy,
-                rerank_ids, **search_kwargs,
+                rerank_ids, **search_kwargs, **search_extra,
             )
-            diagnostics.setdefault("candidate_count", base_diagnostics.get("candidate_count"))
         else:
-            hits, diagnostics = [], base_diagnostics
+            hits, stage2_diagnostics = [], dict(base_diagnostics)
+        # Stage-1 (base_dim/top_n over the filtered corpus) and stage-2 (dimension/top_k
+        # rerank of only the stage-1 candidate IDs) are surfaced as distinct diagnostics
+        # rather than collapsing to whichever value stage-2 happened to report -- stage-2's
+        # own candidate_count reflects the rerank_ids restriction, not the filtered corpus.
+        # filtered_corpus_count is only non-None when stage-1 itself ran diagnose/underfilled
+        # (it's a conditional count query); candidate_shortage/ann_filter_loss must instead
+        # key off stage1_returned_candidate_count, which is always known for free (it's just
+        # len(rerank_ids)) and is exactly the plan's "was there enough for Stage-2 to work
+        # with" question -- unlike filtered_corpus_count, it can never silently be None.
+        stage1_returned_candidate_count = len(rerank_ids)
+        diagnostics = dict(stage2_diagnostics)
+        diagnostics["filtered_corpus_count"] = base_diagnostics.get("filtered_corpus_count")
+        diagnostics["stage1_requested_candidate_count"] = request.adaptive_mrl.top_n
+        diagnostics["stage1_returned_candidate_count"] = stage1_returned_candidate_count
+        diagnostics["stage2_input_candidate_count"] = stage1_returned_candidate_count
+        diagnostics["stage2_returned_count"] = len(hits)
+        diagnostics["final_returned_count"] = len(hits)
+        diagnostics["candidate_count"] = stage1_returned_candidate_count
         diagnostics.setdefault("notes", []).append(
             f"adaptive MRL {request.adaptive_mrl.base_dim}→{request.dimension}, top_n={request.adaptive_mrl.top_n}"
         )
@@ -117,7 +152,7 @@ def _one_run(
             query_vector,
             request.top_k,
             request.strategy,
-            candidate_ids, **search_kwargs,
+            candidate_ids, **search_kwargs, **search_extra,
         )
     vector_search_ms = (time.perf_counter() - search_started) * 1000.0
 
@@ -134,7 +169,8 @@ def _one_run(
         "hydrate": hydrate_ms,
         "total": total_ms,
     }
-    candidate_count = int(diagnostics.get("candidate_count", len(candidate_ids or [])))
+    raw_candidate_count = diagnostics.get("candidate_count")
+    candidate_count = raw_candidate_count if raw_candidate_count is not None else len(candidate_ids or [])
     return timings, results, diagnostics, candidate_count, candidate_set
 
 
@@ -194,6 +230,19 @@ def search(request: Any) -> dict[str, Any]:
         "indexed_vectors_count": diagnostics.get("indexed_vectors_count"),
         "filter_correctness": filter_correctness,
         "notes": diagnostics.get("notes", []),
+        # Additive Phase -1 diagnostics: filtered_corpus_count/candidate_input_count/
+        # candidate_count_status/explain_status are always present; only non-None when
+        # actually measured (diagnose=True or the search was underfilled). stage1_*/
+        # stage2_*/final_returned_count are only populated in adaptive MRL mode.
+        "filtered_corpus_count": diagnostics.get("filtered_corpus_count"),
+        "candidate_input_count": diagnostics.get("candidate_input_count"),
+        "candidate_count_status": diagnostics.get("candidate_count_status"),
+        "explain_status": diagnostics.get("explain_status"),
+        "stage1_requested_candidate_count": diagnostics.get("stage1_requested_candidate_count"),
+        "stage1_returned_candidate_count": diagnostics.get("stage1_returned_candidate_count"),
+        "stage2_input_candidate_count": diagnostics.get("stage2_input_candidate_count"),
+        "stage2_returned_count": diagnostics.get("stage2_returned_count"),
+        "final_returned_count": diagnostics.get("final_returned_count", len(results)),
         "quality_vs_groundtruth": None,
         "r_at_1": None if settings.embedding_mode == "synthetic" else None,
         "ndcg": None if settings.embedding_mode == "synthetic" else None,

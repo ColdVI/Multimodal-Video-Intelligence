@@ -429,7 +429,13 @@ def search_vectors(
     run_id: str | None = None,
     metadata_filters: dict[str, Any] | None = None,
     telemetry_filters: dict[str, Any] | None = None,
+    diagnose: bool = False,
+    explain: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """count() only runs when the result is actually underfilled or diagnose=True is
+    requested, and -- unlike the pre-fix behavior -- the count query includes the same
+    candidate_clause as the search query so candidate_count reflects the real candidate
+    restriction rather than the unrestricted filtered corpus."""
     table, vector_type = VECTOR_TABLES[dimension]
     if run_id is not None:
         table = f"{table}_runs"
@@ -460,7 +466,11 @@ def search_vectors(
     params.extend(predicate_params)
     if candidate_ids is not None:
         if not candidate_ids:
-            return [], {"plan_used_vector_index": False, "indexed_vectors_count": None, "notes": []}
+            return [], {
+                "plan_used_vector_index": None, "indexed_vectors_count": None, "notes": [],
+                "filtered_corpus_count": 0, "candidate_input_count": 0, "candidate_count": 0,
+                "candidate_count_status": "computed", "explain_status": "not_requested",
+            }
         candidate_clause = " AND e.segment_id=ANY(%s)"
         params.append(candidate_ids)
     params.extend([literal, top_k])
@@ -470,21 +480,38 @@ def search_vectors(
     with connection() as conn, conn.cursor() as cur:
         for statement in pgvector_session_settings(strategy):
             cur.execute(statement)
-        count_params: list[Any] = [dataset_id]
-        if run_id is not None:
-            count_params.append(run_id)
-        count_params.extend(predicate_params)
-        cur.execute(
-            f"SELECT count(*) FROM {joins} WHERE e.dataset_id=%s{run_clause}{predicate_clause}",
-            count_params,
-        )
-        candidate_count = int(cur.fetchone()[0])
         cur.execute(sql, params)
         rows = [{"segment_id": row[0], "score": float(row[1])} for row in cur.fetchall()]
-        plan_used = strategy != "exact"
+        underfilled = len(rows) < top_k
+        candidate_input_count = len(candidate_ids) if candidate_ids is not None else None
+        filtered_corpus_count = None
+        candidate_count = None
+        candidate_count_status = "not_requested"
+        if diagnose or underfilled:
+            base_count_params: list[Any] = [dataset_id]
+            if run_id is not None:
+                base_count_params.append(run_id)
+            base_count_params.extend(predicate_params)
+            cur.execute(
+                f"SELECT count(*) FROM {joins} WHERE e.dataset_id=%s{run_clause}{predicate_clause}",
+                base_count_params,
+            )
+            filtered_corpus_count = int(cur.fetchone()[0])
+            if candidate_clause:
+                cur.execute(
+                    f"SELECT count(*) FROM {joins} WHERE e.dataset_id=%s{run_clause}{predicate_clause}{candidate_clause}",
+                    [*base_count_params, candidate_ids],
+                )
+                candidate_count = int(cur.fetchone()[0])
+            else:
+                candidate_count = filtered_corpus_count
+            candidate_count_status = "computed"
+        plan_used = None if not explain else strategy != "exact"
     return rows, {
         "plan_used_vector_index": plan_used, "indexed_vectors_count": None,
-        "candidate_count": candidate_count, "notes": [],
+        "candidate_count": candidate_count, "filtered_corpus_count": filtered_corpus_count,
+        "candidate_input_count": candidate_input_count, "candidate_count_status": candidate_count_status,
+        "explain_status": "computed" if explain else "not_requested", "notes": [],
     }
 
 

@@ -125,11 +125,21 @@ def search_vectors(
     run_id: str | None = None,
     metadata_filters: dict[str, Any] | None = None,
     telemetry_filters: dict[str, Any] | None = None,
+    diagnose: bool = False,
+    explain: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """count() only runs when the result is actually underfilled or diagnose=True is
+    requested, and -- unlike the pre-fix behavior -- is scoped to the real candidate_ids
+    restriction rather than always counting the unrestricted filtered collection."""
     from qdrant_client import models
 
     if candidate_ids is not None and not candidate_ids:
-        return [], diagnostics(dimension)
+        info = diagnostics(dimension)
+        info.update(
+            filtered_corpus_count=0, candidate_input_count=0, candidate_count=0,
+            candidate_count_status="computed", explain_status="not_requested",
+        )
+        return [], info
     params = models.SearchParams(**qdrant_search_params(strategy))
     target = client()
     result = target.query_points(
@@ -145,10 +155,30 @@ def search_vectors(
         for point in result.points
     ]
     info = diagnostics(dimension)
-    info["candidate_count"] = int(target.count(
-        collection_name=collection_name(dimension),
-        count_filter=_filter(dataset_id, None, run_id, metadata_filters, telemetry_filters), exact=True,
-    ).count)
+    underfilled = len(rows) < top_k
+    candidate_input_count = len(candidate_ids) if candidate_ids is not None else None
+    filtered_corpus_count = None
+    candidate_count = None
+    candidate_count_status = "not_requested"
+    if diagnose or underfilled:
+        filtered_corpus_count = int(target.count(
+            collection_name=collection_name(dimension),
+            count_filter=_filter(dataset_id, None, run_id, metadata_filters, telemetry_filters), exact=True,
+        ).count)
+        if candidate_ids is not None:
+            candidate_count = int(target.count(
+                collection_name=collection_name(dimension),
+                count_filter=_filter(dataset_id, candidate_ids, run_id, metadata_filters, telemetry_filters),
+                exact=True,
+            ).count)
+        else:
+            candidate_count = filtered_corpus_count
+        candidate_count_status = "computed"
+    info.update(
+        filtered_corpus_count=filtered_corpus_count, candidate_input_count=candidate_input_count,
+        candidate_count=candidate_count, candidate_count_status=candidate_count_status,
+        explain_status="not_applicable_for_backend",
+    )
     return rows, info
 
 

@@ -54,6 +54,10 @@ def fake_corpus(monkeypatch):
     monkeypatch.setattr(engine.postgres, "hydrate", hydrate)
     monkeypatch.setattr(engine.postgres, "get_active_run_snapshot", lambda dataset_id: None)
     monkeypatch.setattr(engine, "embed_query", lambda text, dim: np.ones(dim, dtype=np.float32) / np.sqrt(dim))
+    monkeypatch.setattr(
+        engine, "embed_query_multi",
+        lambda text, dims: {dim: np.ones(dim, dtype=np.float32) / np.sqrt(dim) for dim in dims},
+    )
     for backend in engine.BACKENDS:
         monkeypatch.setitem(engine.BACKENDS, backend, fake_search)
     return ids
