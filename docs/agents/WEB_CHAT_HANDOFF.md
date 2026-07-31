@@ -157,7 +157,7 @@ video modeli kadar iyi temsil etmeyebilir.
 
 ### VideoCLIP / VideoCLIP-XL
 
-Gönderilen haftalık sunum ve `docs/codex/XclipVSVideoXClip.md` notunda
+Gönderilen haftalık sunum ve [docs/archive/phases/faz11-development/XclipVSVideoXClip.md](../archive/phases/faz11-development/XclipVSVideoXClip.md) notunda
 VideoCLIP-XL karşılaştırması vardır. Ancak bu repoda VideoCLIP adapter'ı,
 checkpoint'i veya ClickHouse tablosu yoktur.
 
@@ -492,7 +492,7 @@ Exact metadata filtresi
 - `reports/`: ClickHouse HTML/JSON raporlayıcı.
 - `eval/`: ground truth, metrikler ve model/filtre eval.
 - `tests/`: 46 test.
-- `docs/codex/`: hazır konuşmalar, plan ve kabul kriterleri.
+- [docs/agents/prompts/](prompts/): hazır konuşmalar, plan ve kabul kriterleri.
 
 ## 16. GitHub'a konmaması gerekenler
 

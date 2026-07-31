@@ -1,7 +1,7 @@
 # FAZ 11 operatör hızlı başlangıç
 
-Bu, [USER_GUIDE.md](USER_GUIDE.md)'un adım-adım komut özetidir — açıklama
-için oraya, sorun giderme için [OPERATIONS.md](OPERATIONS.md)'a bakın.
+Bu, [END_USER_GUIDE.md](END_USER_GUIDE.md)'un adım-adım komut özetidir — açıklama
+için oraya, sorun giderme için [../operations/OPERATIONS.md](../operations/OPERATIONS.md)'a bakın.
 NVIDIA Linux host, Docker Engine + Compose v2 ve NVIDIA Container Toolkit
 kurulu olduğu varsayılır.
 
@@ -73,6 +73,6 @@ açar; normal deployment'ı etkilemez.
 
 ## Bir sonraki adım
 
-- Video/telemetri eklemeye devam: [DATASET_ONBOARDING_GUIDE.md](DATASET_ONBOARDING_GUIDE.md)
-- Günlük işletim, resume, migration, GC, sorun giderme: [OPERATIONS.md](OPERATIONS.md)
+- Video/telemetri eklemeye devam: [DATASET_ONBOARDING_GUIDE.md](../datasets/DATASET_ONBOARDING_GUIDE.md)
+- Günlük işletim, resume, migration, GC, sorun giderme: [../operations/OPERATIONS.md](../operations/OPERATIONS.md)
 - Son kullanıcıları yönlendirmek için: [END_USER_GUIDE.md](END_USER_GUIDE.md)

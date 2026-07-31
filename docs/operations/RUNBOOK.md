@@ -1,14 +1,15 @@
 # Faz 7 runbook
 
 > Faz 11 kurum deployment'ı için güncel kaynaklar:
-> [USER_GUIDE.md](USER_GUIDE.md) (28 bölümlük eksiksiz operatör kılavuzu) veya
-> hızlı komut özeti için [OPERATOR_QUICKSTART.md](OPERATOR_QUICKSTART.md);
+> [docs/getting-started/END_USER_GUIDE.md](../getting-started/END_USER_GUIDE.md)
+> (28 bölümlük eksiksiz operatör kılavuzu) veya hızlı komut özeti için
+> [docs/getting-started/OPERATOR_QUICKSTART.md](../getting-started/OPERATOR_QUICKSTART.md);
 > ayrıca [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS.md](OPERATIONS.md),
-> [DATASET_MANIFEST.md](DATASET_MANIFEST.md) /
-> [DATASET_ONBOARDING_GUIDE.md](DATASET_ONBOARDING_GUIDE.md) ve
-> [RUN_VERSIONING.md](RUN_VERSIONING.md). Son kullanıcılar için
-> [END_USER_GUIDE.md](END_USER_GUIDE.md). Donanım kurulmadan Qwen embedding
-> üretmek için [COLAB_RUNBOOK.md](COLAB_RUNBOOK.md). Tek-komut hedef ortam
+> [DATASET_MANIFEST.md](../datasets/DATASET_MANIFEST.md) /
+> [DATASET_ONBOARDING_GUIDE.md](../datasets/DATASET_ONBOARDING_GUIDE.md) ve
+> [RUN_VERSIONING.md](../architecture/RUN_VERSIONING.md). Son kullanıcılar için
+> [END_USER_GUIDE.md](../getting-started/END_USER_GUIDE.md). Donanım kurulmadan Qwen embedding
+> üretmek için [COLAB_RUNBOOK.md](../getting-started/COLAB_RUNBOOK.md). Tek-komut hedef ortam
 > kabulü için [TARGET_ENVIRONMENT_ACCEPTANCE.md](TARGET_ENVIRONMENT_ACCEPTANCE.md)
 > (`scripts/run_faz11_acceptance.py`). Aşağıdaki Faz 7/8 bölümleri legacy
 > araştırma/CapERA akışını korur; kurum generic ingest komutlarının yerine geçmez.

@@ -53,7 +53,7 @@
   aktif Torch CPU-only olduğu için CUDA benchmark'ı çalıştırılamadı. Ayrıntı:
   `BENCHMARK_CPU_GT1030_T4.md`.
 
-## Faz 1 benchmark altyapısı (docs/codex/05_..., 25 Temmuz 2026)
+## Faz 1 benchmark altyapısı ([docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md), 25 Temmuz 2026)
 
 - `bench/` paketi gerçek çalıştırıldı: 19 sekans (56'dan seçilmiş temsili bench
   subset, `config.yaml: bench.subset`) → 73 pencere → 2 model × 2 filtre = 4
@@ -70,10 +70,12 @@
 - SigLIP2 sorgu gecikmesi X-CLIP'in ~3 katı (mean 0.92sn vs 0.31sn, filtreli),
   512d/1152d boyut farkına ve CPU-only ortama tutarlı.
 - GT 1030 CUDA denemesi bloke oldu (Windows `MAX_PATH`/`LongPathsEnabled=0`);
-  detay `docs/codex/02_FIKIRLER_VE_KARARLAR.md`. CPU-only ortam korunuyor,
+  detay
+  [docs/archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md](../archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md).
+  CPU-only ortam korunuyor,
   54→72 test hâlâ geçiyor.
 
-## Faz 2 ClickHouse strateji doğrulaması (docs/codex/05_..., 25 Temmuz 2026)
+## Faz 2 ClickHouse strateji doğrulaması ([docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md), 25 Temmuz 2026)
 
 - **En önemli bulgu:** varsayılan davranış (`vector_search_filter_strategy=
   'auto'`, ClickHouse'un kendi dokümantasyonuna göre postfiltering) seçici
@@ -99,7 +101,7 @@
 - 1M/10M ölçek testi ve CODEC(NONE)/binary-bind/materialize-throughput
   denemeleri süre bütçesi nedeniyle yapılmadı (TASKS.md'de açıkça işaretli).
 
-## Faz 3 YOLO dedektör bake-off (docs/codex/05_..., 25 Temmuz 2026)
+## Faz 3 YOLO dedektör bake-off ([docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md), 25 Temmuz 2026)
 
 - Planın önerdiği `dronefreak/visdrone-detection-model-zoo` HF reposu
   yok (indirmeden önce doğrulandı: 401). Gerçek alternatif kullanıldı:
@@ -119,7 +121,7 @@
   ürettiği filtre kolonlarıyla yeniden yüklendi.
 - Batch/imgsz/FP16/n_sample ablation'ları süre bütçesi nedeniyle yapılmadı.
 
-## Faz 4 embedding bake-off (docs/codex/05_..., 26-27 Temmuz 2026)
+## Faz 4 embedding bake-off ([docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md), 26-27 Temmuz 2026)
 
 - Planın iki adayı da (VideoCLIP-XL, LanguageBind_Video) doğrulandı ama
   ikisi de "kolay entegrasyon" değildi: VideoCLIP-XL ticari olmayan lisans
@@ -143,13 +145,14 @@
 - Offline mod doğrulandı (`HF_HUB_OFFLINE=1`, gerçek çalıştırma, ağ
   çağrısı yok); `weights_manifest.json`'a eklendi (4271.1 MB).
 
-## Faz 5 profiller ve nihai rapor (docs/codex/05_..., 27 Temmuz 2026)
+## Faz 5 profiller ve nihai rapor ([docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md), 27 Temmuz 2026)
 
 - `config.yaml: profiles` (fast/balanced/accurate) eklendi — yalnızca
   gerçek ölçülen eksenler (dedektör, embedding modeli, arama stratejisi)
   değişir; window/stride/n_sample ablate edilmediği için tüm profillerde
   sabit kaldı.
-- Nihai rapor: `docs/codex/06_NIHAI_RAPOR.md` — 5 ana bulgu, Pareto tablosu,
+- Nihai rapor:
+  [docs/reports/faz11/FINAL_REPORT.md](../reports/faz11/FINAL_REPORT.md) — 5 ana bulgu, Pareto tablosu,
   ClickHouse/dedektör/model kararları, offline paket içeriği, üretime açık
   8 madde.
 - **Dürüst özet:** plan "tamamlandı" değil "kısmen doğrulandı" durumda.

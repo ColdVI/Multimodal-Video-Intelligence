@@ -56,7 +56,7 @@ image tag/commit'e dönerek yapılır. Data rollback'i, doğrulanmış önceki
 `completed` run'ın `dataset_active_runs` pointer'ına kontrollü PostgreSQL
 transaction ile yeniden atanmasıdır; hedef run'ın metadata ve bütün enabled
 backend×dimension count'ları tekrar doğrulanmadan pointer değiştirilmez. Ayrıntı:
-[RUN_VERSIONING.md](RUN_VERSIONING.md).
+[RUN_VERSIONING.md](../architecture/RUN_VERSIONING.md).
 
 ## Güvenli run GC
 

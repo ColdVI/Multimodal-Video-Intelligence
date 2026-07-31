@@ -1,4 +1,5 @@
 # Faz 6 Colab Runbook - MRL & Vector Backend Arastirmasi
+# Faz 6 Colab Runbook - MRL & Vector Backend Arastirmasi
 
 Bu paket, `07_MRL_VE_VECTOR_BACKEND_ARASTIRMA_SPEC.md`'nin GPU/vector-backend
 gerektiren kismini **Google Colab**'da calistirmak icindir. Yerel makinede

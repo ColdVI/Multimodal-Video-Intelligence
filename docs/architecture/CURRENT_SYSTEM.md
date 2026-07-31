@@ -16,7 +16,8 @@ gercek IHA verisi olmadan, acik drone veri setleriyle sinamak icin var.
   Sayi transfer etmeyebilir - bu POC'un varlik sebeplerinden biri.
 - ClickHouse'un HNSW indeksi buyuk vektor sayisinda "gercek ANN" degil
   "filtrelenmis kaba kuvvet" gibi davranabilir (canli bir GitHub issue'da
-  raporlanmis). POC'un olcek testi (TASKS.md Faz 4) bunu kucuk olcekte
+  raporlanmis). POC'un olcek testi
+  [docs/agents/TASKS.md](../agents/TASKS.md) Faz 4) bunu kucuk olcekte
   erken sinar.
 
 ## Acik sorular (POC bunlari KAPATMAZ, uretime tasinmadan once cevaplanmali)
@@ -34,7 +35,8 @@ gercek IHA verisi olmadan, acik drone veri setleriyle sinamak icin var.
    olarak eklenecek.
 3. **150-sorgu istatistiksel guc esigi (28 Temmuz 2026)**: VisDrone'da
    `eval/make_groundtruth.py::build_queries()` 28 sorgu uretiyor - bu
-   esigin ALTINDA. Adaptive MRL harness'i (bkz. STATUS.md "Unified Search
+  esigin ALTINDA. Adaptive MRL harness'i (bkz.
+  [docs/operations/STATUS.md](../operations/STATUS.md) "Unified Search
    Harness") bu 28 sorguyla GERCEKTEN calistirildi ve gercek sayilar
    uretti, ama bu PILOT bir olcum, baglayici bir "X boyutu Y'den iyi"
    uretim karari DEGIL - kucuk n'de gurultu buyuk boyut farklarini

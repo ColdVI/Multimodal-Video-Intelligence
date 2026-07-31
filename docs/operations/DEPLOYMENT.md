@@ -38,7 +38,7 @@ cp datasets/example_uav.yaml datasets/kurum.yaml
 
 `datasets/kurum.yaml` yalnız `DATA_ROOT` altındaki relative glob/pairing
 yollarını taşır. Clock/anchor/offset ve canonical telemetry mapping ayrıntıları
-[DATASET_MANIFEST.md](DATASET_MANIFEST.md) içindedir. Proprietary binary
+[DATASET_MANIFEST.md](../datasets/DATASET_MANIFEST.md) içindedir. Proprietary binary
 telemetry için yalnız canonical record üreten bir adapter eklenir.
 
 ## 3. Model bundle
@@ -57,7 +57,7 @@ python scripts/prepare_model_bundle.py \
 Bundle hedef hosta kopyalandıktan sonra manifest hash'leri yeniden doğrulanır.
 Docker build model/weight indirmez; base image ve Python wheel'leri için tam
 air-gap registry/wheelhouse hazırlığı kurum sorumluluğudur. Ayrıntı:
-[MODEL_BUNDLE.md](MODEL_BUNDLE.md).
+[MODEL_BUNDLE.md](../architecture/MODEL_BUNDLE.md).
 
 ## 4. Preflight kapısı
 

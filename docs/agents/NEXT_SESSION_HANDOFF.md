@@ -1,14 +1,16 @@
 > **GÜNCELLEME (27 Temmuz 2026):** Bu dosyadaki Faz 4 devam adımları
 > tamamlandı (Qwen embedding, MRL kırpma, karşılaştırma, commit'lendi).
 > Faz 5 de tamamlandı. Güncel durum ve açık kalanlar için:
-> `docs/codex/06_NIHAI_RAPOR.md` (nihai rapor) ve `STATUS.md`/`TASKS.md`
+> [docs/reports/faz11/FINAL_REPORT.md](../reports/faz11/FINAL_REPORT.md) (nihai rapor) ve
+> [docs/operations/STATUS.md](../operations/STATUS.md)/[docs/agents/TASKS.md](TASKS.md)
 > (faz bazlı kanıt). Bu dosya artık yalnızca tarihsel/referans amaçlıdır.
 
 # Devir notu — internetsiz devam için (25 Temmuz 2026, oturum sonu)
 
 8 saatlik internet penceresi kapanıyor. Bu dosya, sonraki ~1.5 gün
 internetsiz çalışacak oturum için tam durum + kesin sonraki adımlardır.
-Plan: `docs/codex/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md`. İlerleme
+Plan:
+[docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md). İlerleme
 kanıtı: `TASKS.md`, `STATUS.md`.
 
 ## Tamamlanan ve commit'lenen (Faz 0-3)
@@ -86,14 +88,15 @@ sayılar, ne yapılmadı açıkça işaretli), `STATUS.md`'ye özet, commit.
   sadece internet yok).
 - `torch`/`transformers` sürümüne DOKUNMAYIN. Bu oturumda CUDA torch kurmaya
   çalışırken Windows `MAX_PATH` sınırına takılıp venv'i bozduk (kurtarıldı,
-  detay: `docs/codex/02_FIKIRLER_VE_KARARLAR.md`). `LongPathsEnabled=0`
+  detay:
+  [docs/archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md](../archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md)). `LongPathsEnabled=0`
   registry ayarı hâlâ düzeltilmedi (admin yetkisi + kullanıcı onayı
   gerekiyor) — GT1030 CUDA denemesi tekrar yapılmasın.
 - VideoCLIP-XL / LanguageBind_Video entegrasyonu tekrar denenmesin: ikisi
   de doğrulandı ama gerçek engelleri var (VideoCLIP-XL: CC-BY-NC-SA-4.0
   ticari olmayan lisans + özel kod; LanguageBind_Video: `transformers`
   5.14.1 mimariyi tanımıyor, resmi olmayan paket gerekiyor). Detay:
-  `docs/codex/02_FIKIRLER_VE_KARARLAR.md` Faz 4 bölümü.
+  [docs/archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md](../archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md) Faz 4 bölümü.
 
 ## İnternetsiz dönemde YAPILABİLECEKLER (hepsi lokal/cache'ten)
 
@@ -101,7 +104,7 @@ sayılar, ne yapılmadı açıkça işaretli), `STATUS.md`'ye özet, commit.
   `.cache/huggingface` içinde).
 - Faz 5: `config.yaml`'a `profiles: fast/balanced/accurate` bölümü, gerçek
   Faz 3-4 sonuçlarına dayalı; nihai Pareto raporu
-  (`docs/codex/04_KABUL_KRITERLERI_VE_RAPOR.md` şablonu).
+  ([docs/archive/phases/faz11-development/04_KABUL_KRITERLERI_VE_RAPOR.md](../archive/phases/faz11-development/04_KABUL_KRITERLERI_VE_RAPOR.md) şablonu).
 - `TASKS.md`'nin kabul kriterleri özetini kanıtlı kutucuklarla güncelle.
 
 ## Commit disiplini
@@ -110,7 +113,7 @@ Kullanıcı onayı: her faz sonunda commit at (bu oturum boyunca uygulandı).
 Bu kural devam etmeli. Şu an working tree'de commit'lenmemiş Faz 4
 başlangıç dosyaları var: `models/qwen3vl_emb.py`, `schema.sql` (4 yeni
 tablo), `models/__init__.py`, `eval/run_eval.py`, `requirements.txt`,
-`docs/codex/02_FIKIRLER_VE_KARARLAR.md`, `scripts/mrl_truncate_embeddings.py`,
+[docs/archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md](../archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md), `scripts/mrl_truncate_embeddings.py`,
 `tests/test_mrl_truncate.py`. Bunlar 87/87 testi bozmuyordu (son doğrulama
 oturum sonunda CPU yoğunluğu nedeniyle tamamlanamadı — önce tekrar
 `pytest tests/ -v` ile doğrulayın) — bu haliyle commit edilebilir, sonra

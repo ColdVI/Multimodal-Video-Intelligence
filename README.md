@@ -18,36 +18,47 @@ docker compose -f docker-compose.faz7.yml exec -T api python -m app.ingestion.lo
 UI'daki kırmızı banner bilinçlidir: `synthetic` sonuç sıralamaları semantik
 kalite iddiası taşımaz; yalnız sistem ve gecikme doğrulamasıdır. Gerçek Qwen
 embedding üretimi `notebooks/07_colab_embedding_production.ipynb`, cached moda
-geçiş ve tam işletim adımları `docs/RUNBOOK.md` dosyasındadır.
+geçiş ve tam işletim adımları `docs/getting-started/COLAB_RUNBOOK.md`
+dosyasındadır.
 
-> Codex ile devam edecekseniz önce `CODEX_START_HERE.md` dosyasını açın.
-> Tek seferlik ana prompt ve fazlara ayrılmış hazır konuşmalar
-> `docs/codex/` altındadır.
+## Dokümantasyon
+
+- [Hızlı başlangıç](docs/getting-started/OPERATOR_QUICKSTART.md)
+- [Kendi datasetini ekleme](docs/datasets/DATASET_ONBOARDING_GUIDE.md)
+- [Colab kullanımı](docs/getting-started/COLAB_RUNBOOK.md)
+- [Güncel mimari](docs/architecture/CURRENT_SYSTEM.md)
+- [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md)
+- [Tüm dokümanlar](docs/README.md)
+
+> Codex ile devam edecekseniz önce [docs/agents/START_HERE.md](docs/agents/START_HERE.md) dosyasını açın.
+> Prompter ve handoff notları `docs/agents/prompts/` ve `docs/agents/`
+> altındadır.
 
 Dogal dil sorgusundan (`"otobus ve yuruyen adam"`) video zaman araligina
 (`uav0000086 0:00:12-0:00:41 (skor 0.91)`) giden hibrit retrieval hattinin
 kucuk olcekli, acik-veri dogrulamasi.
 
-- Arka plan ve tasarim kararlarinin gerekcesi: `CONTEXT.md`
-- Coding agent talimatlari (ne test edildi ve ne edilmedi): `AGENTS.md`
-- Faz bazli gorev listesi: `TASKS.md`
-- Guncel uygulanmis durum ve olcumler: `STATUS.md`
-- Terminal gerektirmeyen Colab dashboard: `COLAB_README.md`
-- Web sohbetine tek mesajlik eksiksiz devir baglami: `WEB_CHAT_HANDOFF.md`
-- CPU / GT 1030 / Tesla T4 ve model benchmark'i: `BENCHMARK_CPU_GT1030_T4.md`
+ Arka plan ve tasarim kararlarinin gerekcesi: `docs/architecture/CURRENT_SYSTEM.md`
+ Coding agent talimatlari (ne test edildi ve ne edilmedi): `docs/agents/AGENT_INSTRUCTIONS.md`
+ Faz bazli gorev listesi: `docs/agents/TASKS.md`
+ Guncel uygulanmis durum ve olcumler: `docs/operations/STATUS.md`
+ Terminal gerektirmeyen Colab dashboard: `docs/getting-started/COLAB_README.md`
+ Web sohbetine tek mesajlik eksiksiz devir baglami: `docs/agents/WEB_CHAT_HANDOFF.md`
+ CPU / GT 1030 / Tesla T4 ve model benchmark'i: `docs/operations/benchmarks/BENCHMARK_CPU_GT1030_T4.md`
 
 ## Colab GPU + gorsel Control Room
-
-`notebooks/VideoSearch_Colab_Dashboard.ipynb` dosyasi Colab'de butonlarla su
-akisi verir: VisDrone dogrulama/indirme -> GPU inference pipeline -> gorsel
-sorgu sonuclari -> model x filtre accuracy -> HTML/CSV/JSON rapor paketi.
-Terminal komutu yazmak gerekmez. Portable yukleme paketi
-`video-search-poc-colab.zip` olarak teslim edilir; kullanim adimlari
-`COLAB_README.md` dosyasindadir.
-
-Colab dashboard exact bellek-ici cosine arama kullanir ve rapora bunu acikca
-yazar. ClickHouse gecikme benchmark'i degildir; ClickHouse mimari testi yerel
-Docker hattinda kalir.
+ Portable yukleme paketi
+ `video-search-poc-colab.zip` olarak teslim edilir; kullanim adimlari
+ `docs/getting-started/COLAB_README.md` dosyasindadir.
+ Model basina ayri ClickHouse tablosu (`clips_<model>`) — nedeni
+  `docs/architecture/CURRENT_SYSTEM.md`.
+ ClickHouse, gercek X-CLIP inference ve YOLO gerçek VisDrone smoke testleri gecti;
+  tam kanit ve sureler `docs/operations/STATUS.md`'de.
+ SigLIP2 gerçek 1152d inference/load/eval geçti; 5-videolu smoke model kalite
+  ayrımı için yetersizdir (`docs/operations/benchmarks/RESULTS_SMOKE.md`).
+ Detektor kolonlari (`person_count` vb.) uretimdeki telemetrinin POC
+  vekilidir; gercek IHA verisine geciste degisecek tek katman budur
+  (bkz. `docs/architecture/CURRENT_SYSTEM.md`, Faz 5).
 
 ## Hemen dogrulanabilir kisim (veri/GPU/ClickHouse gerekmez)
 
@@ -121,12 +132,13 @@ powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 ingest -Model xclip_hf_
 - `eval/make_groundtruth.py` — VisDrone'un kutu+track anotasyonundan sorgu
   bazli ground truth otomatik turetiyor, elle etiketleme yok.
 - Her sayisal sabit (pencere boyutu, gap tolerance, IoU esigi) `config.yaml`'da.
-- Model basina ayri ClickHouse tablosu (`clips_<model>`) — nedeni CONTEXT.md.
+- Model basina ayri ClickHouse tablosu (`clips_<model>`) — nedeni
+  `docs/architecture/CURRENT_SYSTEM.md`.
 
 ## Bilinen sinirlar
 
 - ClickHouse, gercek X-CLIP inference ve YOLO gerçek VisDrone smoke testleri gecti;
-  tam kanit ve sureler `STATUS.md`'de.
+  tam kanit ve sureler `docs/operations/STATUS.md`'de.
 - VisDrone verisi hazır; 5 gerçek sekans/7 pencere iki-model ingest/GT/eval geçti. Tam 56-sekans
   ingest ve FiftyOne görsel denetimi çalıştırılmadı.
 - SigLIP2 gerçek 1152d inference/load/eval geçti; 5-videolu smoke model kalite
@@ -134,4 +146,4 @@ powershell -ExecutionPolicy Bypass -File scripts/poc.ps1 ingest -Model xclip_hf_
 - Bu makinedeki Torch CPU-only; tam veri turlari icin GPU'lu ortam onerilir.
 - Detektor kolonlari (`person_count` vb.) uretimdeki telemetrinin POC
   vekilidir; gercek IHA verisine geciste degisecek tek katman budur
-  (bkz. CONTEXT.md, Faz 5).
+  (bkz. `docs/architecture/CURRENT_SYSTEM.md`, Faz 5).

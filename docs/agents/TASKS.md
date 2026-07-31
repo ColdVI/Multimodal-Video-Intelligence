@@ -1,6 +1,6 @@
 # Gorev listesi
 
-Güncel kanıt ve ölçümler: `STATUS.md`.
+Güncel kanıt ve ölçümler: [docs/operations/STATUS.md](../operations/STATUS.md).
 
 ## Faz 0 — ortam (insan + agent birlikte)
 - [x] `.venv` içinde `pip install -r requirements.txt` (Windows/Python 3.14)
@@ -36,22 +36,26 @@ Güncel kanıt ve ölçümler: `STATUS.md`.
 
 ## Faz 4 — olcek testi (opsiyonel ama onerilir)
 - [ ] Vektorleri sentetik cogaltip 1M/10M satirda filtreli/filtresiz
-      sorgu gecikmesini ol (bkz. CONTEXT.md'deki ClickHouse HNSW supesi)
+      sorgu gecikmesini ol (bkz.
+      [docs/architecture/CURRENT_SYSTEM.md](../architecture/CURRENT_SYSTEM.md)
+      içindeki ClickHouse HNSW supesi)
 
 ## Her fazin sonunda
 - [x] `make test` hala geciyor mu (46/46 regresyon kontrolu)
 
 ---
 
-## Benchmark/ClickHouse/YOLO optimizasyon planı (docs/codex/05_...)
+## Benchmark/ClickHouse/YOLO optimizasyon planı
+([docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md](../archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md))
 
-Aşağıdaki fazlar yukarıdakinden ayrı, `docs/codex/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md`
+Aşağıdaki fazlar yukarıdakinden ayrı,
+`docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md`
 planına aittir. Numaralandırma o dosyayla birebir eşleşir (kendi Faz 0'ı var).
 
 ### Faz 0 — Regresyon tabanı + doküman düzeltmeleri
 - [x] `pytest tests/ -v`: 50/50 geçti (46 taban + 4 yeni `offline_mode_enabled` testi)
 - [x] `py_compile`: 42/42 (40 taban + `scripts/package_weights.py` + `tests/test_common.py`)
-- [x] `docs/codex/02_FIKIRLER_VE_KARARLAR.md` SigLIP2 notu koda uyacak şekilde düzeltildi (`AutoModel`, `Siglip2Model` değil)
+- [x] `docs/archive/phases/faz11-development/02_FIKIRLER_VE_KARARLAR.md` SigLIP2 notu koda uyacak şekilde düzeltildi (`AutoModel`, `Siglip2Model` değil)
 - [x] `common.offline_mode_enabled()` + `config.yaml: offline_mode` + her iki adaptörde `local_files_only`
 - [x] `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` gerçek smoke: X-CLIP ve SigLIP2 lokal cache'ten yüklendi, ağ çağrısı yok
 - [x] `scripts/package_weights.py` gerçek çalıştırıldı: `weights/weights_manifest.json` (X-CLIP 783.7 MB, SigLIP2 4578.6 MB, yolo26x.pt 118.7 MB)
@@ -228,7 +232,7 @@ n_sample) yapılmadı — TASKS.md'de açıkça işaretli.
 - [x] **Kritik CPU-maliyet bulgusu:** 73 pencerenin tamamı için gerçek
       `embed_video` koşumu **1062 dakika (~17.7 saat)** sürdü — pencere
       başına ~14.5 dakika. Karşılaştırma: X-CLIP ~32sn/pencere, SigLIP2
-      ~62sn/pencere (STATUS.md). İlk smoke testi (sentetik gürültü
+      ~62sn/pencere ([docs/operations/STATUS.md](../operations/STATUS.md)). İlk smoke testi (sentetik gürültü
       görüntüleriyle, gerçek video karesi değil) bunu ~52sn/pencere olarak
       hatalı tahmin etmişti — gerçek kare boyutu/karmaşıklığı maliyeti
       ~17× hafife aldırmış. **Qwen3-VL-Embedding-2B bu CPU'da ingest için
@@ -284,7 +288,8 @@ TR/EN satırı — Faz 1'in GT setinden geliyor, ayrı ölçülmedi bu fazda.
       stratejisi) profil başına değişir. window/stride/n_sample TÜM
       profillerde aynı kaldı çünkü bu oturumda ablate edilmedi (tahminle
       değer yazılmadı, TASKS.md Faz 3'te açıkça işaretli).
-- [x] Nihai rapor: `docs/codex/06_NIHAI_RAPOR.md` — 5 ana bulgu, gerçek
+- [x] Nihai rapor:
+      [docs/reports/faz11/FINAL_REPORT.md](../reports/faz11/FINAL_REPORT.md) — 5 ana bulgu, gerçek
       Pareto tablosu (CPU-ölçülü), ClickHouse strateji önerisi, dedektör/
       model kararı, offline paket içeriği, üretime açık 8 madde.
 - [ ] 3 profilin gerçek uçtan uca koşusu (fast/balanced/accurate ayrı ayrı
@@ -298,7 +303,7 @@ TR/EN satırı — Faz 1'in GT setinden geliyor, ayrı ölçülmedi bu fazda.
 (ayrı gerçek koşu değil — dürüstçe işaretli); Pareto raporu tamamlandı;
 TASKS.md bu haliyle kanıtlı/kanıtsız ayrımıyla güncel.
 
-## Genel kabul kriterleri özeti (docs/codex/05 Faz 0-5)
+## Genel kabul kriterleri özeti (docs/archive/phases/faz11-development/05_CODEX_BENCHMARK_VE_OPTIMIZASYON_PLANI.md Faz 0-5)
 
 - [x] Faz 0: 90 test + offline-load smoke + weights manifest (6 checkpoint).
 - [x] Faz 1: bench harness, 28 sorguluk GT (≥25 hedefi aşıldı), determinizm
@@ -318,7 +323,8 @@ TASKS.md bu haliyle kanıtlı/kanıtsız ayrımıyla güncel.
 
 **Genel durum: "tamamlandı" değil, "kısmen doğrulandı"** — GPU ölçümü,
 1M+ ölçek, `gt_walking` görsel denetimi ve profil-özel gerçek koşular
-açıkça eksik bırakıldı. Detay: `docs/codex/06_NIHAI_RAPOR.md` §10.
+açıkça eksik bırakıldı. Detay:
+[docs/reports/faz11/FINAL_REPORT.md](../reports/faz11/FINAL_REPORT.md) §10.
 
 ## Faz 6 — P0: decode düzeltmesi + benchmark dürüstleştirme
 
@@ -410,7 +416,9 @@ dataset'i) ve hepsi decode düzeltmesinden sonra yeniden ölçüm gerektiriyor.
 
 ## Unified Search Harness: dataset registry + adaptive MRL (28 Temmuz 2026)
 
-Tam kanıt/ölçüm/bulgu detayı: `STATUS.md` ("Unified Search Harness" bölümü).
+Tam kanıt/ölçüm/bulgu detayı:
+[docs/operations/STATUS.md](../operations/STATUS.md) ("Unified Search Harness"
+ bölümü).
 Burada yalnız durum özeti - beş ayrım açıkça korunmalı:
 
 - [x] Dataset registry (`datasets/registry.py`, `config.yaml: datasets:`) +
@@ -429,4 +437,4 @@ Burada yalnız durum özeti - beş ayrım açıkça korunmalı:
       ERTELENDİ** - olgun (150+ sorgu) veri olmadan eşik/sekme üretmek
       tahmin olurdu. "Sekme B/C/D" diye varsayılan sekmeler zaten yoktu.
 - [x] PostgreSQL araştırıldı, gerekmediği kanıtlandı, eklenmedi (bkz.
-      `CONTEXT.md`).
+      [docs/architecture/CURRENT_SYSTEM.md](../architecture/CURRENT_SYSTEM.md)).

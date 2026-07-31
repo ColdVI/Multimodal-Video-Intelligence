@@ -2,7 +2,7 @@
 
 Bu kılavuz kod veya veritabanı bilgisi gerektirmez. Sistem sizin için önceden
 kurulmuş ve videolar önceden işlenmiş (ingest edilmiş) olmalıdır — bunu
-kurumunuzun teknik operatörü yapar (bkz. [USER_GUIDE.md](USER_GUIDE.md)).
+kurumunuzun teknik operatörü yapar (bkz. [OPERATOR_QUICKSTART.md](OPERATOR_QUICKSTART.md)).
 
 ## UI nasıl açılır?
 
