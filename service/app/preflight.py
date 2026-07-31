@@ -231,6 +231,11 @@ def run_data_preflight(
 
 
 def _append_model_checks(checks: list[PreflightCheck], configured: Settings) -> None:
+    # Independent of bundle presence: ATTN_IMPL is a runtime/GPU dependency
+    # choice, not a bundle-content question, so it must still be checked even
+    # when the model bundle itself is missing or fails verification below.
+    if configured.attn_impl == "flash_attention_2":
+        checks.append(_flash_attention_check())
     requires_model = configured.embedding_mode in {"real", "hybrid_text"}
     bundle_root = configured.model_bundle_root.expanduser()
     if not bundle_root.is_dir():
@@ -273,6 +278,34 @@ def _append_model_checks(checks: list[PreflightCheck], configured: Settings) -> 
         ))
     except Exception as exc:
         checks.append(_check("qwen_import", "model", False, f"{type(exc).__name__}: {exc}"))
+
+
+def _flash_attention_check() -> PreflightCheck:
+    """ATTN_IMPL=flash_attention_2 is an explicit opt-in accelerated profile; it
+    requires both the flash_attn package and a GPU with compute capability >= 8.0
+    (Ampere+). Neither is implied by a passing model_bundle/qwen_import check, so
+    an unmet requirement here must fail preflight rather than surface as an
+    opaque error deep inside Qwen3VLEmbedder construction during ingest."""
+    try:
+        importlib.import_module("flash_attn")
+        flash_attn_ok, flash_attn_detail = True, "flash_attn is importable"
+    except ImportError as exc:
+        flash_attn_ok, flash_attn_detail = False, f"flash_attn not importable: {exc}"
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            gpu_ok, gpu_detail = False, "CUDA is not available on this host"
+        else:
+            capability = torch.cuda.get_device_capability()
+            gpu_ok = capability[0] >= 8
+            gpu_detail = f"compute_capability={capability}"
+    except Exception as exc:
+        gpu_ok, gpu_detail = False, f"torch/CUDA probe failed: {type(exc).__name__}: {exc}"
+    return _check(
+        "flash_attention_2_support", "gpu", flash_attn_ok and gpu_ok,
+        f"{flash_attn_detail}; {gpu_detail}",
+    )
 
 
 def _report(
