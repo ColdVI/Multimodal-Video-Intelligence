@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T09:45:00Z",
+  "tested_code_sha": "184afae6a2ae79836b9cb0cb3ea11cdb94de2808",
+  "status": "pass",
+  "method": "Real before/after filesystem snapshots (size, mtime_ns, sha256 per file) around app.preflight.run_data_preflight() calls, plus a static source scan confirming no reference to app.db.postgres/app.db.clickhouse/init_schema/app.ingestion.ingest exists anywhere in service/app/preflight.py.",
+  "command": "PYTHONPATH=service .venv/Scripts/python -m pytest service/tests/test_faz11_preflight_no_write.py -q -p no:cacheprovider",
+  "result": "5 passed",
+  "checks": [
+    {"id": "does_not_modify_dataset_files", "status": "pass", "evidence": "test_preflight_does_not_modify_dataset_files: video/telemetry file bytes+mtime unchanged"},
+    {"id": "does_not_modify_model_bundle", "status": "pass", "evidence": "test_preflight_does_not_modify_model_bundle: fixture bundle (source/model/*.json) unchanged after a real EMBEDDING_MODE=real verify_bundle() pass"},
+    {"id": "does_not_initialize_databases", "status": "pass", "evidence": "test_preflight_does_not_initialize_databases: static source scan of service/app/preflight.py finds zero references to app.db.postgres, app.db.clickhouse, init_schema, or app.ingestion.ingest"},
+    {"id": "only_writes_requested_artifact", "status": "pass", "evidence": "test_preflight_only_writes_requested_artifact: run_data_preflight() itself is a pure function returning a dict; it writes nothing. Only scripts/preflight.py's CLI wrapper writes --json-out, which is the one explicitly requested artifact."},
+    {"id": "failed_preflight_has_no_side_effects", "status": "pass", "evidence": "test_failed_preflight_has_no_side_effects: an intentionally broken manifest (missing telemetry file) fails several checks but leaves the entire fixture tree byte-for-byte and mtime-for-mtime unchanged"}
+  ],
+  "not_covered_this_session": [
+    "scripts/preflight.py::run_host_preflight subprocess calls (docker/nvidia-smi/docker compose config) were not snapshot-tested; they are read-only by inspection (docker --version, docker compose version, nvidia-smi --query-gpu, docker info, docker compose config, docker run --gpus all ... nvidia-smi) but exercising them live requires Docker/NVIDIA tooling this host does not currently have running."
+  ],
+  "summary": {"pass": 5, "fail": 0, "not_run": 0}
+}
