@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T10:15:00Z",
+  "tested_code_sha": "65713069978d81dfdd7ae6940dc3ce9338bfb5a3",
+  "method": "Injected-failure unit tests against the real production code paths (GenericIngestor._flush_pending/run, RunCoordinator.begin_chunk/commit_chunk/finalize_run) with fake store/backend adapters implementing the same contract real PostgresRunStore/ClickHouse/Qdrant/pgvector adapters do. No live database this session, so genuine PostgreSQL transaction-rollback-on-close semantics for point 10 are verified by code inspection rather than executed live.",
+  "invariants_checked_at_every_point": [
+    "old active run is unaffected",
+    "the failing/new run never becomes active",
+    "no other run's rows are deleted",
+    "resume/retry only cleans the same inactive run's chunk data before rewriting",
+    "no duplicate segments after resume"
+  ],
+  "points": [
+    {"id": 1, "label": "Metadata write öncesi", "status": "pass", "evidence": "test_faz11_run_versioning_fault_matrix.py::test_fault_1_and_3_failure_before_any_write_leaves_chunk_uncommitted", "note": "decode/embed succeed, metadata write itself raises; zero backend write_chunk calls happen; chunk marked failed; old active run untouched"},
+    {"id": 2, "label": "Metadata write sonrası", "status": "pass", "evidence": "test_faz11_run_versioning_fault_matrix.py::test_fault_2_and_4_metadata_committed_but_first_backend_write_fails", "note": "metadata rows land in the store but the chunk is still marked failed (not committed) because the coordinator only commits after ALL backend/dimension counts match; resume's begin_chunk cleanup removes the orphaned metadata rows via delete_inactive_metadata_chunk before redoing the chunk"},
+    {"id": 3, "label": "İlk vector backend write öncesi", "status": "pass", "evidence": "test_fault_1_and_3_failure_before_any_write_leaves_chunk_uncommitted (same injection point as #1 since metadata always writes first in _flush_pending)"},
+    {"id": 4, "label": "İlk backend write sonrası", "status": "pass", "evidence": "test_fault_2_and_4_metadata_committed_but_first_backend_write_fails and test_fault_4_and_5_first_backend_succeeds_second_backend_fails", "note": "with two enabled backends, the first backend's rows are written and left in place (uncommitted-chunk state) when the second backend's write fails; begin_chunk's delete_inactive_chunk on retry is scoped per (run_id, chunk_index, dimension) per backend, so it correctly wipes the first backend's orphaned rows too"},
+    {"id": 5, "label": "İlk dimension write sonrası", "status": "pass", "evidence": "test_fault_5_first_dimension_succeeds_second_dimension_fails", "note": "with two enabled dimensions on one backend, the first dimension's rows persist (uncommitted) when the second dimension's write fails"},
+    {"id": 6, "label": "DB write batch ortasında", "status": "pass", "evidence": "test_fault_6_failure_mid_db_write_batch", "note": "DB_WRITE_BATCH_SIZE=2 with 4 records forces two flushes per chunk; the first flush's rows are committed to the backend fake, the second flush's failure still fails the whole chunk"},
+    {"id": 7, "label": "Chunk commit öncesi", "status": "pass", "evidence": "service/tests/test_faz11_run_versioning.py::test_chunk_count_mismatch_is_failed_and_not_silently_committed (pre-existing)", "note": "RunCoordinator.commit_chunk raises on any backend:dimension row-count mismatch and marks the chunk failed rather than committed"},
+    {"id": 8, "label": "Final row count kontrolünde", "status": "pass", "evidence": "service/tests/test_faz11_run_versioning.py::test_finalize_failure_preserves_old_active_run (pre-existing)", "note": "finalize_run checks metadata_count, duplicate_count, and every enabled backend:dimension count_run() against expected; any mismatch marks the run failed without touching dataset_active_runs"},
+    {"id": 9, "label": "Active pointer değişiminden önce", "status": "pass", "evidence": "service/tests/test_faz11_run_versioning.py::test_finalize_success_activates_only_after_all_counts_match (pre-existing) + test_faz11_run_versioning_fault_matrix.py::test_fault_9_and_10_activation_failure_does_not_flip_active_pointer", "note": "activate() is only reached once every check passed; if activate() itself then raises, the fake store's active pointer is provably untouched"},
+    {"id": 10, "label": "Active pointer transaction'ı sırasında", "status": "pass_by_code_inspection_not_live_run", "evidence": "service/app/db/ingest_runs.py::PostgresRunStore.activate() - single with postgres.connection() as conn block, both the UPDATE ingest_runs...WHERE status='validating' and the INSERT...dataset_active_runs...ON CONFLICT DO UPDATE execute before one conn.commit(); app/db/postgres.py::connection() closes the connection in a finally without ever calling conn.commit() on the exception path", "note": "Real PostgreSQL/psycopg2 rolls back an open transaction when its connection is closed without a commit, so a failure between the two statements leaves neither applied. This specific guarantee comes from the database client library's standard behavior, not custom application rollback logic, and genuinely cannot be proven by a fake-store unit test - it requires a live PostgreSQL connection to exercise for real. Not run this session (no Docker daemon/live DB)."}
+  ],
+  "summary": {"pass": 9, "pass_by_code_inspection_not_live_run": 1, "fail": 0, "not_run": 0},
+  "not_run_live": {
+    "reason": "No Docker daemon or live PostgreSQL/ClickHouse/Qdrant this session",
+    "required_command": "docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml exec -T api python -m app.ingestion.ingest --dataset /workspace/datasets/kurum.yaml --resume (interrupted mid-run via container kill, then resumed)",
+    "expected_environment": "Healthy institution stack with an intentionally interrupted inactive run"
+  }
+}
