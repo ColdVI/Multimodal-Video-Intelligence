@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T09:15:00Z",
+  "tested_code_sha_before_fix": "2ebc47688de76d28c92b93c414df0aa4f27fa641",
+  "status": "not_run_live_db_pass_contract_tests",
+  "environment": {
+    "docker_daemon": false,
+    "live_postgresql": false,
+    "live_clickhouse": false,
+    "note": "No live database on this host this session; live migration acceptance stays not_run. Contract/idempotency/additivity properties were verified against real production code paths via monkeypatched module boundaries (app.db.postgres.connection, app.db.clickhouse.client/delete_run), not a mocked migrations module."
+  },
+  "findings": [
+    {
+      "id": "M1",
+      "severity": "high",
+      "title": "_copy_clickhouse_legacy had no idempotency guard against ClickHouse's lack of UPSERT",
+      "status": "fixed_this_session",
+      "evidence_before": "service/app/db/migrations.py::_copy_clickhouse_legacy issued INSERT INTO seg_ch_{dimension}_runs ... SELECT FROM seg_ch_{dimension} with no ON CONFLICT-equivalent guard. Re-running `scripts/migrate_faz11_schema.py --apply` a second time for the same deterministic legacy run_id (app.db.ingest_runs.legacy_run_id is a stable uuid5 of dataset_id+source_hash) would insert duplicate rows into the run-scoped ClickHouse table, since ClickHouse MergeTree INSERT has no upsert/ON CONFLICT semantics (this is documented in docs/RUN_VERSIONING.md itself as the reason chunk resume is chunk-scoped rather than row-scoped elsewhere in the codebase, but the migration copy step didn't follow the same pattern).",
+      "fix_files": ["service/app/db/migrations.py"],
+      "fix_summary": "_copy_clickhouse_legacy now calls the existing app.db.clickhouse.delete_run(dataset_id, run_id, dimension) helper (already used elsewhere for inactive-run cleanup, with its own _ensure_inactive guard) before each dimension's INSERT SELECT, so every --apply attempt for a given legacy run starts from a clean slate for that run_id.",
+      "new_tests": ["service/tests/test_faz11_migrations.py::test_copy_clickhouse_legacy_clears_existing_run_rows_before_insert"]
+    },
+    {
+      "id": "M2",
+      "severity": "high",
+      "title": "Retry after a failed migration attempt could never succeed, even once the underlying mismatch was fixed",
+      "status": "fixed_this_session",
+      "evidence_before": "PostgresRunStore.create() uses INSERT ... ON CONFLICT(run_id) DO NOTHING, so on retry (same deterministic legacy_run_id) it never resets a previously 'failed' row back to 'validating'. PostgresRunStore.activate() only succeeds via UPDATE ingest_runs SET status='completed' ... WHERE run_id=%s AND status='validating' and raises RuntimeError('run activation transition failed') when rowcount != 1. Without an explicit reset, every retry after a first failed attempt would hit this RuntimeError unconditionally, regardless of whether the underlying count mismatch was corrected.",
+      "fix_files": ["service/app/db/migrations.py"],
+      "fix_summary": "apply_migration() now calls store.set_run_status(run_id, 'validating') unconditionally right after store.create(), on every attempt - a harmless no-op on a fresh row, but a real reset on a retried one.",
+      "new_tests": ["service/tests/test_faz11_migrations.py::test_apply_migration_retry_after_failure_can_still_activate"]
+    }
+  ],
+  "contract_checks": [
+    {"id": "plan_is_read_only", "status": "pass", "evidence": "test_plan_migration_source_is_select_only (static source scan: no INSERT/UPDATE/DELETE/DROP/TRUNCATE/ALTER in plan_migration())"},
+    {"id": "no_drop_or_truncate_of_legacy_schema", "status": "pass", "evidence": "test_migration_never_drops_or_truncates_legacy_tables (static source scan across the whole migrations module, plus explicit check that videos/segments/segment_metadata/segment_telemetry/retrieval_groundtruth are never targeted by INSERT/UPDATE/DELETE)"},
+    {"id": "apply_is_a_distinct_explicit_flag", "status": "pass", "evidence": "scripts/migrate_faz11_schema.py uses an argparse required mutually-exclusive group for --plan/--dry-run/--apply; test_apply_requires_explicit_flag_and_plan_is_default_mutually_exclusive"},
+    {"id": "deterministic_legacy_run_id", "status": "pass", "evidence": "app/db/ingest_runs.py::legacy_run_id is uuid5(LEGACY_NAMESPACE, f'{dataset_id}:{source_hash}') - pure function, same input always produces same run_id"},
+    {"id": "idempotent_second_apply", "status": "pass_after_fix", "evidence": "M1 fix + test_copy_clickhouse_legacy_clears_existing_run_rows_before_insert; postgres leg was already idempotent via ON CONFLICT DO NOTHING on all INSERT..SELECT statements in _copy_postgres_legacy"},
+    {"id": "retry_after_failure_can_succeed", "status": "pass_after_fix", "evidence": "M2 fix + test_apply_migration_retry_after_failure_can_still_activate"},
+    {"id": "active_pointer_untouched_on_failure", "status": "pass", "evidence": "apply_migration() only calls store.activate() when metadata_count and every enabled backend:dimension count matches expected; on mismatch it calls set_run_status(..., 'failed') and continues without touching dataset_active_runs. Confirmed by test_apply_migration_retry_after_failure_can_still_activate's first (failing) attempt: store.activated stays empty."},
+    {"id": "qdrant_blocks_apply_without_reingest", "status": "pass", "evidence": "apply_migration() returns status=blocked, active_runs_changed=False before any schema/data write when plan.qdrant_requires_reingest; test_qdrant_enabled_blocks_apply_and_leaves_active_pointer_untouched"},
+    {"id": "pgvector_lives_in_the_postgres_container", "status": "pass", "evidence": "docker-compose.yml defines a single pg service using image pgvector/pgvector:pg16; no separate pgvector service exists. test_pgvector_lives_inside_the_same_postgres_container"},
+    {"id": "run_scoped_storage_consistency", "status": "pass", "evidence": "_copy_postgres_legacy and _copy_clickhouse_legacy both write into run_*/*_runs tables keyed by the same deterministic run_id; physical uniqueness is (run_id, segment_id) per docs/RUN_VERSIONING.md"},
+    {"id": "live_apply_against_real_databases", "status": "not_run", "reason": "No Docker daemon or live PostgreSQL/ClickHouse on this host this session", "required_command": "PYTHONPATH=service python scripts/migrate_faz11_schema.py --plan --output artifacts/faz11/schema_migration_report.json", "expected_environment": "Healthy configured PostgreSQL and enabled vector backends with an existing legacy (pre-Faz11) dataset to migrate"}
+  ],
+  "summary": {"pass": 8, "pass_after_fix": 2, "fail": 0, "not_run": 1}
+}

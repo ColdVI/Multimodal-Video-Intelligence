@@ -109,9 +109,17 @@ def _copy_postgres_legacy(spec: RunSpec) -> dict[str, int]:
 
 
 def _copy_clickhouse_legacy(spec: RunSpec) -> dict[str, int]:
+    """Copy legacy rows into the run-scoped ClickHouse table for every enabled
+    dimension. ClickHouse's MergeTree INSERT has no ON CONFLICT/UPSERT
+    equivalent (see RUN_VERSIONING.md), so unlike the Postgres copy step this
+    is not naturally idempotent - re-running --apply for the same deterministic
+    legacy run_id would otherwise duplicate rows. delete_run() clears any prior
+    attempt's rows for this (dataset_id, run_id, dimension) first; it refuses
+    to touch an active run, which this not-yet-validated legacy run never is."""
     counts: dict[str, int] = {}
     target = clickhouse.client()
     for dimension in spec.enabled_dimensions:
+        clickhouse.delete_run(spec.dataset_id, spec.run_id, dimension)
         target.command(
             f"""INSERT INTO seg_ch_{dimension}_runs(
                        run_id,chunk_index,segment_id,dataset_id,video_id,t_start,t_end,
@@ -150,6 +158,13 @@ def apply_migration(plan: MigrationPlan) -> dict[str, Any]:
             expected_segments=expected,
         )
         store.create(spec, status="validating")
+        # store.create() uses ON CONFLICT(run_id) DO NOTHING for idempotency, so a
+        # retry after a prior failed attempt (same deterministic legacy_run_id)
+        # would otherwise leave the row's status stuck at 'failed' forever -
+        # activate()'s WHERE status='validating' guard would then never match,
+        # even once the underlying count mismatch is fixed. Explicitly reset the
+        # transition state on every attempt so a corrected retry can complete.
+        store.set_run_status(run_id, "validating")
         counts = _copy_postgres_legacy(spec)
         if "clickhouse" in plan.enabled_backends:
             counts.update(_copy_clickhouse_legacy(spec))
