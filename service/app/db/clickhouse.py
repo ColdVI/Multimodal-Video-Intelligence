@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import functools
 import math
+import threading
 from typing import Any, Iterable
 
 from app.config import DIMENSIONS, settings
@@ -8,7 +10,10 @@ from app.search.strategies import clickhouse_settings
 from app.search.pushdown import normalize_filters
 
 
-def client():
+_local = threading.local()
+
+
+def _new_client():
     import clickhouse_connect
 
     return clickhouse_connect.get_client(
@@ -21,13 +26,61 @@ def client():
     )
 
 
+def client():
+    """One clickhouse_connect Client per thread, created once and reused across calls on
+    that thread. FastAPI's sync `def` handlers (including POST /search) run in Starlette's
+    threadpool, so this avoids paying connection-setup cost on every request without
+    sharing a single Client instance across threads -- clickhouse_connect's per-instance
+    thread-safety under concurrent .query() calls is not a contract this codebase relies
+    on. See _reset_client()/_with_reconnect for transient-failure recovery."""
+    existing = getattr(_local, "client", None)
+    if existing is None:
+        existing = _new_client()
+        _local.client = existing
+    return existing
+
+
+def _reset_client() -> None:
+    _local.client = None
+
+
+def _transient_error_types() -> tuple[type[Exception], ...]:
+    from clickhouse_connect.driver.exceptions import InterfaceError, OperationalError
+
+    return (OperationalError, InterfaceError, ConnectionError, OSError, TimeoutError)
+
+
+def _with_reconnect(fn):
+    """Run fn once; on a transient connection-level error, evict this thread's cached
+    client and retry exactly once with a freshly created one. Real programming/data
+    errors (ProgrammingError, DataError, IntegrityError, ValueError, ...) are not in
+    _transient_error_types() and propagate immediately without a pointless retry."""
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except _transient_error_types():
+            _reset_client()
+            return fn(*args, **kwargs)
+
+    return wrapper
+
+
+@_with_reconnect
+def _health_probe() -> bool:
+    return client().command("SELECT 1") == 1
+
+
 def health() -> bool:
     try:
-        return client().command("SELECT 1") == 1
+        return _health_probe()
     except Exception:
+        _reset_client()
         return False
 
 
+@_with_reconnect
 def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
     root = client()
     root.command(f"CREATE DATABASE IF NOT EXISTS {settings.ch_db}")
@@ -78,6 +131,7 @@ def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
         )
 
 
+@_with_reconnect
 def replace_vectors(dataset_id: str, dimension: int, rows: list[dict[str, Any]]) -> None:
     target = client()
     escaped = dataset_id.replace("'", "''")
@@ -104,6 +158,7 @@ def _corpus_count(target: Any, table: str, run_clause: str, predicate_clause: st
     return int(target.query(sql, parameters=params).result_rows[0][0])
 
 
+@_with_reconnect
 def search_vectors(
     dataset_id: str,
     dimension: int,
@@ -198,6 +253,7 @@ def search_vectors(
     }
 
 
+@_with_reconnect
 def table_count(dataset_id: str, dimension: int) -> int:
     result = client().query(
         f"SELECT count() FROM seg_ch_{dimension} WHERE dataset_id={{dataset_id:String}}",
@@ -206,6 +262,7 @@ def table_count(dataset_id: str, dimension: int) -> int:
     return int(result.result_rows[0][0])
 
 
+@_with_reconnect
 def storage_mb(dimension: int) -> float:
     result = client().query(
         "SELECT total_bytes FROM system.tables WHERE database=currentDatabase() AND name={name:String}",
@@ -214,6 +271,7 @@ def storage_mb(dimension: int) -> float:
     return float(result.result_rows[0][0] or 0) / 1024**2 if result.result_rows else 0.0
 
 
+@_with_reconnect
 def write_run_chunk(
     run_id: str, dataset_id: str, dimension: int, chunk_index: int, rows: list[dict[str, Any]],
 ) -> int:
@@ -237,6 +295,7 @@ def _ensure_inactive(dataset_id: str, run_id: str) -> None:
         raise ValueError("destructive cleanup of an active run is forbidden")
 
 
+@_with_reconnect
 def delete_inactive_chunk(run_id: str, dataset_id: str, chunk_index: int, dimension: int) -> int:
     _ensure_inactive(dataset_id, run_id)
     before = count_run(dataset_id, run_id, dimension)
@@ -250,6 +309,7 @@ def delete_inactive_chunk(run_id: str, dataset_id: str, chunk_index: int, dimens
     return max(0, before - count_run(dataset_id, run_id, dimension))
 
 
+@_with_reconnect
 def count_run(dataset_id: str, run_id: str, dimension: int) -> int:
     result = client().query(
         f"SELECT count() FROM seg_ch_{dimension}_runs WHERE dataset_id={{dataset_id:String}} AND run_id={{run_id:UUID}}",
@@ -258,6 +318,7 @@ def count_run(dataset_id: str, run_id: str, dimension: int) -> int:
     return int(result.result_rows[0][0])
 
 
+@_with_reconnect
 def delete_run(dataset_id: str, run_id: str, dimension: int) -> int:
     _ensure_inactive(dataset_id, run_id)
     before = count_run(dataset_id, run_id, dimension)
