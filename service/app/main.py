@@ -53,6 +53,8 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=10, ge=1, le=10000)
     repeats: int = Field(default=1, ge=1, le=20)
     filter_execution_mode: Literal["pushdown", "legacy_candidate_ids"] | None = None
+    diagnose: bool = False
+    explain: bool = False
 
 
 @app.get("/health")
