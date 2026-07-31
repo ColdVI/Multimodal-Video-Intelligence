@@ -67,6 +67,67 @@ def test_media_rejects_path_outside_data_root(tmp_path, monkeypatch):
     assert exc.value.status_code == 403
 
 
+def test_media_rejects_parent_traversal(tmp_path, monkeypatch):
+    configured = _settings(tmp_path)
+    configured.data_root.mkdir()
+    (configured.data_root / "videos").mkdir()
+    outside = tmp_path / "outside.mp4"
+    outside.write_bytes(b"secret")
+    traversal_uri = str(configured.data_root / "videos" / ".." / ".." / "outside.mp4")
+    monkeypatch.setattr(media, "settings", configured)
+    monkeypatch.setattr(media.postgres, "resolve_media_segment", lambda *_: _segment(Path(traversal_uri)))
+    with pytest.raises(media.MediaError, match="outside DATA_ROOT") as exc:
+        media.describe_segment("segment-1")
+    assert exc.value.status_code == 403
+
+
+def test_media_rejects_symlink_escape(tmp_path, monkeypatch):
+    configured = _settings(tmp_path)
+    configured.data_root.mkdir()
+    outside = tmp_path / "outside.mp4"
+    outside.write_bytes(b"secret")
+    link = configured.data_root / "linked.mp4"
+    try:
+        link.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation is not permitted on this host/user")
+    monkeypatch.setattr(media, "settings", configured)
+    monkeypatch.setattr(media.postgres, "resolve_media_segment", lambda *_: _segment(link))
+    with pytest.raises(media.MediaError, match="outside DATA_ROOT") as exc:
+        media.describe_segment("segment-1")
+    assert exc.value.status_code == 403
+
+
+def test_media_rejects_encoded_traversal_segment_id(tmp_path, monkeypatch):
+    """The segment_id URL path parameter (including any percent-encoded or raw
+    '../' content a client could send) is only ever used as an opaque
+    PostgreSQL lookup key - it never touches the filesystem directly. Proof:
+    a segment_id shaped like a traversal string that matches no real segment
+    resolves to 404 via the normal not-found path, and _source_path is never
+    even reached because resolve_media_segment returns None first."""
+    configured = _settings(tmp_path)
+    configured.data_root.mkdir()
+    monkeypatch.setattr(media, "settings", configured)
+    monkeypatch.setattr(media.postgres, "resolve_media_segment", lambda *_: None)
+    with pytest.raises(media.MediaError, match="not found") as exc:
+        media.describe_segment("..%2f..%2f..%2fetc%2fpasswd")
+    assert exc.value.status_code == 404
+
+
+def test_media_rejects_negative_or_reversed_time_range(tmp_path, monkeypatch):
+    configured = _settings(tmp_path)
+    configured.data_root.mkdir()
+    source = configured.data_root / "video.mp4"
+    source.write_bytes(b"source")
+    monkeypatch.setattr(media, "settings", configured)
+    monkeypatch.setattr(media.postgres, "resolve_media_segment", lambda *_: _segment(source, start=5.0, end=2.0))
+    with pytest.raises(media.MediaError, match="non-positive duration"):
+        media.describe_segment("segment-1")
+    monkeypatch.setattr(media.postgres, "resolve_media_segment", lambda *_: _segment(source, start=3.0, end=3.0))
+    with pytest.raises(media.MediaError, match="non-positive duration"):
+        media.describe_segment("segment-1")
+
+
 def test_media_rejects_duration_limit_and_archive_source(tmp_path, monkeypatch):
     configured = _settings(tmp_path, media_max_clip_s=1.0)
     configured.data_root.mkdir()
