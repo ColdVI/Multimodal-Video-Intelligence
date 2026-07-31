@@ -1,79 +1,144 @@
 {
-  "schema_version": 1,
-  "generated_at_utc": "2026-07-31T07:45:00Z",
+  "schema_version": 2,
+  "generated_at_utc": "2026-07-31T11:00:00Z",
+  "tested_code_sha": "d3fef0e6826c626381a4a2b76bbd397d971b58dc",
   "audited_baseline_sha": "045ea81b83de366b3597c84a051d5c5f039603d5",
-  "audit_environment": {
-    "platform": "Windows 11 (host differs from original macOS/arm64 build host)",
-    "python": "3.14.6 (.venv)",
-    "pytest": "9.1.1",
-    "docker_cli": true,
-    "docker_daemon": false,
-    "nvidia_smi": true,
-    "gpu_name": "NVIDIA GeForce GT 1030 (4GB VRAM)",
-    "note": "Docker CLI/Compose and a GPU are present here unlike the original build host, but the Docker daemon was not running this session and the GT 1030 is not representative institution hardware; live container/GPU acceptance was still not attempted."
-  },
+  "sessions": [
+    {"session": 1, "commits": ["02a6c10", "548698b"], "focus": "baseline reverification, first traceability audit, streaming pipeline + frame lifecycle fixes"},
+    {"session": 2, "commits": ["2ebc476", "9c8fd73", "184afae", "a70a58e", "6571306", "9dc7b92", "d52f0d3", "347eb52", "7cf9b9b", "d3fef0e"], "focus": "deep-dive on the five previously spot-checked areas, run-versioning fault matrix, pushdown adapter audit, streaming memory smoke, full documentation set"}
+  ],
   "independent_test_rerun": {
-    "service_tests_before_fix": {"passed": 106, "skipped": 15, "failed": 0},
-    "service_tests_after_fix": {"passed": 113, "skipped": 15, "failed": 0},
-    "root_tests": {"passed": 356, "skipped": 0, "failed": 0},
+    "service_tests": {"passed": 150, "skipped": 16, "failed": 0},
+    "root_tests": {"passed": 375, "skipped": 0, "failed": 0},
     "py_compile": "pass",
-    "git_diff_check": "pass"
+    "git_diff_check": "pass",
+    "compose_configs": {
+      "canonical_sha256": "3b7cb51ac2c4b870a8177689a1dae18f24da3f592a7d26b517e888aa6b075cb3",
+      "gpu_sha256": "aff9f957508792c6e367e69a400d004812677544f02a86770057a241bbb2de98",
+      "benchmark_sha256": "73c5f1341d1cdf257341a299eb8e1aaf5fcab29702f1d180c9019d8478d299c2",
+      "benchmark_debug_sha256": "2b7437f18dbab8291a60c738f3d0fbb0fd3038d61d0b4dce1bd99c992f4b0afb"
+    },
+    "skip_classification": {
+      "run_faz8_integration_gated_live_docker_playwright": 15,
+      "symlink_permission_unavailable_on_host": 1,
+      "pattern_not_implemented_preexisting_honest_skip": 1
+    }
   },
-  "findings": [
+  "critical_findings": [
+    {"id": "F1", "title": "DECODE_PREFETCH_WINDOWS/DB_WRITE_BATCH_SIZE dead config", "severity": "high", "status": "fixed", "commit": "548698b"},
+    {"id": "F2", "title": "iter_chunk_windows frame lifecycle relied on implicit GC", "severity": "medium", "status": "fixed", "commit": "548698b"},
+    {"id": "F3", "title": "ATTN_IMPL=flash_attention_2 had no dependency/GPU capability check", "severity": "medium", "status": "fixed", "commit": "2ebc476"},
+    {"id": "M1", "title": "_copy_clickhouse_legacy had no idempotency guard against duplicate rows on retry", "severity": "high", "status": "fixed", "commit": "9c8fd73"},
+    {"id": "M2", "title": "Migration retry-after-failure could never activate (status='validating' never reset)", "severity": "high", "status": "fixed", "commit": "9c8fd73"},
+    {"id": "T1", "title": "telemetry.py hardcoded UTC for naive iso8601 timestamps, ignoring manifest.timezone", "severity": "medium", "status": "fixed", "commit": "6571306"},
+    {"id": "T2", "title": "categorical telemetry fields had no interpolation/aggregation validation", "severity": "medium", "status": "fixed", "commit": "6571306"}
+  ],
+  "areas": [
     {
-      "id": "F1",
-      "severity": "high",
-      "title": "DECODE_PREFETCH_WINDOWS and DB_WRITE_BATCH_SIZE were dead configuration",
-      "status": "fixed_this_session",
-      "evidence_before": "service/app/ingestion/ingest.py:151 (pre-fix) drove decode, embed, and DB writes off a single batched(..., settings.embed_batch_size) loop; DECODE_PREFETCH_WINDOWS had zero references outside config.py; docs/DECISIONS.md:184-187 documented the collapse as intentional.",
-      "fix_files": ["service/app/ingestion/ingest.py"],
-      "new_tests": [
-        "service/tests/test_faz11_pipeline_bounds.py::test_decode_prefetch_bound_is_enforced",
-        "service/tests/test_faz11_pipeline_bounds.py::test_embed_batch_size_is_independent",
-        "service/tests/test_faz11_pipeline_bounds.py::test_db_write_batch_size_is_independent",
-        "service/tests/test_faz11_pipeline_bounds.py::test_frames_are_released_after_each_batch",
-        "service/tests/test_faz11_pipeline_bounds.py::test_producer_exception_reaches_ingestor",
-        "service/tests/test_faz11_pipeline_bounds.py::test_db_failure_does_not_commit_chunk",
-        "service/tests/test_faz11_pipeline_bounds.py::test_resume_after_partial_batch_is_idempotent"
-      ],
-      "residual_gap": "If the decode source raises mid-way through filling a DECODE_PREFETCH_WINDOWS-sized prefetch group, already-decoded frames in that partial group are not explicitly released (relies on CPython refcounting). Bounded impact (<= DECODE_PREFETCH_WINDOWS records), not fixed this session."
+      "area": "model_bundle_hash_and_provenance",
+      "implementation_files": ["service/app/embedding/bundle.py", "scripts/prepare_model_bundle.py"],
+      "test_files": ["tests/test_faz11_model_bundle.py", "service/tests/test_faz11_preflight_model.py"],
+      "production_call_path": "service/app/preflight.py::_append_model_checks -> verify_bundle()",
+      "artifact": null,
+      "test_command": "pytest tests/test_faz11_model_bundle.py service/tests/test_faz11_preflight_model.py -q",
+      "status": "pass",
+      "evidence": "Hash chain (source/model detail manifests + top-level bundle manifest, three SHA-256 layers) rejects missing/modified files and model_id/revision/source_commit mismatches; docker-compose.gpu.yml mounts bundle read-only with matching QWEN_REPO_PATH/QWEN_MODEL_PATH; Dockerfile.gpu never clones/downloads at build time; flash_attention_2 selection now gates on flash_attn import + GPU compute capability >= 8.0.",
+      "remaining_work": "Real bundle download and real GPU verification - not_run, no hardware this session."
     },
     {
-      "id": "F2",
-      "severity": "medium",
-      "title": "Frame ownership in iter_chunk_windows relied on implicit GC, not explicit close()",
-      "status": "fixed_this_session",
-      "evidence_before": "service/app/ingestion/video.py iter_chunk_windows (pre-fix): source decode frame and last_frame were never explicitly .close()'d; no try/finally around the generator body, so an early GeneratorExit left buffered collected[] frames unclosed.",
-      "fix_files": ["service/app/ingestion/video.py"],
-      "new_tests": [],
-      "residual_gap": "No dedicated test added this session for early-GeneratorExit cleanup of iter_chunk_windows specifically; existing test_faz11_streaming.py suite (9 tests) still passes unchanged, confirming no behavior regression."
+      "area": "migration_idempotency_and_legacy_protection",
+      "implementation_files": ["service/app/db/migrations.py", "scripts/migrate_faz11_schema.py"],
+      "test_files": ["service/tests/test_faz11_migrations.py"],
+      "production_call_path": "apply_migration() / plan_migration()",
+      "artifact": "artifacts/faz11/migration_contract_audit.json",
+      "test_command": "pytest service/tests/test_faz11_migrations.py -q",
+      "status": "pass",
+      "evidence": "Had zero test coverage before this session. Found and fixed M1 (ClickHouse copy step duplicated rows on retry) and M2 (retry after failure could never activate). plan_migration() proven read-only by static source scan; legacy tables proven never DROP/TRUNCATE/written outside ON CONFLICT DO NOTHING; --apply is a distinct required CLI flag; Qdrant-enabled plans block without touching the active pointer; pgvector genuinely lives in the same pg container image (no separate service).",
+      "remaining_work": "Live --plan/--apply against real PostgreSQL/ClickHouse - not_run (psycopg2 not installed on this host, Docker daemon not running)."
+    },
+    {
+      "area": "media_path_security_and_signed_urls",
+      "implementation_files": ["service/app/media.py", "service/app/auth.py"],
+      "test_files": ["service/tests/test_faz11_media_ui.py", "service/tests/test_faz11_security.py"],
+      "production_call_path": "app/main.py::media()/media_information() -> get_clip()/media_info(); TokenAuthMiddleware",
+      "artifact": null,
+      "test_command": "pytest service/tests/test_faz11_media_ui.py service/tests/test_faz11_security.py -q",
+      "status": "pass",
+      "evidence": "No defects found; only test coverage gaps closed. Parent traversal, symlink escape (skips if host lacks permission), encoded-traversal segment_id proven to be an opaque DB key only, negative/reversed time ranges, ffmpeg arg-list, atomic cache publish, HMAC constant-time compare, no token leak in signed URLs, real expiry, cross-path/cross-endpoint signature reuse rejection.",
+      "remaining_work": "None identified beyond live HTTP-level fuzzing (not_run, no Docker daemon)."
+    },
+    {
+      "area": "preflight_no_write_guarantee",
+      "implementation_files": ["service/app/preflight.py"],
+      "test_files": ["service/tests/test_faz11_preflight_no_write.py"],
+      "production_call_path": "run_data_preflight()",
+      "artifact": "artifacts/faz11/preflight_no_write_audit.json",
+      "test_command": "pytest service/tests/test_faz11_preflight_no_write.py -q",
+      "status": "pass",
+      "evidence": "Had zero direct no-write test coverage before this session. Real before/after filesystem snapshots (size+mtime_ns+sha256) around dataset files, a fixture model bundle under a real EMBEDDING_MODE=real verify_bundle() pass, the whole fixture tree, and an intentionally-broken manifest all show zero writes. Static source scan confirms preflight.py never references app.db.postgres/app.db.clickhouse/init_schema/app.ingestion.ingest.",
+      "remaining_work": "scripts/preflight.py's host-level subprocess checks (docker, nvidia-smi) not exercised live - not_run, read-only by inspection of the exact commands invoked."
+    },
+    {
+      "area": "manifest_and_telemetry_semantics",
+      "implementation_files": ["service/app/ingestion/manifest.py", "service/app/ingestion/telemetry.py"],
+      "test_files": ["service/tests/test_faz11_manifest.py"],
+      "production_call_path": "load_manifest(), TelemetrySeries.from_csv()/align_timestamp() (called from both ingest and preflight)",
+      "artifact": null,
+      "test_command": "pytest service/tests/test_faz11_manifest.py -q",
+      "status": "pass",
+      "evidence": "Found and fixed T1 (naive-timestamp timezone bug) and T2 (categorical interpolation/aggregation not validated). Heading fields proven never implicitly cross-mapped (no auto-mapping code exists at all); altitude/velocity semantics survive onto the parsed field; extra telemetry doesn't get dropped or conflated with canonical fields; offset sign matches the docstring for both clocks.",
+      "remaining_work": "None identified."
+    },
+    {
+      "area": "run_versioning_fault_matrix",
+      "implementation_files": ["service/app/db/ingest_runs.py", "service/app/ingestion/ingest.py"],
+      "test_files": ["service/tests/test_faz11_run_versioning.py", "service/tests/test_faz11_run_versioning_fault_matrix.py"],
+      "production_call_path": "RunCoordinator.begin_chunk/commit_chunk/finalize_run, GenericIngestor.run/_flush_pending",
+      "artifact": "artifacts/faz11/run_versioning_fault_matrix.json",
+      "test_command": "pytest service/tests/test_faz11_run_versioning.py service/tests/test_faz11_run_versioning_fault_matrix.py -q",
+      "status": "pass",
+      "evidence": "9 of 10 injected-failure points proven pass with real fake-adapter tests; point 10 (failure mid active-pointer transaction) is pass_by_code_inspection_not_live_run - depends on real PostgreSQL/psycopg2 rollback-on-close semantics a fake store cannot exercise.",
+      "remaining_work": "Point 10 requires a live PostgreSQL connection to prove for real - not_run."
+    },
+    {
+      "area": "backend_native_pushdown_adapters",
+      "implementation_files": ["service/app/db/clickhouse.py", "service/app/db/qdrant.py", "service/app/db/postgres.py", "service/app/search/engine.py", "service/app/search/pushdown.py"],
+      "test_files": ["service/tests/test_engine.py", "service/tests/test_faz11_pushdown.py"],
+      "production_call_path": "app.search.engine.search() -> BACKENDS[backend](...)",
+      "artifact": "artifacts/faz11/pushdown_adapter_audit.json",
+      "test_command": "pytest service/tests/test_engine.py service/tests/test_faz11_pushdown.py -q",
+      "status": "pass",
+      "evidence": "ClickHouse/Qdrant/pgvector all build real backend-native query/filter objects (not Python candidate lists); test_active_pushdown_never_materializes_candidate_ids exercises the real production search() call path; PATTERN_EXECUTION_IMPLEMENTED=False preserved and pattern never drives execution_mode.",
+      "remaining_work": "NULL semantics consistency marked pass_by_code_inspection (relies on standard SQL/backend null semantics, no live cross-backend run this session). Live equivalence/scale acceptance not_run."
+    },
+    {
+      "area": "streaming_bounded_pipeline",
+      "implementation_files": ["service/app/ingestion/ingest.py", "service/app/ingestion/video.py"],
+      "test_files": ["service/tests/test_faz11_pipeline_bounds.py", "service/tests/test_faz11_streaming.py", "tests/test_faz11_streaming_memory_smoke.py"],
+      "production_call_path": "GenericIngestor.run()",
+      "artifact": "artifacts/faz11/streaming_memory_smoke.json",
+      "test_command": "pytest service/tests/test_faz11_pipeline_bounds.py service/tests/test_faz11_streaming.py tests/test_faz11_streaming_memory_smoke.py -q",
+      "status": "pass",
+      "evidence": "F1/F2 fixed in session 1. Session 2 adds real instrumented evidence: a synthetic 60s/10fps video processed 59 windows while DECODE_PREFETCH_WINDOWS=5 never exceeded 5 live window records / 20 live PIL frames at any point.",
+      "remaining_work": "status=pass_synthetic_smoke - not institution acceptance evidence. Known residual gap: partial-prefetch-group frame cleanup on a decode-side exception (bounded impact, not fixed this session)."
+    },
+    {
+      "area": "documentation_and_operator_guides",
+      "implementation_files": ["docs/USER_GUIDE.md", "docs/OPERATOR_QUICKSTART.md", "docs/END_USER_GUIDE.md", "docs/DATASET_ONBOARDING_GUIDE.md", "docs/COLAB_RUNBOOK.md", "docs/TARGET_ENVIRONMENT_ACCEPTANCE.md", "datasets/example_institution.yaml", "notebooks/08_colab_portable_runner.ipynb", "scripts/run_faz11_acceptance.py"],
+      "test_files": ["tests/test_faz11_docs_and_notebook.py"],
+      "production_call_path": null,
+      "artifact": null,
+      "test_command": "pytest tests/test_faz11_docs_and_notebook.py -q",
+      "status": "pass",
+      "evidence": "11 tests checking .env.example completeness both directions against Settings.from_env()/compose files/UI, both example manifests parsing against the real parser, notebook validity and pinned-revision match, every docs script/manifest reference existing on disk, run_faz11_acceptance.py --help matching documented flags, gc_runs.py/preflight.py real CLI/exit-code contracts matching USER_GUIDE.md. Caught two real test bugs (too-narrow env-var regex, Compose/UI-only keys misflagged) while writing it.",
+      "remaining_work": "None identified for doc-code consistency. Colab notebook not run in a real Colab GPU session - not_run."
     }
-  ],
-  "spot_checked_clean": [
-    {"id": "clickhouse_pushdown", "evidence": "service/app/db/clickhouse.py:94-153 builds real parametrized SQL with canonical predicates and run_id scoping; candidate_ids only used in legacy_candidate_ids mode."},
-    {"id": "qdrant_pushdown", "evidence": "service/app/db/qdrant.py:89-114 builds real qdrant_client.models.Filter/FieldCondition/HasIdCondition objects."},
-    {"id": "pgvector_pushdown", "evidence": "service/app/db/postgres.py:429-454 issues one SQL statement joining run_segments/run_videos/run_segment_telemetry/run_segment_metadata."},
-    {"id": "pattern_label_honesty", "evidence": "service/app/search/engine.py:25 PATTERN_EXECUTION_IMPLEMENTED = False constant retained; pattern field does not drive execution_mode."},
-    {"id": "run_versioning_invariant_tests", "evidence": "service/tests/test_faz11_run_versioning.py has real assertion-based tests for finalize-failure-preserves-active, finalize-success-atomic-activation, retry-scoped-to-inactive-run, gc-never-selects-active."},
-    {"id": "ui_smoke_artifact_honesty", "evidence": "scripts/write_ui_not_run_artifact.py generates a real PIL-rendered 1440x900 PNG explicitly labelled NOT RUN, with matching ui_smoke.json status=not_run and reason."},
-    {"id": "gpu_smoke_artifact_honesty", "evidence": "artifacts/faz11/gpu_smoke.json has result=not_run, windows_embedded=0, gpu_name=null; no fabricated throughput/VRAM numbers."}
-  ],
-  "not_deeply_reverified_this_session": [
-    "model_bundle_hash_chain (scripts/prepare_model_bundle.py, service/app/embedding/bundle.py)",
-    "migration_additivity_and_idempotency (scripts/migrate_faz11_schema.py, service/app/db/migrations.py) - not attempted live even though this host has psycopg installed",
-    "media_path_traversal_and_symlink_escape (service/app/media.py)",
-    "preflight_no_write_guarantee (service/app/preflight.py)",
-    "manifest_telemetry_semantic_correctness (docs/DATASET_MANIFEST.md, service/app/ingestion/telemetry.py)"
-  ],
-  "acceptance_matrix_deltas": [
-    {"id": "generic_ingest_resume_contract", "previous": "pass", "current": "pass_with_expanded_evidence", "note": "F1 fixed; 7 new tests added"},
-    {"id": "streaming_video_window_contract", "previous": "pass", "current": "pass_no_behavior_change", "note": "F2 fixed; existing 9 tests still pass unchanged"}
   ],
   "overall_status": "implementation_complete_hardware_acceptance_pending",
   "next_session_priorities": [
-    "Close the F1 residual gap (partial-prefetch-group decode exception frame cleanup)",
-    "Add an early-GeneratorExit test for iter_chunk_windows",
-    "Attempt scripts/migrate_faz11_schema.py --plan on this host now that psycopg is available",
-    "Line-by-line re-verification of media path containment and preflight no-write guarantee"
+    "Run scripts/run_faz11_acceptance.py --live on a real target host",
+    "Install psycopg2-binary and attempt a real migration --plan against live PostgreSQL",
+    "Interrupted-resume, pushdown equivalence/scale, UI search (Playwright), media playback - all require a real target environment",
+    "Close F1's known residual gap: partial-prefetch-group decode exception frame cleanup"
   ]
 }

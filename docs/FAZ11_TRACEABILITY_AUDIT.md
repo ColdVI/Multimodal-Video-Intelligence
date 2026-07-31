@@ -1,184 +1,173 @@
-# FAZ 11 bağımsız traceability audit
+# FAZ 11 bağımsız traceability audit (final)
 
-Bu denetim, `04df3eb` HEAD'inde (`tested_code_sha=045ea81`, artifact-only ek
-commit `04df3eb`) mevcut FAZ11 teslimini `FAZ11_FINAL_CODEX_IMPLEMENTATION_PROMPT.md`
-ile satır satır karşılaştırır. `docs/FAZ11_FINAL_REPORT.md` ve
-`artifacts/faz11/final_acceptance.json` kaynak gerçek kabul edilmedi; kod,
-test ve komut çıktıları bu oturumda (Windows/`.venv`, farklı host) bağımsız
-olarak yeniden üretildi.
+Bu denetim iki oturumda yürütüldü ve `d3fef0e`'de (baz kod `045ea81`) sona
+erer. `docs/FAZ11_FINAL_REPORT.md` ve önceki `artifacts/faz11/final_acceptance.json`
+kaynak gerçek kabul edilmedi; her satır kod okuma, gerçek test çalıştırma
+veya statik kaynak taraması ile bağımsız doğrulandı.
 
-## Bağımsız test yeniden-çalıştırma (macOS orijinal host'tan farklı ortam)
+- **Oturum 1** (`02a6c10`, `548698b`): baseline yeniden doğrulama, ilk
+  traceability audit, iki kritik streaming defekti (bounded pipeline,
+  frame lifecycle) tespit ve düzeltme.
+- **Oturum 2** (`2ebc476` .. `d3fef0e`): oturum 1'de "spot-checked, deep-dive
+  pending" bırakılan beş alanın derinlemesine denetimi, run-versioning
+  10-nokta fault matrix, pushdown adapter audit, gerçek streaming memory
+  smoke kanıtı, ve tam kullanım kılavuzu seti.
 
-| Komut | macOS (orijinal) | Windows (bu denetim, önce) | Windows (bu denetim, fix sonrası) |
-|---|---|---|---|
-| `PYTHONPATH=service pytest service/tests/ -q` | 104 passed, 17 skipped | 106 passed, 15 skipped | **113 passed, 15 skipped** |
-| `pytest tests/ -q` | 314 passed, 42 skipped | 356 passed, 0 skipped | 356 passed, 0 skipped |
-| `py_compile` (tüm `.py`) | PASS | PASS | PASS |
-| `git diff --check` | PASS | PASS | PASS |
+## Bağımsız test yeniden-çalıştırma
 
-Fark, Windows `.venv`'de `clickhouse-connect`, `psycopg`, `qdrant-client`,
-`torch` gibi bağımlılıkların kurulu olması ve daha önce dependency-yokluğu
-nedeniyle skip edilen testlerin burada gerçekten çalışmasından kaynaklanıyor.
-Hiçbir ortamda FAIL yok; bu iddiaları destekliyor.
+| Komut | Sonuç (bu oturum, `d3fef0e`) |
+|---|---|
+| `PYTHONPATH=service pytest service/tests/ -q` | **150 passed, 16 skipped** |
+| `pytest tests/ -q` | **375 passed** |
+| `py_compile` (tüm `.py`, `.venv`/`.testdeps` hariç) | PASS |
+| `git diff --check` | PASS |
+| `docker compose --env-file .env.example -f docker-compose.yml config` | PASS (sha256 `3b7cb51a...`) |
+| `+ -f docker-compose.gpu.yml` (`MODEL_BUNDLE_ROOT=/private/tmp/mvi-model-bundle`) | PASS (sha256 `aff9f957...`) |
+| `+ -f docker-compose.benchmark.yml` | PASS (sha256 `73c5f134...`) |
+| `+ -f docker-compose.debug.yml` | PASS (sha256 `2b7437f1...`) |
 
-Bu host'ta ayrıca (orijinal macOS host'un aksine) Docker CLI/Compose ve bir
-NVIDIA GPU (GeForce GT 1030, 4 GB VRAM, driver 560.94, CUDA 12.6) mevcut,
-ancak Docker daemonı bu oturumda çalışmıyordu (Docker Desktop başlatılmamış)
-ve GT 1030 hedef "saatler süren gerçek İHA görüntüsü" kurumsal donanımı değil.
-Bu nedenle canlı Docker/GPU kabul adımları bu oturumda da tetiklenmedi;
-ancak bir sonraki oturumda Docker Desktop başlatılıp en azından
-`docker compose config` ötesinde gerçek container health/ingest smoke'unun
-denenmesi mümkün olabilir — bu rapor bunu iddia etmiyor, yalnız kaydediyor.
+16 service skip'i sınıflandırıldı: 15'i `RUN_FAZ8_INTEGRATION=1` ile açılan
+canlı Docker/Playwright entegrasyon testleri (bu host'ta Docker daemon
+kapalı), 1'i bu host/kullanıcının symlink oluşturma izni olmaması
+(`test_media_rejects_symlink_escape`, host izin verirse otomatik geçer). Hiç
+biri gizlenmiş bir regresyon değildir; `test_t4_patterns.py`'deki
+"pattern not implemented" skip'i önceden var olan, dürüst etiketli bir
+skip'tir (`PATTERN_EXECUTION_IMPLEMENTED = False` ile tutarlı).
 
-## Kritik bulgular (bu oturumda düzeltildi)
+Bu host'ta (orijinal macOS build host'unun aksine) Docker CLI/Compose ve bir
+GPU (GeForce GT 1030, 4GB VRAM) mevcut, ancak Docker daemon'ı bu oturumlarda
+kapalıydı ve GT 1030 temsili kurum donanımı değil — canlı Docker/GPU kabul
+adımları yine de tetiklenmedi.
 
-### F1 — DECODE_PREFETCH_WINDOWS ve DB_WRITE_BATCH_SIZE ölü konfigürasyondu
+## Kritik bulgular ve düzeltmeler (iki oturum toplamı)
 
-**Durum: DÜZELTİLDİ (bu oturumda).**
+| # | Bulgu | Ciddiyet | Durum | Commit |
+|---|---|---|---|---|
+| F1 | `DECODE_PREFETCH_WINDOWS`/`DB_WRITE_BATCH_SIZE` ölü konfigürasyondu — üç ayar tek `EMBED_BATCH_SIZE`'a indirgenmişti | high | fixed | `548698b` |
+| F2 | `iter_chunk_windows` kaynak frame'i ve `GeneratorExit`'i açıkça kapatmıyordu | medium | fixed | `548698b` |
+| F3 | `ATTN_IMPL=flash_attention_2` için `flash_attn`/GPU capability kontrolü hiç yoktu | medium | fixed | `2ebc476` |
+| M1 | `_copy_clickhouse_legacy`'de idempotency guard yoktu — ikinci `--apply` satırları duplike ederdi | high | fixed | `9c8fd73` |
+| M2 | Migration retry-after-failure asla activate() edemezdi (`status='validating'` reset eksikti) | high | fixed | `9c8fd73` |
+| T1 | `telemetry.py` naive iso8601 zaman damgasını manifest.timezone yerine hep UTC sayıyordu | medium | fixed | `6571306` |
+| T2 | Categorical alan için interpolation/aggregation hiç doğrulanmıyordu (circular_deg'in aksine) | medium | fixed | `6571306` |
 
-`service/app/config.py` üç ayrı ayarı (`decode_prefetch_windows`,
-`embed_batch_size`, `db_write_batch_size`) tanımlıyor ve yalnızca pozitiflik
-doğrulaması yapıyordu (`config.py:185`). Fix öncesi
-`service/app/ingestion/ingest.py:151`'de gerçek ingest döngüsü:
+Media/auth (§2.3) ve pushdown adapter (§4) denetimlerinde **hiçbir gerçek
+defekt bulunmadı** — yalnız test kapsamı genişletildi.
 
-```python
-for batch in batched(itertools.chain([first], group_iterator), settings.embed_batch_size):
-    ...
-    postgres.write_run_metadata_chunk(...)          # embed_batch_size ile aynı batch
-    ...backend.write_chunk(...)                       # embed_batch_size ile aynı batch
-```
+## Alan-alan durum matrisi
 
-tek bir batch boyutuyla (`EMBED_BATCH_SIZE`) hem Qwen çağrısını hem DB
-yazımını yürütüyordu. `DECODE_PREFETCH_WINDOWS`, `generic_loader.py` veya
-`video.py` içinde hiçbir yerde referans edilmiyordu — decode iterator'ı
-sınırlayan ayrı bir tampon yoktu. `docs/DECISIONS.md:184-187` bunu açıkça
-"Qwen batch boyutu EMBED_BATCH_SIZE, DB writes aynı batch üzerinden yürür"
-diye belgeliyordu — talimatın §6.2'de doğrudan yasakladığı "Tek bir
-INGEST_BATCH_SIZE ile bu üç katmanı birleştirme" davranışının ta kendisiydi.
+Önceki auditte "spot-checked, deep-dive pending" bırakılan beş alan artık
+tam durumdadır:
 
-**Fix:** `GenericIngestor.run()` artık üç bağımsız katman kullanıyor:
+### Model bundle hash/provenance zinciri
 
-1. `batched(decode_source, settings.decode_prefetch_windows)` — decode
-   iterator'ından aynı anda en fazla `DECODE_PREFETCH_WINDOWS` kayıt çekilir
-   (RAM sınırı).
-2. `batched(prefetch_group, settings.embed_batch_size)` — Qwen çağrısı bu
-   boyutta yapılır (VRAM sınırı); her çağrıdan hemen sonra o batch'in
-   frame'leri serbest bırakılır.
-3. `pending` listesi `settings.db_write_batch_size`'a ulaşınca (veya chunk
-   sonunda kalan artık ne kadarsa) Postgres + her etkin backend'e flush
-   edilir (DB/ağ sınırı).
+| implementation_files | test_files | production_call_path | artifact | test_command | status |
+|---|---|---|---|---|---|
+| `service/app/embedding/bundle.py`, `scripts/prepare_model_bundle.py` | `tests/test_faz11_model_bundle.py`, `service/tests/test_faz11_preflight_model.py` | `service/app/preflight.py::_append_model_checks` → `verify_bundle()` (gerçek preflight yolunda, ayrı script değil) | — | `pytest tests/test_faz11_model_bundle.py service/tests/test_faz11_preflight_model.py -q` | **pass** |
 
-Kanıt: `service/tests/test_faz11_pipeline_bounds.py` — 7 yeni test:
-`test_decode_prefetch_bound_is_enforced`, `test_embed_batch_size_is_independent`,
-`test_db_write_batch_size_is_independent`, `test_frames_are_released_after_each_batch`,
-`test_producer_exception_reaches_ingestor`, `test_db_failure_does_not_commit_chunk`,
-`test_resume_after_partial_batch_is_idempotent`. Tümü geçiyor; ayrıca üç
-ayarın birbirinden farklı, uyumsuz (asal) değerlerle çağrıldığında gerçek
-davranış farkı gösterdiği doğrulandı (örn. `EMBED_BATCH_SIZE=4` ile çağrı
-boyutları `[4,2,4]`, aynı veri için `DB_WRITE_BATCH_SIZE=3` ile yazım
-boyutları `[3,3]` — ikisi asla eşleşmiyor).
+Kanıt: hash zinciri (source/model manifest + bundle manifest üç katmanlı
+SHA-256), revision/commit/model_id mismatch reddi, tamper edilmiş detay
+manifest reddi, `docker-compose.gpu.yml`'in bundle'ı `:ro` mount ettiği ve
+`QWEN_REPO_PATH`/`QWEN_MODEL_PATH` ile eşleştiği, `Dockerfile.gpu`'nun
+build-time clone/download yapmadığı, `flash_attention_2` seçilince
+dependency+GPU capability kontrolünün artık çalıştığı — hepsi gerçek
+production fonksiyonları çağıran testlerle doğrulandı. Kalan iş: gerçek
+bundle indirme ve gerçek GPU'da doğrulama (donanım yok, `not_run`).
 
-**Bilinen kalan sınır:** decode kaynağı bir `prefetch_group` doldurulurken
-(yani `list(itertools.islice(iterator, decode_prefetch_windows))` içinde)
-istisna fırlatırsa, o partial batch'teki zaten decode edilmiş frame'ler
-`release_frames()` çağrısına hiç ulaşmaz ve yalnızca CPython refcounting ile
-toplanır. Etki alanı en fazla `DECODE_PREFETCH_WINDOWS` kayıttır ve chunk
-zaten `failed` işaretlenip decode durdurulacağından pratik etkisi düşüktür;
-tam bir düzeltme decode tarafında da `try/finally` gerektirir ve bu oturumda
-kapsam dışı bırakıldı — bir sonraki turda ele alınmalı.
+### Migration idempotency ve legacy koruması
 
-### F2 — Frame lifecycle: kaynak decode frame'i ve GeneratorExit'te temizlik eksikti
+| implementation_files | test_files | production_call_path | artifact | test_command | status |
+|---|---|---|---|---|---|
+| `service/app/db/migrations.py`, `scripts/migrate_faz11_schema.py` | `service/tests/test_faz11_migrations.py` (önceden **hiç yoktu**) | `apply_migration()`/`plan_migration()` doğrudan (script bunları çağırır) | `artifacts/faz11/migration_contract_audit.json` | `pytest service/tests/test_faz11_migrations.py -q` | **pass** (2 gerçek bug bulundu ve düzeltildi: M1, M2) |
 
-**Durum: DÜZELTİLDİ (bu oturumda).**
+Kalan iş: canlı PostgreSQL/ClickHouse'a karşı gerçek `--plan`/`--apply`
+(`not_run` — bu host'ta `psycopg2` kurulu değil, Docker daemon kapalı).
 
-`service/app/ingestion/video.py::iter_chunk_windows` fix öncesi:
+### Media path traversal ve signed URL güvenliği
 
-- `_iter_decoded_frames()`'ten gelen kaynak `frame` nesnesi (kopyalar
-  alındıktan sonra) hiçbir zaman `.close()` edilmiyordu; yalnızca örtük
-  referans sayımıyla toplanıyordu.
-- Fonksiyon `GeneratorExit` ile erken kapatılırsa (`iterator.close()` veya
-  tüketicinin döngüyü erken bırakması), `collected[]` içinde henüz
-  emit edilmemiş kısmi pencere frame'leri hiç kapatılmıyordu.
+| implementation_files | test_files | production_call_path | artifact | test_command | status |
+|---|---|---|---|---|---|
+| `service/app/media.py`, `service/app/auth.py` | `service/tests/test_faz11_media_ui.py`, `service/tests/test_faz11_security.py` | `app/main.py::media()`/`media_information()` → `get_clip()`/`media_info()`; `TokenAuthMiddleware` | — | `pytest service/tests/test_faz11_media_ui.py service/tests/test_faz11_security.py -q` | **pass** (defekt bulunmadı) |
 
-**Fix:** Kaynak `frame`, bir sonraki frame geldiğinde (kendisinden gereken
-kopyalar zaten alındıktan sonra) açıkça kapatılıyor; tüm gövde
-`try/finally` ile sarıldı — hem normal tükenmede (no-op, zaten temizlenmiş)
-hem `GeneratorExit`'te `last_frame` ve `collected[]` içindeki her şey
-kapatılıyor.
+Parent traversal, symlink escape (host izin verirse), encoded-traversal
+segment_id (yalnız opak DB anahtarı olduğu kanıtlandı), negatif/ters zaman
+aralığı reddi, ffmpeg arg-list, atomic cache publish, HMAC constant-time
+compare, signed URL'de token yokluğu, expiry, cross-path/cross-endpoint
+signature reuse reddi — hepsi gerçek fonksiyonlara karşı test edildi.
 
-Kanıt: mevcut `service/tests/test_faz11_streaming.py` (9 test) fix sonrası
-da geçiyor; davranış değişmedi, yalnızca ownership disiplini eklendi.
-Ayrı bir "erken generator kapatma" testi bu oturumda eklenmedi — bir sonraki
-turda `test_frames_are_released_after_each_batch` benzeri bir
-`iter_chunk_windows` seviyesi test (üretici `.close()` çağrıldığında
-`collected` boşalıyor mu) eklenmelidir.
+### Preflight no-write garantisi
 
-## Spot-check edilen ve TEMİZ bulunan alanlar
+| implementation_files | test_files | production_call_path | artifact | test_command | status |
+|---|---|---|---|---|---|
+| `service/app/preflight.py` | `service/tests/test_faz11_preflight_no_write.py` (önceden **hiç yoktu**) | `run_data_preflight()` doğrudan | `artifacts/faz11/preflight_no_write_audit.json` | `pytest service/tests/test_faz11_preflight_no_write.py -q` | **pass** (defekt bulunmadı) |
 
-Bu alanlar dosya varlığı ötesinde kod seviyesinde okunup doğrulandı; kod,
-iddia edilen davranışı gerçekten uyguluyor:
+Gerçek before/after dosya sistemi snapshot'ları (boyut+mtime+sha256) ile
+kanıtlandı, statik kaynak taraması `app.db.postgres`/`app.db.clickhouse`
+referansı olmadığını doğruladı. Kalan iş: `scripts/preflight.py`'nin
+host-seviyesi subprocess çağrıları (docker/nvidia-smi) canlı denenmedi
+(`not_run` — komutlar inceleme ile salt-okunur).
 
-| Alan | Kanıt | Sonuç |
-|---|---|---|
-| ClickHouse pushdown | `service/app/db/clickhouse.py:94-153` — gerçek parametrize SQL, `WHERE`'e canonical predicate'ler + `run_id` ekleniyor, `candidate_ids IN (...)` yalnız legacy modda | Gerçek backend-native, Python'a candidate listesi taşınmıyor |
-| Qdrant pushdown | `service/app/db/qdrant.py:89-114` — gerçek `models.Filter`/`FieldCondition`/`HasIdCondition` inşası, `run_id` zorunlu alan | Gerçek backend-native |
-| pgvector pushdown | `service/app/db/postgres.py:429-454` — tek SQL'de `run_segments`/`run_videos`/`run_segment_telemetry`/`run_segment_metadata` JOIN | Gerçek backend-native |
-| Pattern A/B/C dürüstlüğü | `service/app/search/engine.py:25` `PATTERN_EXECUTION_IMPLEMENTED = False` sabiti korunuyor; `pattern` alanı yalnız pgvector/C validasyonu ve response label'ı için kullanılıyor, execution mode'u belirlemiyor | Talimat §12.3 ile tutarlı, yanıltıcı değil |
-| Run-versioning invariant testleri | `service/tests/test_faz11_run_versioning.py` — `test_finalize_failure_preserves_old_active_run`, `test_finalize_success_activates_only_after_all_counts_match`, `test_retry_cleans_only_same_inactive_run_chunk_before_writing`, `test_gc_never_selects_active_running_or_previous_completed` | İsimlendirilmiş invariant'lar gerçekten test ediliyor (mock değil, davranış assertion'ı) |
-| `ui_smoke.png` / `ui_smoke.json` dürüstlüğü | `scripts/write_ui_not_run_artifact.py` — PIL ile "NOT RUN" yazılı gerçek 1440×900 placeholder üretiyor, JSON içinde `status=not_run` ve nedeni açık | Fabrikasyon değil; kod-üretimli ve dürüst etiketli |
-| `gpu_smoke.json` dürüstlüğü | `result=not_run`, `windows_embedded=0`, `gpu_name=null` — uydurma throughput/VRAM yok | Talimat §7.4/§3.2 ile tutarlı |
+### Manifest ve telemetry semantiği
 
-## Bu oturumda derinlemesine yeniden doğrulanmayan alanlar
+| implementation_files | test_files | production_call_path | artifact | test_command | status |
+|---|---|---|---|---|---|
+| `service/app/ingestion/manifest.py`, `service/app/ingestion/telemetry.py` | `service/tests/test_faz11_manifest.py` | `load_manifest()`, `TelemetrySeries.from_csv()`/`align_timestamp()` (ingest ve preflight'ın ikisinden de çağrılır) | — | `pytest service/tests/test_faz11_manifest.py -q` | **pass** (2 gerçek bug bulundu ve düzeltildi: T1, T2) |
 
-Aşağıdakiler dosya/test varlığı ve isim bazında tutarlılık kontrolünden
-geçti, ancak talimatın istediği tam adaptör-seviyesi/injected-failure
-derinliğinde bağımsız olarak yeniden okunmadı. Bunlar `PASS` değil
-`PARTIAL — spot-checked, deep-dive pending` olarak işaretlenmiştir; bir
-sonraki denetim turunda öncelik sırasına alınmalı:
+Heading/yaw cross-map olmadığı (tasarım gereği — hiç auto-map kodu yok),
+altitude/velocity semantiğinin parse edilen alanda korunduğu, extra
+telemetry'nin kaybolmadığı/canonical ile karışmadığı, offset işaretinin
+docstring ile eşleştiği testlerle kanıtlandı.
 
-- Model bundle hash doğrulama zinciri (`scripts/prepare_model_bundle.py`,
-  `service/app/embedding/bundle.py`) — dosyalar var, hash algoritması
-  okunmadı.
-- Migration additivity/idempotency (`scripts/migrate_faz11_schema.py`,
-  `service/app/db/migrations.py`) — `--plan`/`--dry-run` davranışı canlı
-  DB'ye karşı bu oturumda da denenmedi (psycopg/Docker sınırlaması burada da
-  geçerli olabilir, ama bu host'ta Windows için `psycopg[binary]` kurulu —
-  bir sonraki turda gerçekten denenebilir).
-- Media path traversal/symlink escape testleri (`service/app/media.py`,
-  `service/tests/test_faz11_security.py`) — dosyalar var, path containment
-  mantığı satır satır okunmadı.
-- Preflight'ın gerçekten write yapmadığının statik analizi
-  (`service/app/preflight.py`) — yalnız test varlığı doğrulandı.
-- Manifest/telemetry semantik doğruluğu (circular/AGL/ground-speed
-  ayrımları) — `docs/DATASET_MANIFEST.md` ve `telemetry.py` dosya bazında
-  incelendi, satır satır tekrar üretilmedi.
+## Run-versioning fault matrix (10/10)
+
+`artifacts/faz11/run_versioning_fault_matrix.json` — 9 nokta gerçek injected-
+failure testleriyle `pass`, 1 nokta (`active pointer transaction'ı sırasında`)
+gerçek PostgreSQL/psycopg2 close-without-commit rollback semantiğine
+dayandığından `pass_by_code_inspection_not_live_run` (fake store bunu
+gerçekten kanıtlayamaz — canlı DB gerektirir).
+
+## Pushdown adapter audit
+
+`artifacts/faz11/pushdown_adapter_audit.json` — ClickHouse/Qdrant/pgvector'ın
+üçü de gerçek backend-native sorgu/filter nesneleri üretiyor (Python
+candidate-ID listesi taşınmıyor); `test_active_pushdown_never_materializes_candidate_ids`
+gerçek `app.search.engine.search()` çağrı yolunu test ediyor. NULL semantiği
+tutarlılığı `pass_by_code_inspection` (canlı cross-backend equivalence
+koşulmadı).
+
+## Streaming memory smoke
+
+`artifacts/faz11/streaming_memory_smoke.json` — gerçek 60s/10fps sentetik
+video ile `DECODE_PREFETCH_WINDOWS=5` sınırının 59 pencere boyunca hiç
+aşılmadığı ölçüldü (`max_live_window_records=5`, `max_live_pil_images=20`).
+`status=pass_synthetic_smoke` — kurum acceptance olarak sunulmuyor.
+
+## Doküman-kod tutarlılığı
+
+`tests/test_faz11_docs_and_notebook.py` (11 test) — `.env.example`'ın her
+anahtarının gerçekten okunduğunu (iki yönlü), iki örnek manifest'in gerçek
+parser'dan geçtiğini, Colab notebook'unun geçerli nbformat olduğunu ve
+`.env.example` ile aynı model revision/source commit'i pinlediğini, her
+`docs/*.md` script/manifest referansının gerçekten var olduğunu,
+`run_faz11_acceptance.py --help`'in dokümante edilen her bayrağı
+içerdiğini, `gc_runs.py`/`preflight.py`'nin gerçek CLI/exit-code
+sözleşmesinin dokümanla eşleştiğini doğruluyor.
 
 ## Kabul matrisi güncellemesi
 
-`final_acceptance.json`'daki 19 PASS satırı gözden geçirildi. On yedisi bu
-oturumun spot-check'leriyle tutarlı bulundu. İki satır gerçek bir defekt
-içeriyordu ve düzeltildi:
-
-| id | Önceki durum | Bu denetim sonrası |
-|---|---|---|
-| `generic_ingest_resume_contract` | pass | **pass (fix sonrası, genişletilmiş kanıt)** — F1 düzeltmesi ve 7 yeni test ile |
-| `streaming_video_window_contract` | pass | **pass (fix sonrası)** — F2 düzeltmesi ile, davranış değişmedi |
-
-Diğer 17 satır bu oturumda `PASS` olarak korundu (spot-check temiz) veya
-yukarıdaki "derinlemesine yeniden doğrulanmayan" listesine taşındı (durumu
-`final_acceptance.json`'da değiştirilmedi, ancak bu dosyada takip
-gerektirdiği not edildi).
-
-Nihai durum değişmedi: **`implementation_complete_hardware_acceptance_pending`**.
-Bu oturum kodu iyileştirdi ve iki gerçek defekti kapattı; hedef kurum
-donanımı/verisi/Docker daemon olmadan tam kabul hâlâ mümkün değil.
+`final_acceptance.json` yeniden üretildi (bkz. `docs/FAZ11_FINAL_REPORT.md`).
+Nihai durum: **`implementation_complete_hardware_acceptance_pending`** —
+bu oturumlar kodu iyileştirdi, yedi gerçek defekti kapattı ve beş alanı
+yüzeysellikten derin doğrulamaya taşıdı; hedef kurum donanımı/verisi/canlı
+Docker olmadan tam kabul hâlâ mümkün değil.
 
 ## Sonraki tur için öncelik sırası
 
-1. Decode-side istisna anında partial prefetch-group frame temizliği (F1'in
-   bilinen kalan sınırı).
-2. `iter_chunk_windows` için erken `GeneratorExit` testi.
-3. Model bundle hash zinciri ve migration idempotency'nin bu Windows
-   host'unda (Docker Desktop başlatılarak) gerçekten denenmesi.
-4. Media path containment ve preflight no-write garantisinin satır satır
-   yeniden doğrulanması.
+1. `scripts/run_faz11_acceptance.py --live` ile gerçek hedef host'ta canlı
+   compose/ingest/health/active-run adımlarını çalıştırmak.
+2. `psycopg2-binary` kurulup gerçek PostgreSQL'e karşı migration `--plan`
+   denemek (bu host'ta artık mümkün olabilir — Docker Desktop başlatılırsa).
+3. Interrupted-resume, pushdown equivalence/scale, UI search (Playwright),
+   media playback — beşi de yalnız gerçek hedef ortamda mümkün.
+4. F1'in bilinen kalan sınırı: decode-side istisna anında partial
+   prefetch-group frame temizliği.
