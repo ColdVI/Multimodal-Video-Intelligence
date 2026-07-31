@@ -1,0 +1,20 @@
+{
+  "bounded_behavior_verified": true,
+  "command": "python scripts/streaming_memory_smoke.py --decode-prefetch-windows 5 --embed-batch-size 2 --db-write-batch-size 8",
+  "db_write_batch_size": 8,
+  "decode_prefetch_windows": 5,
+  "elapsed_s": 0.128,
+  "embed_batch_size": 2,
+  "generated_at_utc": "2026-07-31T05:35:44.682109+00:00",
+  "input_type": "synthetic_opencv_generated_mp4_no_real_institution_video",
+  "max_live_pil_images": 20,
+  "max_live_window_records": 5,
+  "notes": "Synthetic fixture video and randomly-generated embeddings; not a real institution video or real GPU/Qwen inference. Proves max_live_window_records/max_live_pil_images never exceed DECODE_PREFETCH_WINDOWS regardless of total windows processed (windows_processed is intentionally kept larger than decode_prefetch_windows to make the bound observable). Not usable as evidence of real-world throughput, VRAM, or institution-scale RSS.",
+  "rss_after_mb": 55.42,
+  "rss_before_mb": 38.77,
+  "rss_peak_mb": 59.52,
+  "schema_version": 1,
+  "status": "pass_synthetic_smoke",
+  "tested_code_sha": "d52f0d3378d7af5f0260d1d8d9c95b3e90523d6f",
+  "windows_processed": 59
+}
