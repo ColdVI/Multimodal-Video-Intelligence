@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T10:30:00Z",
+  "tested_code_sha": "9dc7b92b26b34d7db7b8972d2003d89704876959",
+  "method": "Direct source reading of the real production query-construction functions (not the compiler/normalizer alone), cross-referenced against existing tests that exercise them through the actual app.search.engine.search() call path.",
+  "findings": [],
+  "checks": [
+    {
+      "id": "clickhouse_real_parametrized_sql",
+      "status": "pass",
+      "evidence": "service/app/db/clickhouse.py::search_vectors (lines ~94-153) builds a real parametrized SQL WHERE clause from normalize_filters() predicates using ClickHouse's {name:Type} placeholder syntax (not string interpolation of values), always includes dataset_id and, when an active run is present, run_id via a UUID-typed placeholder. candidate_ids IN (...) is only appended when candidate_ids is not None (legacy mode)."
+    },
+    {
+      "id": "clickhouse_nullable_types_no_nan_hack",
+      "status": "pass",
+      "evidence": "service/app/db/clickhouse.py schema DDL uses real Nullable(Float32/Float64/String/UInt16/UInt8) columns throughout seg_ch_{dimension}_runs and the telemetry table; no isNaN()-as-null-marker convention exists in the current run-scoped schema. The one isNaN() reference in the codebase (app/db/migrations.py::_copy_clickhouse_legacy) is a one-time conversion FROM the old legacy table's NaN-for-null convention TO real NULL when copying into the new run-scoped table - the direction the audit wants, not a violation."
+    },
+    {
+      "id": "qdrant_real_filter_objects",
+      "status": "pass",
+      "evidence": "service/app/db/qdrant.py::_filter (lines ~89-114) builds real qdrant_client.models.Filter/FieldCondition/HasIdCondition/Range objects; dataset_id is always a required FieldCondition, run_id is added when present; circular wrap compiles to Filter(should=[Range(gte=...), Range(lte=...)])."
+    },
+    {
+      "id": "pgvector_single_sql_with_joins",
+      "status": "pass",
+      "evidence": "service/app/db/postgres.py (~lines 429-454) issues one SQL statement joining run_segments/run_videos/run_segment_telemetry/run_segment_metadata (or the legacy tables when run_id is None), with run_id as a plain parametrized value (%s), not string-formatted into the query."
+    },
+    {
+      "id": "pushdown_never_materializes_candidate_ids_in_production_call_path",
+      "status": "pass",
+      "evidence": "service/tests/test_engine.py::test_active_pushdown_never_materializes_candidate_ids exercises the real app.search.engine.search() function (not a mock of it) and asserts postgres.filter_run_segment_ids/filter_segment_ids are never called when filter_execution_mode=pushdown; app/search/engine.py::_one_run sets candidate_ids=None for native_pushdown and passes metadata_filters/telemetry_filters straight through to the backend's search_vectors() instead."
+    },
+    {
+      "id": "legacy_path_only_in_compatibility_mode",
+      "status": "pass",
+      "evidence": "app/search/engine.py::search() sets execution_mode='legacy_candidate_ids_compatibility' whenever no active run snapshot exists for the dataset, otherwise uses request.filter_execution_mode or settings.filter_execution_mode (default 'pushdown'); test_engine.py::test_legacy_candidate_mode_fails_before_embedding_when_limit_exceeded proves LEGACY_CANDIDATE_LIMIT is enforced before query embedding is even computed."
+    },
+    {
+      "id": "pattern_labels_do_not_drive_execution",
+      "status": "pass",
+      "evidence": "app/search/engine.py:25 keeps PATTERN_EXECUTION_IMPLEMENTED = False; request.pattern only gates a pgvector-only validation for pattern='C' and is echoed back as a response label - it never selects the execution path, which is exclusively governed by filter_execution_mode."
+    },
+    {
+      "id": "circular_wrap_correctness",
+      "status": "pass",
+      "evidence": "service/tests/test_faz11_pushdown.py::test_circular_range_wrap_compiles_as_or_and_matches_both_sides and test_normal_circular_range_uses_and cover both the wrap and non-wrap cases at the compiler level; values outside [0,360) fail closed per test_unknown_filter_and_invalid_heading_fail_closed."
+    },
+    {
+      "id": "adaptive_mrl_reuses_native_predicate",
+      "status": "pass",
+      "evidence": "service/tests/test_engine.py::test_adaptive_pushdown_reuses_predicate_and_only_passes_bounded_rerank_ids proves the base-dimension pushdown search applies the same metadata/telemetry filters as the rerank stage, and only a bounded top_n id list crosses into reranking - not the full corpus."
+    },
+    {
+      "id": "active_run_snapshot_reused_across_repeats",
+      "status": "pass",
+      "evidence": "service/tests/test_engine.py::test_active_run_snapshot_is_read_once_and_reused_across_repeats"
+    },
+    {
+      "id": "null_semantics_consistent_between_legacy_and_pushdown",
+      "status": "pass_by_code_inspection",
+      "evidence": "app/search/pushdown.py::matches() explicitly returns False whenever a row's field value is None (fail-closed for legacy-mode filter_correctness checking); the pushdown SQL/Filter paths rely on each backend's native NULL semantics (SQL three-valued logic: NULL >= x is not true, so a NULL row is naturally excluded from a range predicate; ClickHouse and pgvector both follow this; Qdrant's Range condition similarly does not match a missing/null payload field). No live cross-backend equivalence run was performed this session to prove this empirically end-to-end (see filter_equivalence.json), so this is marked pass_by_code_inspection rather than pass."
+    },
+    {
+      "id": "live_cross_backend_equivalence_and_scale",
+      "status": "not_run",
+      "reason": "No Docker daemon or live ClickHouse/Qdrant/PostgreSQL this session",
+      "required_command": "docker compose exec -T api python -m app.search.equivalence --dataset-id kurum_ucuslari --backend clickhouse --dimension 512 --output /workspace/artifacts/faz11/filter_equivalence.json",
+      "expected_environment": "Completed active institution run at representative scale with enabled vector backends healthy"
+    }
+  ],
+  "summary": {"pass": 10, "pass_by_code_inspection": 1, "fail": 0, "not_run": 1}
+}
