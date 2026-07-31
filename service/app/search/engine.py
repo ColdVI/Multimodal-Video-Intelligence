@@ -9,8 +9,9 @@ import numpy as np
 from app.config import settings
 from app.db import clickhouse, milvus, postgres, qdrant
 from app.embedding.router import embed_query, embed_query_multi
-from app.query_planning.models import QueryExecutionPlan, RelaxationPolicy
+from app.query_planning.models import QueryExecutionPlan, RelaxationPolicy, constraints_to_filter_dict
 from app.query_planning.planner import plan_query
+from app.query_planning.relaxation import RelaxationOutcome, run_relaxation_ladder
 from app.search import common_exact
 from app.search.strategies import validate_strategy
 from app.search.pushdown import matches, normalize_filters
@@ -203,6 +204,30 @@ def _merge_planned_filters(request: Any, plan: QueryExecutionPlan | None) -> tup
     return merged, {}
 
 
+def _run_relaxation(
+    request: Any, active_snapshot: dict[str, Any] | None, execution_mode: str,
+    plan: QueryExecutionPlan, base_telemetry_filters: dict[str, Any], known_pass1_count: int,
+) -> RelaxationOutcome:
+    """The ladder only ever relaxes plan.soft_constraints (parser-derived). Explicit
+    request filters are never part of the candidate pool it walks -- they are re-applied
+    on every probe via base_metadata_filters/request.metadata_filters, so "manual filter
+    never removed" holds by construction, not by a check inside relaxation.py."""
+
+    def search_fn(constraints: tuple) -> int:
+        filters = constraints_to_filter_dict(constraints)
+        filters.update(request.metadata_filters)
+        _, probe_results, _, _, _ = _one_run(
+            request, active_snapshot, execution_mode,
+            metadata_filters=filters, telemetry_filters=base_telemetry_filters,
+        )
+        return len(probe_results)
+
+    return run_relaxation_ladder(
+        plan.hard_constraints, plan.soft_constraints, plan.relaxation_policy, search_fn,
+        known_pass1_count=known_pass1_count,
+    )
+
+
 def search(request: Any) -> dict[str, Any]:
     dataset = postgres.dataset_info(request.dataset_id)
     if dataset is None:
@@ -240,6 +265,23 @@ def search(request: Any) -> dict[str, Any]:
         stage: round(statistics.median(row[stage] for row in timing_rows), 3)
         for stage in ("filter", "embed", "vector_search", "hydrate", "total")
     }
+
+    relaxation_outcome = None
+    if plan is not None:
+        relaxation_outcome = _run_relaxation(
+            request, active_snapshot, execution_mode, plan, merged_telemetry_filters, len(results),
+        )
+        if plan.relaxation_policy.mode == "auto_soft" and relaxation_outcome.selected_pass != 1:
+            selected = relaxation_outcome.passes[relaxation_outcome.selected_pass - 1]
+            merged_metadata_filters = constraints_to_filter_dict(selected.active_constraints)
+            merged_metadata_filters.update(request.metadata_filters)
+            merged_telemetry_filters = dict(request.telemetry_filters)
+            timings, results, diagnostics, candidate_count, candidate_set = _one_run(
+                request, active_snapshot, execution_mode,
+                metadata_filters=merged_metadata_filters, telemetry_filters=merged_telemetry_filters,
+            )
+            timing_medians = {stage: round(timings[stage], 3) for stage in timing_medians}
+
     returned_ids = [row["segment_id"] for row in results]
     if execution_mode == "pushdown":
         predicates = normalize_filters(merged_metadata_filters, merged_telemetry_filters)
@@ -278,6 +320,7 @@ def search(request: Any) -> dict[str, Any]:
         "stage2_input_candidate_count": diagnostics.get("stage2_input_candidate_count"),
         "stage2_returned_count": diagnostics.get("stage2_returned_count"),
         "final_returned_count": diagnostics.get("final_returned_count", len(results)),
+        "filter_relaxation": relaxation_outcome.as_diagnostics() if relaxation_outcome is not None else None,
         "quality_vs_groundtruth": None,
         "r_at_1": None if settings.embedding_mode == "synthetic" else None,
         "ndcg": None if settings.embedding_mode == "synthetic" else None,

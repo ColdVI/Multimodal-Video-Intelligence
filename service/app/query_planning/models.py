@@ -143,7 +143,11 @@ class ParsedQuery:
 class RelaxationPolicy:
     mode: RelaxationMode = "off"
     min_results: int | None = None
-    max_relaxation_passes: int = 4
+    # 5 accommodates the full ladder (plan Sec.7 passes 1-5) by default, including
+    # semantic-only -- if that pass number ever changes, this default must move with it.
+    # A caller who wants to cap the budget lower still can; allow_semantic_only_fallback
+    # is the actual gate on whether pass 5 is reachable, not this count.
+    max_relaxation_passes: int = 5
     relaxation_timeout_ms: float = 2000.0
     allow_semantic_only_fallback: bool = False
 
