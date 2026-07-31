@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T13:35:00Z",
+  "baseline_reference": "artifacts/baseline_contract/backend_reachability.json",
+  "note": "Delta-only: fields unchanged from baseline (config_enableable, production_supported, role) are omitted here. See the baseline artifact for the full picture.",
+  "changes": {
+    "clickhouse": {
+      "known_defects_at_baseline": "all three listed defects fixed this phase (candidate_count scoping, client-per-call, unconditional count/EXPLAIN) -- see artifacts/advanced_retrieval/prefix_fixes/summary.json"
+    },
+    "qdrant": {
+      "known_defects_at_baseline": "candidate_count scoping defect fixed -- see summary.json"
+    },
+    "pgvector": {
+      "known_defects_at_baseline": "candidate_count scoping defect fixed -- see summary.json"
+    },
+    "milvus": {
+      "search_supported_before": "partial and latently broken -- missing run_id/metadata_filters/telemetry_filters kwargs would raise an unhandled TypeError if ever called with them",
+      "search_supported_after": "partial but now fails clearly -- accepts the full common kwarg contract and raises an explicit ValueError naming exactly what it can't do (no run-scoped collection, no filter pushdown) instead of crashing with TypeError or silently searching the wrong data",
+      "production_supported": false,
+      "still_not_reachable_via_http": "unchanged -- milvus remains absent from VECTOR_BACKENDS/BACKEND_REGISTRY, so ENABLED_VECTOR_BACKENDS=milvus still fails Settings.validate() and POST /search still rejects backend=milvus before engine.search() is ever called. This phase did not add milvus to the enabled-backend governance path -- doing so was out of scope for a defect fix and remains a Phase 12/backend-benchmark decision, gated on real evidence per the plan (Sec.20: 'Milvus yalniz full production adapter sozlesmesi tamamlandiysa benchmarka dahil edilebilir')."
+    },
+    "numpy_exact": {
+      "run_versioning_supported_before": false,
+      "run_versioning_supported_after": true,
+      "note": "numpy_exact now accepts run_id and queries seg_ch_{dimension}_runs when provided, instead of always querying the base (non-run) table regardless of caller intent. This makes it usable as a correctness cross-check for the Phase 6 exact-candidate-rerank work against an active run, which it could not do before. It also now raises clearly if metadata_filters/telemetry_filters are passed without candidate_ids, instead of silently ignoring them and returning unfiltered results.",
+      "production_supported": false
+    }
+  }
+}

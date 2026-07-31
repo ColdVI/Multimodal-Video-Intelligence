@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T13:30:00Z",
+  "source_commit_range": "9d1d5d4..461b0f7",
+  "baseline_commit": "c77a27f365b03a5382b169415a4d33cc8b8c5574",
+  "hardware_profile": "Windows 11, CPU-only (no representative GPU), live Docker containers (video-search-faz7-{pg,ch,qdrant}) reached directly from the dev venv with current-HEAD code",
+  "fixes": [
+    {
+      "id": "candidate_count_split",
+      "plan_reference": "Sec.2.1 / Sec.7.1",
+      "before": "clickhouse.py/postgres.py/qdrant.py search_vectors() count queries omitted the candidate_ids restriction; candidate_count reported the unrestricted filtered corpus size even when a candidate_ids subset was supplied. In adaptive MRL, engine.py's diagnostics.setdefault('candidate_count', ...) never fired because stage-2's own (mis-scoped) key was always already present, so candidate_shortage/ann_filter_loss classification used stage-2's corpus-sized count instead of stage-1 data.",
+      "after": "Count queries now include the same candidate_clause as the search query. New fields filtered_corpus_count/candidate_input_count/candidate_count_status/stage1_requested_candidate_count/stage1_returned_candidate_count/stage2_input_candidate_count/stage2_returned_count/final_returned_count expose the full breakdown. candidate_shortage/ann_filter_loss now key off stage1_returned_candidate_count (always known, never a conditional query).",
+      "evidence": {
+        "status": "verified_live",
+        "tests": [
+          "service/tests/test_advret_diagnostics.py::test_clickhouse_candidate_count_reflects_candidate_restriction_not_full_corpus",
+          "service/tests/test_advret_diagnostics.py::test_postgres_candidate_count_reflects_candidate_restriction_not_full_corpus",
+          "service/tests/test_advret_diagnostics.py::test_qdrant_candidate_count_reflects_candidate_restriction_not_full_corpus",
+          "service/tests/test_advret_diagnostics.py::test_adaptive_underfilled_final_result_with_full_stage1_is_ann_filter_loss_not_shortage"
+        ],
+        "measured_before_after": {
+          "scenario": "20-row corpus, 5-row candidate_ids subset, diagnose=true",
+          "candidate_count_before": 20,
+          "candidate_count_after": 5,
+          "backends_verified": ["clickhouse", "postgres/pgvector", "qdrant"]
+        },
+        "run_command": "PYTHONPATH=service <live-backend-env-vars> pytest service/tests/test_advret_diagnostics.py -v"
+      }
+    },
+    {
+      "id": "single_embed",
+      "plan_reference": "Sec.2.2 / Sec.7.2",
+      "before": "engine.py._one_run() called embed_query(query, dimension) unconditionally, then, in adaptive mode, called embed_query(query, base_dim) again -- two independent calls into the embedding router. router.embed_query() had no caching in `real` mode, so this reran the full Qwen model forward pass twice per adaptive query.",
+      "after": "router.py adds embed_query_raw() (mode-dispatch, no truncation) and embed_query_multi(text, dimensions) (one raw call, N truncate_and_normalize() derivations). engine.py's adaptive branch calls embed_query_multi() once for (dimension, base_dim) instead of two embed_query() calls.",
+      "evidence": {
+        "status": "verified_unit",
+        "tests": [
+          "service/tests/test_advret_embed_once.py::test_embed_query_multi_calls_raw_embedding_exactly_once",
+          "service/tests/test_advret_embed_once.py::test_engine_adaptive_search_triggers_exactly_one_raw_embedding_call"
+        ],
+        "measured_before_after": {
+          "raw_embedding_calls_per_adaptive_query_before": 2,
+          "raw_embedding_calls_per_adaptive_query_after": 1
+        },
+        "note": "GPU-timed before/after wall-clock savings for `real` mode could not be measured in this environment (no representative GPU, no verified pinned Qwen bundle -- see artifacts/baseline_contract/known_limitations.md); the call-count reduction is structural and applies regardless of hardware."
+      }
+    },
+    {
+      "id": "count_explain_off_hot_path",
+      "plan_reference": "Sec.2.3 / Sec.7.3",
+      "before": "Every search_vectors() call ran an unconditional count() (no LIMIT) and an unconditional EXPLAIN indexes=1, regardless of whether the result was well-filled or whether any caller wanted that diagnostic -- 3 ClickHouse queries per search, 6 for adaptive mode.",
+      "after": "count() only runs when the result is actually underfilled (len(rows) < top_k) or diagnose=true is requested; EXPLAIN only runs when explain=true is requested. Both are additive, default-false SearchRequest fields. plan_used_vector_index/candidate_count/filtered_corpus_count are honestly None (not measured) rather than a stale False/wrong-number when not computed, matching the existing 'olculmedi' (not measured) UI convention.",
+      "evidence": {
+        "status": "verified_live",
+        "tests": [
+          "service/tests/test_advret_diagnostics.py::test_clickhouse_well_filled_default_request_does_not_compute_count_or_explain",
+          "service/tests/test_advret_diagnostics.py::test_clickhouse_underfilled_request_computes_count_even_without_diagnose_flag",
+          "service/tests/test_advret_diagnostics.py::test_clickhouse_explain_flag_controls_plan_used_vector_index",
+          "service/tests/test_advret_diagnostics.py::test_postgres_well_filled_default_request_does_not_compute_count",
+          "service/tests/test_advret_diagnostics.py::test_qdrant_well_filled_default_request_does_not_compute_count"
+        ],
+        "measured_before_after": {
+          "clickhouse_queries_per_default_well_filled_search_before": 3,
+          "clickhouse_queries_per_default_well_filled_search_after": 1,
+          "clickhouse_queries_per_default_well_filled_adaptive_search_before": 6,
+          "clickhouse_queries_per_default_well_filled_adaptive_search_after": 2
+        },
+        "note": "query-count reduction verified structurally (diagnostics fields prove count()/EXPLAIN did not run); a live p50/p95 latency comparison at scale belongs to the Sec.10/Sec.20 backend benchmark, run separately -- see artifacts/advanced_retrieval/backends/."
+      }
+    },
+    {
+      "id": "thread_safe_client_reuse",
+      "plan_reference": "Sec.2.4 / Sec.7.4",
+      "before": "clickhouse.py client() opened a brand-new clickhouse_connect connection on every single call. POST /search is a sync `def` handler running in FastAPI's threadpool, so concurrency benchmarks measured connection-setup cost, not search cost.",
+      "after": "Thread-local client caching (one Client per worker thread, created once, reused across that thread's calls) plus a _with_reconnect decorator that evicts and retries exactly once on transient connection errors (OperationalError/InterfaceError/ConnectionError/OSError/TimeoutError), leaving real query errors to propagate immediately.",
+      "evidence": {
+        "status": "verified_live",
+        "tests": [
+          "service/tests/test_advret_client_reuse.py::test_client_is_reused_across_calls_on_the_same_thread",
+          "service/tests/test_advret_client_reuse.py::test_each_thread_gets_its_own_client_instance_no_cross_thread_sharing",
+          "service/tests/test_advret_client_reuse.py::test_transient_connection_error_resets_client_and_recovers",
+          "service/tests/test_advret_client_reuse.py::test_non_transient_error_does_not_retry_or_reset_client",
+          "service/tests/test_advret_client_reuse.py::test_concurrent_live_searches_do_not_cross_contaminate_results_or_settings[1]",
+          "service/tests/test_advret_client_reuse.py::test_concurrent_live_searches_do_not_cross_contaminate_results_or_settings[5]",
+          "service/tests/test_advret_client_reuse.py::test_concurrent_live_searches_do_not_cross_contaminate_results_or_settings[10]"
+        ],
+        "measured_before_after": {
+          "new_connections_per_n_calls_on_one_thread_before": "n",
+          "new_connections_per_n_calls_on_one_thread_after": 1,
+          "concurrency_levels_verified_against_live_container": [1, 5, 10],
+          "cross_contamination_observed": false
+        }
+      }
+    },
+    {
+      "id": "adaptive_pair_validation",
+      "plan_reference": "Sec.2.5 (implicit, formalized in v2.1 Sec.4.4/7.5) / Sec.14 review item 1",
+      "before": "adaptive_mrl.base_dim was constrained to {256,512} by its Pydantic Literal type only. Nothing checked base_dim against ENABLED_DIMENSIONS, nothing enforced base_dim < dimension, nothing enforced top_n >= top_k, and no explicit allow-list existed.",
+      "after": "POST /search rejects (HTTP 400) any adaptive request whose base_dim is disabled, whose base_dim >= dimension, whose (base_dim, dimension) pair is outside the explicit ADAPTIVE_MRL_ALLOWED_PAIRS = {(256,512),(256,1024),(256,2048),(512,1024),(512,2048)}, or whose top_n < top_k.",
+      "evidence": {
+        "status": "verified_unit",
+        "tests": [
+          "service/tests/test_advret_adaptive_validation.py::test_every_allow_listed_pair_passes_validation_before_reaching_the_engine[256-512]",
+          "service/tests/test_advret_adaptive_validation.py::test_every_allow_listed_pair_passes_validation_before_reaching_the_engine[256-1024]",
+          "service/tests/test_advret_adaptive_validation.py::test_every_allow_listed_pair_passes_validation_before_reaching_the_engine[256-2048]",
+          "service/tests/test_advret_adaptive_validation.py::test_every_allow_listed_pair_passes_validation_before_reaching_the_engine[512-1024]",
+          "service/tests/test_advret_adaptive_validation.py::test_every_allow_listed_pair_passes_validation_before_reaching_the_engine[512-2048]",
+          "service/tests/test_advret_adaptive_validation.py::test_base_dim_not_in_enabled_dimensions_is_rejected",
+          "service/tests/test_advret_adaptive_validation.py::test_base_dim_greater_than_or_equal_to_dimension_is_rejected",
+          "service/tests/test_advret_adaptive_validation.py::test_top_n_below_top_k_is_rejected",
+          "service/tests/test_advret_adaptive_validation.py::test_adaptive_disabled_skips_all_new_validation"
+        ]
+      }
+    }
+  ],
+  "full_suite_regression": {
+    "command": "PYTHONPATH=service pytest service/tests/ -q  (also re-run with live backend env vars set)",
+    "without_live_backends": "170 passed, 26 skipped",
+    "with_live_backends": "no failures; skip count drops to baseline's 16 as the new live-only tests execute for real",
+    "baseline_for_comparison": "150 passed, 16 skipped (artifacts/baseline_contract/test_results.json)"
+  },
+  "status": "accepted",
+  "limitations": [
+    "Live 1M-row ClickHouse physical-read benchmarking for the count()/EXPLAIN removal is deferred to the Sec.20 backend benchmark artifact, not measured here.",
+    "GPU wall-clock savings from the single-embed fix could not be measured (no representative GPU in this environment)."
+  ]
+}
