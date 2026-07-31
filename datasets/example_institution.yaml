@@ -1,0 +1,100 @@
+schema_version: 1
+dataset_id: institution_flights_v2
+display_name: Institution Flights (relative clock + manifest_csv pairing example)
+
+# This variant intentionally demonstrates choices NOT shown in
+# datasets/example_uav.yaml (which uses container_creation_time + unix_ms +
+# AGL + ground_speed + drop_partial): here the telemetry clock is relative_s
+# (no video-start anchor needed at all), pairing is driven by an explicit
+# manifest_csv instead of filename-stem matching, altitude reference is MSL,
+# velocity kind is air_speed, and the final partial window is padded instead
+# of dropped. See docs/DATASET_ONBOARDING_GUIDE.md for a walkthrough of every
+# field and the other anchor modes (filename, container_creation_time).
+
+source:
+  videos_glob: "videos/**/*.mp4"
+  video_id_from: filename_stem
+
+pairing:
+  strategy: manifest_csv
+  telemetry_glob: null
+  telemetry_id_from: filename_stem
+  # Columns required in this file (relative to DATA_ROOT, same as videos_glob):
+  # video_id,video_path,telemetry_path,video_start_unix_s,offset_s
+  # video_start_unix_s/offset_s may be left empty per-row when not needed
+  # (e.g. for a relative_s telemetry clock like this example).
+  manifest_csv: "pairing/institution_flights_v2.csv"
+
+time_alignment:
+  video_clock: pts
+  telemetry_clock: relative_s
+  video_start_time_from: null
+  filename_time_regex: null
+  filename_time_format: null
+  timezone: UTC
+  offset_s: 0.0
+  max_gap_s: 1.5
+  missing_policy: null
+
+window:
+  size_s: 6.0
+  stride_s: 3.0
+  frames_per_item: 6
+  partial_window_policy: pad_last
+
+telemetry:
+  format: generic_csv
+  timestamp_column: t_rel_s
+  fields:
+    altitude_m:
+      source: msl_alt_m
+      unit: m
+      reference: MSL
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    velocity_mps:
+      source: airspeed_mps
+      unit: m/s
+      kind: air_speed
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    compass_heading:
+      source: mag_heading_deg
+      unit: deg
+      type: circular_deg
+      interpolation: circular
+      aggregation: circular_mean
+    gimbal_pitch:
+      source: gimbal_pitch_deg
+      unit: deg
+      type: continuous
+      interpolation: linear
+      aggregation: median
+    person_count:
+      source: person_count
+      type: integer
+      interpolation: linear
+      aggregation: median
+    is_night:
+      source: is_night
+      type: boolean
+  extra:
+    flight_mode:
+      source: flight_mode
+      type: categorical
+    link_quality_pct:
+      source: link_quality
+      unit: "%"
+      type: continuous
+
+captions:
+  format: none
+
+media:
+  enabled: true
+  clip_cache: true
+
+policy:
+  fail_on_video_error: false
