@@ -44,6 +44,13 @@ PYTHONPATH=service python scripts/migrate_faz11_schema.py --apply \
   --output artifacts/faz11/schema_migration_report.json
 ```
 
+`--apply` bir dataset için başarısız olursa (count mismatch), altta yatan
+sorunu düzeltip aynı komutu tekrar çalıştırmak güvenlidir: `legacy_run_id`
+deterministiktir, ClickHouse kopya adımı her denemede önce kendi run'ının
+satırlarını temizler (duplicate üretmez), ve run durumu her denemede
+`validating`'e resetlenir — böylece düzeltilmiş bir retry gerçekten
+`completed`/active olabilir (bkz. `docs/DECISIONS.md`, 2026-07-31 girdisi).
+
 Migration legacy tabloları drop/truncate etmez. Uygulama rollback'i önceki
 image tag/commit'e dönerek yapılır. Data rollback'i, doğrulanmış önceki
 `completed` run'ın `dataset_active_runs` pointer'ına kontrollü PostgreSQL
@@ -90,6 +97,18 @@ GPU'da `pass` olmadan üretim batch artırılmaz.
   read-only mount altında gerçekten mevcut olduğunu doğrulayın.
 - **Disk pressure:** yeni ingest'i durdurun, dry-run GC ve run durumlarını inceleyin;
   active volume veya tabloları manuel silmeyin.
+
+## Hedef ortam kabul kontrolü
+
+Tek komutla tüm kabul zincirini çalıştırıp tek bir makine-okunur sonuç
+almak için `scripts/run_faz11_acceptance.py` kullanılır — ayrıntı:
+[TARGET_ENVIRONMENT_ACCEPTANCE.md](TARGET_ENVIRONMENT_ACCEPTANCE.md).
+
+```bash
+python scripts/run_faz11_acceptance.py \
+  --dataset datasets/kurum.yaml --env-file .env --live \
+  --output artifacts/faz11/target_acceptance.json
+```
 
 ## Durdurma
 

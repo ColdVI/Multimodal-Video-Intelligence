@@ -1,9 +1,16 @@
 # Faz 7 runbook
 
 > Faz 11 kurum deployment'ı için güncel kaynaklar:
-> [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS.md](OPERATIONS.md),
-> [DATASET_MANIFEST.md](DATASET_MANIFEST.md) ve
-> [RUN_VERSIONING.md](RUN_VERSIONING.md). Aşağıdaki Faz 7/8 bölümleri legacy
+> [USER_GUIDE.md](USER_GUIDE.md) (28 bölümlük eksiksiz operatör kılavuzu) veya
+> hızlı komut özeti için [OPERATOR_QUICKSTART.md](OPERATOR_QUICKSTART.md);
+> ayrıca [DEPLOYMENT.md](DEPLOYMENT.md), [OPERATIONS.md](OPERATIONS.md),
+> [DATASET_MANIFEST.md](DATASET_MANIFEST.md) /
+> [DATASET_ONBOARDING_GUIDE.md](DATASET_ONBOARDING_GUIDE.md) ve
+> [RUN_VERSIONING.md](RUN_VERSIONING.md). Son kullanıcılar için
+> [END_USER_GUIDE.md](END_USER_GUIDE.md). Donanım kurulmadan Qwen embedding
+> üretmek için [COLAB_RUNBOOK.md](COLAB_RUNBOOK.md). Tek-komut hedef ortam
+> kabulü için [TARGET_ENVIRONMENT_ACCEPTANCE.md](TARGET_ENVIRONMENT_ACCEPTANCE.md)
+> (`scripts/run_faz11_acceptance.py`). Aşağıdaki Faz 7/8 bölümleri legacy
 > araştırma/CapERA akışını korur; kurum generic ingest komutlarının yerine geçmez.
 
 ## Faz 8 - Gercek veriye gecis (zorunlu sira)

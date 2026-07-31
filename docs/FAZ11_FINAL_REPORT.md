@@ -1,158 +1,188 @@
-# Faz 11 final implementation report
+# Faz 11 final implementation report (audit + hardening + documentation)
 
-Durum: **`implementation_complete_hardware_acceptance_pending`**  
-Test edilen kod SHA: `045ea81b83de366b3597c84a051d5c5f039603d5`  
-Başlangıç SHA: `23eb2a894c9b24f998b05a93c6a33262a860796d`
+Durum: **`implementation_complete_hardware_acceptance_pending`**
+Test edilen kod SHA: `d3fef0e6826c626381a4a2b76bbd397d971b58dc`
+Orijinal Faz 11 teslim SHA'sı: `045ea81b83de366b3597c84a051d5c5f039603d5`
+Başlangıç SHA (Faz 10): `23eb2a894c9b24f998b05a93c6a33262a860796d`
 
-Kod, otomatik test, additive migration, profile, preflight, ingest,
-run-versioning, pushdown, UI/media, security ve deployment dokümantasyonu
-tamamlandı. Bu macOS/arm64 hostta Docker daemon, NVIDIA GPU, kurum verisi ve
-verified model bundle bulunmadığından hedef ortam kabulü başarılı gösterilmedi.
-Makine-okunur matris: `artifacts/faz11/final_acceptance.json`.
+Bu rapor, orijinal FAZ11 teslimini (`045ea81`) kaynak gerçek kabul etmeyen
+iki bağımsız denetim oturumunun sonucudur. Oturum 1 (`02a6c10`, `548698b`)
+baseline'ı yeniden doğruladı ve iki kritik streaming defekti buldu/düzeltti.
+Oturum 2 (`2ebc476`..`8d0ae5c`) önceki oturumda "spot-checked, deep-dive
+pending" bırakılan beş alanı derinlemesine denetledi, run-versioning
+10-nokta fault matrix'i ve pushdown adapter audit'ini tamamladı, gerçek
+streaming memory smoke kanıtı üretti ve eksiksiz kullanım kılavuzu setini
+yazdı. Toplam yedi gerçek defekt bulundu ve düzeltildi (aşağıda §5).
 
-## 1. Baseline
+Bu macOS/Windows geliştirme hostlarında Docker daemon, temsili NVIDIA GPU,
+kurum verisi ve doğrulanmış model bundle bulunmadığından hedef ortam kabulü
+başarılı gösterilmedi. Makine-okunur matris: `artifacts/faz11/final_acceptance.json`.
 
-Baseline temiz `main` üzerinde alındı. `artifacts/faz11/baseline.json`, SHA,
-dirty state, Python/pytest sürümleri, exact komutlar/exit code'lar, Compose ve
-requirements hash'lerini taşır. İlk ortamda root collection
-`clickhouse_connect` eksikliğiyle durdu; service sonucu `41 passed, 2 failed,
-15 skipped` idi ve iki failure eager CapERA dosya erişimiydi. Syntax ve iki
-mevcut Compose config'i başlangıçta geçti.
+## 1. Baseline ve denetim ortamları
 
-İzole `.testdeps` ortamına test bağımlılıkları kuruldu; kullanıcı dosyası veya
-tracked dependency lock'u bu amaçla değiştirilmedi. Nihai sonuç:
+| Oturum | Host | Docker | GPU | Sonuç |
+|---|---|---|---|---|
+| Orijinal FAZ11 teslim | macOS/arm64 | daemon kapalı | yok | `045ea81` |
+| Denetim oturumu 1 | Windows | daemon kapalı | GT 1030 (4GB, temsili değil) | `02a6c10`, `548698b` |
+| Denetim oturumu 2 | Windows (aynı host) | daemon kapalı | GT 1030 (4GB, temsili değil) | `2ebc476`..`8d0ae5c` |
 
-- root: `314 passed, 42 skipped`;
-- service: `104 passed, 17 skipped`;
-- bütün `.py` dosyaları `py_compile`: PASS;
-- `git diff --check`: PASS;
-- canonical/GPU/benchmark/benchmark+debug Compose config: PASS.
+Denetim oturumları farklı bir host'ta (macOS değil, Windows) çalıştığı için
+bağımsızlık gerçekti — testler kör kopyalanmadı, gerçekten yeniden
+çalıştırıldı. Windows `.venv`'de `clickhouse-connect`, `psycopg` (v3, ama
+`psycopg2` değil), `qdrant-client`, `torch` kurulu olduğundan bazı testler
+macOS oturumunda skip iken burada gerçekten çalıştı.
 
-Skip'ler mevcut gerçek dataset/integration readiness kapılarıdır; FAIL yoktur.
+## 2. Bulunan ve düzeltilen yedi gerçek defekt
 
-## 2. Mimari değişiklikler
+| # | Defekt | Ciddiyet | Commit |
+|---|---|---|---|
+| F1 | `DECODE_PREFETCH_WINDOWS`/`DB_WRITE_BATCH_SIZE` ölü konfigürasyondu; üç ayar tek `EMBED_BATCH_SIZE`'a indirgenmişti | high | `548698b` |
+| F2 | `iter_chunk_windows` kaynak frame'i ve `GeneratorExit`'i açıkça kapatmıyordu (implicit GC'ye güveniyordu) | medium | `548698b` |
+| F3 | `ATTN_IMPL=flash_attention_2` seçilince `flash_attn`/GPU capability kontrolü hiç yoktu | medium | `2ebc476` |
+| M1 | `_copy_clickhouse_legacy`'de idempotency guard yoktu — ikinci `--apply` ClickHouse satırlarını duplike ederdi | high | `9c8fd73` |
+| M2 | Migration retry-after-failure asla activate() edemezdi (`ON CONFLICT DO NOTHING` status'u `validating`'e resetlemiyordu) | high | `9c8fd73` |
+| T1 | `telemetry.py` naive iso8601 zaman damgasını `manifest.timezone` yerine hep UTC sayıyordu | medium | `6571306` |
+| T2 | Categorical telemetry alanı için interpolation/aggregation hiç doğrulanmıyordu (circular_deg'in aksine) | medium | `6571306` |
+
+Detaylı kanıt: `docs/FAZ11_TRACEABILITY_AUDIT.md`.
+
+## 3. Mimari değişiklikler (orijinal Faz 11 teslimi, oturum 1-2 tarafından korunmuş)
 
 - Kurum defaultu ClickHouse + 512d + native pushdown; Qdrant/pgvector ve dört
   dimension yalnız benchmark override ile açılır. DB portları canonical profilde
   hosta publish edilmez.
-- Relative path güvenlikli dataset manifesti ve iki katmanlı read-only preflight,
-  absolute/relative clock ve canonical/extra telemetry sözleşmesini doğrular.
-- PyAV streaming decoder chunk+halo ownership ile bounded iterator üretir;
-  continuous/categorical/circular telemetry pencereye hizalanır.
-- Qwen kaynak/model revision'ları pinlidir; hash manifestli bundle read-only
-  mount edilir; batch embedding GPU yoksa fail-closed davranır.
-- Additive run-scoped storage, chunk ledger, finalize/atomic active pointer,
-  resume, recovery, migration planı ve güvenli GC eski active run'ı korur.
-- Generic ingest streaming decode → Qwen batch → enabled dimensions → enabled
-  backends hattını çalıştırır; legacy loader compatibility korunur.
-- Canonical filter registry ClickHouse kolonlarına, Qdrant payload/indexlerine
-  ve pgvector JOIN'e projekte edilir. Default pushdown Python candidate listesi
-  taşımaz; legacy path limitli ve açık etiketlidir.
-- API dataset/run/filter-schema/media uçlarını ve run/model/provenance
-  diagnostics'i additive sunar. UI backend/dimension/strategy seçeneklerini
-  `/strategies`'ten alır; canonical alanları registry'ye göre gösterir.
-- Media source PostgreSQL active snapshot'tan çözülür, `DATA_ROOT` dışı path
-  reddedilir, H.264 clip arg-list ffmpeg ile atomik ve bounded cache'e yazılır.
-- Optional Bearer token, public-bind preflight kapısı ve token içermeyen HMAC
-  signed media URL uygulanmıştır. `/health` açık kalır.
+- Relative path güvenlikli dataset manifesti ve iki katmanlı read-only preflight;
+  bu oturumda preflight'ın **gerçekten** hiçbir yazı yapmadığı gerçek
+  dosya sistemi snapshot'larıyla kanıtlandı (`preflight_no_write_audit.json`).
+- PyAV/OpenCV streaming decoder chunk+halo ownership ile bounded iterator üretir;
+  bu oturumda üç bağımsız ayarın (decode prefetch/embed batch/DB write batch)
+  gerçekten bağımsız çalıştığı ve frame lifecycle'ın explicit olduğu düzeltildi.
+- Qwen kaynak/model revision'ları pinlidir; hash zincirinin gerçek preflight
+  yoluna bağlı olduğu ve `flash_attention_2` seçiminin artık dependency/GPU
+  capability kontrolünden geçtiği bu oturumda doğrulandı.
+- Run-scoped storage, chunk ledger, finalize/atomic active pointer; bu
+  oturumda 10 noktalı injected-failure matrix'i tamamlandı (9/10 gerçek test,
+  1/10 kod incelemesiyle).
+- Migration'ın gerçekten additive/idempotent olduğu bu oturumda **iki gerçek
+  bug bulunup düzeltilerek** kanıtlandı (önceden hiç test yoktu).
+- Canonical filter registry ClickHouse/Qdrant/pgvector'a projekte edilir; bu
+  oturumda üç adaptörün de gerçek backend-native sorgu inşa ettiği (Python
+  candidate listesi taşımadığı) kaynak seviyesinde doğrulandı.
+- Media path containment, ffmpeg arg-list, signed URL — bu oturumda hiçbir
+  defekt bulunmadı; yalnız test kapsamı (symlink escape, encoded traversal,
+  token leak, cross-path signature reuse) genişletildi.
+- **Yeni bu oturumda:** `docs/USER_GUIDE.md`, `docs/OPERATOR_QUICKSTART.md`,
+  `docs/END_USER_GUIDE.md`, `docs/DATASET_ONBOARDING_GUIDE.md`,
+  `datasets/example_institution.yaml`, `docs/COLAB_RUNBOOK.md`,
+  `notebooks/08_colab_portable_runner.ipynb`,
+  `docs/TARGET_ENVIRONMENT_ACCEPTANCE.md`, `scripts/run_faz11_acceptance.py`
+  — hepsi gerçek CLI/config/UI ile çapraz doğrulanan (`tests/test_faz11_docs_and_notebook.py`)
+  eksiksiz kullanım kılavuzu seti.
 
-## 3. Değişen dosyalar: neden ve doğrulama
+## 4. Değişen/eklenen dosyalar (bu iki denetim oturumu)
 
 | Dosya/grup | Neden | Doğrulama |
 |---|---|---|
-| `.env.example`, `service/app/config.py`, `docker-compose*.yml`, `Makefile` | Enabled profile, secure defaults, resource/media/model ayarları | profile tests + dört Compose parse |
-| `datasets/example_uav.yaml`, `service/app/ingestion/manifest.py`, `service/app/preflight.py`, `scripts/preflight.py` | Portable veri/clock/path/preflight sözleşmesi | manifest/preflight root+service tests |
-| `service/app/ingestion/video.py`, `telemetry.py`, `generic_loader.py` | Streaming decode, window ownership, interpolation/aggregation | `test_faz11_streaming.py` |
-| `service/app/embedding/{bundle,qwen}.py`, `scripts/{prepare_model_bundle,gpu_smoke}.py`, `service/Dockerfile.gpu` | Pinned offline bundle ve gerçek batch API | model bundle + Qwen batch + GPU not-run testleri |
-| `service/app/db/{ingest_runs,migrations,registry,telemetry_registry}.py` | Control plane, active snapshot ve capability registry | run-versioning/profile tests |
-| `service/app/db/{postgres,clickhouse,qdrant}.py` | Run-scoped physical storage ve native predicates | recovery/pushdown/engine tests |
-| `service/app/ingestion/{ingest,gc_runs}.py`, `scripts/migrate_faz11_schema.py` | Resume/finalize/report/GC ve additive migration CLI | generic ingest/run-versioning tests |
-| `service/app/search/{filter_schema,filter_projection,pushdown,equivalence,engine}.py` | Canonical compile, backend pushdown, equivalence ve snapshot search | pushdown + engine tests |
-| `service/app/{main,media,auth}.py` | Additive API, safe media ve optional token | media/UI/security tests |
-| `service/ui/{app,components}.py`, `service/Dockerfile` | Dynamic UI, provenance/extra detail, real clip, ffmpeg | UI component/media tests |
-| `docs/{PORTABILITY_AUDIT,DATASET_MANIFEST,MODEL_BUNDLE,RUN_VERSIONING,FILTER_PUSHDOWN,DEPLOYMENT,OPERATIONS}.md` | Kurum onboarding, karar, migration ve operation runbook | command/path review + docs links |
-| `artifacts/faz11/*` | Baseline ve pass/not-run kabul kanıtları | JSON parse, mandatory artifact audit |
-| `service/tests/test_faz11_*.py`, `tests/test_faz11_*.py` | Yeni pure/contract regression kapsamı | final pytest sonuçları |
+| `service/app/ingestion/ingest.py`, `video.py` | Bounded 3-aşamalı pipeline (F1) ve frame lifecycle (F2) | `service/tests/test_faz11_pipeline_bounds.py` (yeni, 7 test) |
+| `service/app/preflight.py` | `flash_attention_2` dependency/GPU gate (F3) | `service/tests/test_faz11_preflight_model.py` (yeni) |
+| `service/app/db/migrations.py` | ClickHouse idempotency + retry-after-failure (M1, M2) | `service/tests/test_faz11_migrations.py` (yeni — önceden hiç yoktu) |
+| `service/app/ingestion/telemetry.py`, `manifest.py` | Timezone-naive timestamp fix + categorical validation (T1, T2) | `service/tests/test_faz11_manifest.py` (genişletildi) |
+| `service/tests/test_faz11_media_ui.py`, `test_faz11_security.py` | Test kapsamı genişletme (defekt yok) | 5 yeni test |
+| `service/tests/test_faz11_preflight_no_write.py` | Read-only kanıtı (yeni) | 5 test, gerçek fs snapshot |
+| `service/tests/test_faz11_run_versioning_fault_matrix.py` | 10-nokta fault matrix'i tamamlama | 6 yeni test |
+| `scripts/streaming_memory_smoke.py`, `tests/test_faz11_streaming_memory_smoke.py` | Gerçek bounded-memory ölçümü | Gerçek instrumented çalıştırma |
+| `docs/USER_GUIDE.md`, `OPERATOR_QUICKSTART.md`, `END_USER_GUIDE.md`, `DATASET_ONBOARDING_GUIDE.md` | Eksiksiz kullanım kılavuzu | `tests/test_faz11_docs_and_notebook.py` |
+| `docs/COLAB_RUNBOOK.md`, `notebooks/08_colab_portable_runner.ipynb` | Portable Colab embedding yolu | nbformat validate + pin match testi |
+| `docs/TARGET_ENVIRONMENT_ACCEPTANCE.md`, `scripts/run_faz11_acceptance.py` | Tek-komut hedef ortam kabul zinciri | Bu host'ta çalıştırıldı (graceful not_run) |
+| `artifacts/faz11/migration_contract_audit.json`, `preflight_no_write_audit.json`, `run_versioning_fault_matrix.json`, `pushdown_adapter_audit.json`, `streaming_memory_smoke.json`, `traceability_audit.json` | Yeni denetim kanıtları | JSON şema doğrulaması + `final_artifact_audit` adımı |
 
-Toplam Faz 11 farkı (final evidence dosyaları hariç): 81 dosya, yaklaşık 7.6k
-ekleme ve 253 silme; silmeler refactor/compatibility düzeltmeleridir, kullanıcı
-verisi/volume/legacy tablo silinmemiştir.
-
-## 4. Çalıştırılan komutlar
-
-Başlangıç ve final boyunca kullanılan exact ana komutlar:
+## 5. Çalıştırılan komutlar (bu iki oturum boyunca)
 
 ```bash
 git rev-parse HEAD
 git status --short
-git log -5 --oneline
-make test PYTHON=.testdeps/bin/python
-PYTHONPATH=service .testdeps/bin/python -m pytest service/tests/ -q -p no:cacheprovider
-rg --files -g '*.py' -0 | xargs -0 .testdeps/bin/python -m py_compile
+git log -15 --oneline
+PYTHONPATH=service .venv/Scripts/python -m pytest service/tests/ -q -p no:cacheprovider
+.venv/Scripts/python -m pytest tests/ -q -p no:cacheprovider
+find . -name "*.py" -not -path "./.venv/*" -not -path "./.testdeps/*" -print0 | xargs -0 .venv/Scripts/python -m py_compile
 git diff --check
 docker compose --env-file .env.example -f docker-compose.yml config
-env MODEL_BUNDLE_ROOT=/private/tmp/mvi-model-bundle docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.gpu.yml config
+docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.gpu.yml config
 docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.benchmark.yml config
 docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.benchmark.yml -f docker-compose.debug.yml config
-env API_MEMORY_LIMIT=4g UI_MEMORY_LIMIT=2g CLICKHOUSE_MAX_MEMORY_BYTES=8589934592 docker compose --env-file .env.example -f docker-compose.yml config
-.testdeps/bin/python scripts/write_ui_not_run_artifact.py
-docker info --format '{{.ServerVersion}}'
+python scripts/streaming_memory_smoke.py --decode-prefetch-windows 5 --embed-batch-size 2 --db-write-batch-size 8
+python scripts/run_faz11_acceptance.py --env-file .env.example --output artifacts/faz11/target_acceptance_test.json
+docker info --format {{.ServerVersion}}
 nvidia-smi
 ```
 
-İlk on aşamanın commit kapıları:
+Commit kapıları (oturum 1 + oturum 2):
 
 ```text
-4ee65d0 baseline/portability
-15376b6 config/profiles
-c2537c2 manifest/preflight
-e51a149 streaming video/telemetry
-df4df12 model bundle/Qwen batch
-f5d7578 run-versioned storage
-1a72169 generic ingest/resume
-e5ed25f native pushdown
-8e3b527 UI/media
-045ea81 security/deployment/operations
+02a6c10 faz11-audit: add independent traceability audit
+548698b faz11-streaming: enforce bounded decode/embed/write stages and explicit frame ownership
+2ebc476 faz11-model: verify bundle hash/provenance chain and add flash_attention_2 preflight gate
+9c8fd73 faz11-migration: prove additive idempotent migration contracts
+184afae faz11-security: close test-coverage gaps in media path containment and signed URLs
+a70a58e faz11-preflight: prove read-only preflight behavior with real filesystem snapshots
+6571306 faz11-telemetry: fix timezone-naive timestamp handling and validate categorical interpolation
+9dc7b92 faz11-runs: complete the 10-point injected-failure matrix
+d52f0d3 faz11-search: complete backend pushdown adapter audit
+347eb52 faz11-streaming: add real streaming_memory_smoke evidence
+7cf9b9b faz11-docs: add operator, end-user, and dataset onboarding guides
+d3fef0e faz11-colab: add portable Colab embedding workflow / faz11-acceptance / faz11-docs (doc-code tests)
+8d0ae5c faz11-final: regenerate traceability audit with per-area status matrix
 ```
 
-## 5. Kabul matrisi
+## 6. Kabul matrisi
 
-| Alan | Durum | Kanıt / gerekçe |
-|---|---|---|
-| Baseline, portability, profile/config | PASS | baseline + portability artifact/docs; Compose hashes |
-| Manifest, path, clock ve preflight contracts | PASS | manifest/preflight tests |
-| Streaming video/telemetry/window contracts | PASS | streaming tests |
-| Model bundle/hash ve batch API contract | PASS | bundle/Qwen tests |
-| Gerçek 10-window Qwen GPU inference | NOT RUN | `gpu_smoke.json`: bu hostta CUDA yok |
-| Run storage, recovery, finalize/activation, GC | PASS | run-versioning tests |
-| Canlı legacy volume migration | NOT RUN | `schema_migration_report.json`: live DB/driver yok |
-| Generic ingest ve injected crash/resume contract | PASS | generic ingest tests |
-| Gerçek kurum verisiyle interrupted resume | NOT RUN | `ingest_resume_smoke.json` |
-| Filter compiler, circular wrap, active snapshot | PASS | pushdown/engine tests |
-| Canlı backend equivalence/scale/index planı | NOT RUN | `filter_equivalence.json`, `search_scale_smoke.json` |
-| Dynamic UI, run/provenance/extra detail | PASS | media/UI pure tests |
-| Safe clip cache ve token security | PASS | media/security tests |
-| Canlı UI screenshot ve local MP4 playback | NOT RUN | açık etiketli `ui_smoke.png` + `ui_smoke.json` |
-| Deployment/operations/migration docs | PASS | `docs/DEPLOYMENT.md`, `docs/OPERATIONS.md` |
-| Hedef kurum full acceptance | NOT RUN | Docker/GPU/credentials/kurum verisi gerekli |
+Bkz. `artifacts/faz11/final_acceptance.json` — **28 PASS, 0 FAIL, 0 BLOCKED,
+12 NOT RUN**. Her NOT RUN satırının `reason`, `required_command` ve
+`expected_environment` alanı doludur. Yeni bu oturumda eklenen PASS
+satırları: `flash_attention_2_dependency_gate`, `run_versioning_fault_matrix_10_point`,
+`migration_idempotency_contract`, `streaming_bounded_memory_contract`,
+`pushdown_adapter_production_call_path`, `operator_end_user_dataset_onboarding_documentation`,
+`colab_portable_workflow_documentation`, `target_environment_acceptance_runner`,
+`doc_code_consistency`.
 
-Nihai sayım: **19 PASS, 0 FAIL, 0 BLOCKED, 9 NOT RUN**. Her NOT RUN satırının
-`reason`, `required_command` ve `expected_environment` alanı
-`artifacts/faz11/final_acceptance.json` içinde yer alır.
+## 7. Hedef ortamda tamamlanacak kabul sırası
 
-## 6. Hedef ortamda tamamlanacak kabul sırası
+Artık tek bir orkestre edilmiş komut var:
 
 ```bash
-python scripts/preflight.py --dataset datasets/kurum.yaml --env-file .env \
-  --json-out artifacts/faz11/preflight.json
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
-docker compose --env-file .env exec api python -m app.ingestion.ingest \
-  --dataset /workspace/datasets/kurum.yaml --resume
-PYTHONPATH=service python scripts/gpu_smoke.py --dataset datasets/kurum.yaml \
-  --data-root /kurum/data --output artifacts/faz11/gpu_smoke.json --windows 10
-RUN_FAZ8_INTEGRATION=1 UI_URL=http://127.0.0.1:7860 \
-  PYTHONPATH=service pytest service/tests/test_t10_ui.py -q
+python scripts/run_faz11_acceptance.py \
+  --dataset datasets/kurum.yaml --env-file .env --live \
+  --output artifacts/faz11/target_acceptance.json
 ```
 
-Bu sıra tamamlanana kadar durum bilinçli olarak
-`implementation_complete_hardware_acceptance_pending` kalır.
+Detay: `docs/TARGET_ENVIRONMENT_ACCEPTANCE.md`. Bu sıra tamamlanana kadar
+durum bilinçli olarak `implementation_complete_hardware_acceptance_pending`
+kalır.
+
+## 8. Doğrulanmayanlar
+
+- Gerçek GPU inference, gerçek kurum videosu/telemetrisi, canlı PostgreSQL/
+  ClickHouse/Qdrant, Playwright UI testi, gerçek Colab GPU çalıştırması —
+  hiçbiri bu iki oturumda mevcut değildi; hiçbiri mock/tahminle "geçti"
+  gösterilmedi.
+- Run-versioning fault matrix'inin 10. noktası (active pointer transaction
+  sırasında hata) yalnız kod incelemesiyle doğrulandı — gerçek PostgreSQL
+  rollback-on-close semantiğine dayanır, fake store bunu kanıtlayamaz.
+- Pushdown NULL semantiği tutarlılığı kod incelemesiyle doğrulandı; canlı
+  cross-backend equivalence koşulmadı.
+
+## 9. Rollback/migration
+
+Değişiklik yok — `docs/RUN_VERSIONING.md` ve `docs/OPERATIONS.md`'deki
+mevcut rollback/GC prosedürleri geçerlidir. Migration artık idempotent
+retry'i destekliyor (M1/M2 düzeltmesi) — bu OPERATIONS.md'ye eklendi.
+
+## 10. Son durum
+
+```text
+implementation_complete_hardware_acceptance_pending
+```
+
+Yalnız `scripts/run_faz11_acceptance.py --live` gerçek hedef NVIDIA Linux
+ortamında tüm adımları PASS verince `fully_accepted_on_target_environment`e
+yükseltilebilir.

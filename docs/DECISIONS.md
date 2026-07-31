@@ -233,3 +233,46 @@
   Boş API/UI limitleri Compose tarafından limitsiz bırakılır; ClickHouse boş
   server limitinde kendi otomatik davranışını kullanır. Evrensel kapasite sayısı
   uydurulmaz; preflight/pilot/GPU artifact ölçümleri esas alınır.
+
+## Faz 11 bağımsız denetim (audit) oturumu — decisions
+
+- 2026-07-31 — `GenericIngestor.run()` üç iç içe batching katmanına ayrıldı:
+  `batched(decode_source, DECODE_PREFETCH_WINDOWS)` dış katman (RAM sınırı),
+  `batched(prefetch_group, EMBED_BATCH_SIZE)` orta katman (VRAM sınırı),
+  `pending` listesi `DB_WRITE_BATCH_SIZE`'a ulaşınca flush (DB/ağ sınırı).
+  Frame'ler her embed batch'ten hemen sonra serbest bırakılır — DB flush'ı
+  beklemez. Bu üç ayar artık birbirinden gerçekten bağımsız test edilebilir.
+- 2026-07-31 — `iter_chunk_windows` artık kaynak decode frame'ini bir sonraki
+  frame geldiğinde açıkça kapatır ve tüm gövde `try/finally` ile sarılıdır;
+  `GeneratorExit` (erken `.close()`) durumunda `collected[]` içindeki her şey
+  temizlenir. Ownership artık implicit refcounting'e değil explicit `.close()`
+  çağrılarına dayanır.
+- 2026-07-31 — `ATTN_IMPL=flash_attention_2`, model bundle'ın varlığından
+  bağımsız ayrı bir preflight kontrolüne (`_flash_attention_check`) bağlandı;
+  `flash_attn` paketi kurulu değilse veya GPU compute capability < 8.0 ise
+  preflight açıkça fail eder — ingest sırasında opak bir hataya düşmez.
+- 2026-07-31 — Migration'ın ClickHouse kopya adımı artık her dimension için
+  `clickhouse.delete_run()` ile önce temizlenir, sonra insert edilir; bu,
+  ClickHouse'un UPSERT desteklememesi nedeniyle retry'de satır duplikasyonunu
+  önler. `apply_migration()`, `store.create()` sonrası koşulsuz
+  `store.set_run_status(run_id, "validating")` çağırır — bu olmadan başarısız
+  bir denemeden sonraki retry, altta yatan sorun düzeltilse bile
+  `activate()`'in `WHERE status='validating'` guard'ına takılıp kalıyordu.
+- 2026-07-31 — `telemetry.py::_unix_seconds`, naive iso8601 zaman damgalarını
+  artık `manifest.timezone` (varsayılan UTC, ama operatör tarafından açıkça
+  değiştirilebilir) ile yerelleştirir — `preflight.py`/`generic_loader.py`'nin
+  filename-anchor yolunda zaten kullandığı desenle tutarlı. Zaman damgasının
+  kendi UTC ofseti varsa bu her zaman `timezone` ayarının önüne geçer.
+- 2026-07-31 — Categorical telemetry alanları artık `circular_deg` ile aynı
+  sıkılıkta doğrulanır: yalnız `locf` interpolation ve `mode` aggregation
+  kabul edilir; sayısal bir seçim manifest validation'da reddedilir (önceden
+  yalnız circular_deg bu şekilde korunuyordu).
+- 2026-07-31 — `scripts/run_faz11_acceptance.py`, Compose'u/gerçek ingest'i
+  yalnız açık `--live` bayrağıyla başlatır; varsayılan çalıştırma tamamen
+  salt-okunur/statik kontrollerle sınırlıdır. `interrupted_resume`,
+  `pushdown_equivalence`, `scale_diagnostics`, `ui_search`, `media_playback`
+  adımları `--live` ile bile hiçbir zaman otomatik çalışmaz — bunlar ya
+  operatör gözetimi (canlı bir run'ı kasıtlı kesmek) ya da bu script'in
+  kapsamadığı ayrı araçlar (Playwright, `app.search.equivalence` CLI)
+  gerektirir; gerekli tam komut her birinin `required_command` alanında
+  kayıtlıdır.

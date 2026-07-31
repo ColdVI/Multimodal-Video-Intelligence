@@ -1,6 +1,31 @@
 # Faz 7 blokerleri
 
-## Faz 11 current environment blockers
+## Faz 11 audit sessions (31 Temmuz 2026, Windows host) — environment blockers
+
+İki bağımsız denetim oturumu (`docs/FAZ11_TRACEABILITY_AUDIT.md`) bu
+macOS-teslim sonrası, farklı bir Windows host'ta çalıştı. Docker CLI/Compose
+ve bir GPU (GeForce GT 1030, 4GB VRAM) bu host'ta mevcuttu ama:
+
+- **Docker daemon kapalıydı** (Docker Desktop başlatılmamıştı) — tüm canlı
+  container/ingest/health/UI adımları bu yüzden `not_run` kaldı. Detay:
+  `artifacts/faz11/target_acceptance.json` (üretilirse) veya
+  `docs/TARGET_ENVIRONMENT_ACCEPTANCE.md`.
+- **GT 1030 temsili kurum donanımı değil** (4GB VRAM, Qwen3-VL-Embedding-2B
+  için pratik olarak yetersiz) — gerçek GPU smoke bu host'ta bilinçli olarak
+  denenmedi.
+- **`psycopg2-binary` bu host'ta kurulu değil** (yalnız `psycopg` v3 kurulu) —
+  migration `--plan`/`--apply` canlı PostgreSQL'e karşı denenemedi; kod/test
+  sözleşmesi (`service/tests/test_faz11_migrations.py`) tamamlandı ve bu
+  oturumda iki gerçek idempotency bug'ı (M1, M2) bulunup düzeltildi.
+- **Gerçek Colab GPU runtime'ı yoktu** — `notebooks/08_colab_portable_runner.ipynb`
+  yalnız yapısal olarak (`nbformat.validate`) doğrulandı, gerçek embedding
+  üretimi denenmedi.
+
+Bunların hiçbiri kod eksikliği değildir; hepsi `artifacts/faz11/final_acceptance.json`
+içinde açık `reason`/`required_command`/`expected_environment` ile
+`not_run` olarak işaretlidir.
+
+## Faz 11 current environment blockers (orijinal macOS teslim oturumu)
 
 - **Canlı container smoke NOT RUN:** 30 Temmuz 2026 doğrulamasında Docker
   daemon'a `unix:///Users/anil/.docker/run/docker.sock` üzerinden bağlanılamadı.
