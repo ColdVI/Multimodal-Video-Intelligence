@@ -39,6 +39,15 @@ CANONICAL_FILTER_FIELDS: dict[str, FilterField] = {
     "vehicle_count": FilterField("vehicle_count", "Vehicles", "metadata", "integer", None, True, True),
     "bus_count": FilterField("bus_count", "Buses", "metadata", "integer", None, True, True),
     "is_night": FilterField("is_night", "Night", "metadata", "boolean", None, True, True),
+    # Phase 7 detector enrichment (plan Sec.8.1) -- additive canonical columns, not
+    # backed by facets()/hydrate() yet (tracked in KNOWN_LIMITATIONS.md); filterable via
+    # normalize_filters() like every other canonical field.
+    "median_visible_vehicle_count": FilterField(
+        "median_visible_vehicle_count", "Median visible vehicles", "metadata", "float", None, True, False,
+    ),
+    "detection_persistence_ratio": FilterField(
+        "detection_persistence_ratio", "Detection persistence ratio", "metadata", "float", None, True, False,
+    ),
 }
 
 

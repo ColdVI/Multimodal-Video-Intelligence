@@ -29,6 +29,11 @@ CREATE TABLE IF NOT EXISTS segment_metadata (
   segment_id text PRIMARY KEY, person_count int, vehicle_count int,
   bus_count int, object_classes text[], brightness real, camera_motion real
 );
+-- Phase 7 detector enrichment (plan Sec.8.1): the only two new canonical, filterable
+-- columns. NULL means "detector did not run / best_effort failure" -- 0 means "detector
+-- ran successfully and found none." Never conflate the two (see enrichment/contracts.py).
+ALTER TABLE segment_metadata ADD COLUMN IF NOT EXISTS median_visible_vehicle_count real;
+ALTER TABLE segment_metadata ADD COLUMN IF NOT EXISTS detection_persistence_ratio real;
 CREATE TABLE IF NOT EXISTS segment_telemetry (
   segment_id text PRIMARY KEY, timestamp_start timestamptz, timestamp_end timestamptz,
   latitude double precision, longitude double precision,
@@ -90,6 +95,8 @@ CREATE TABLE IF NOT EXISTS run_segment_metadata (
   bus_count int, object_classes text[], brightness real, camera_motion real,
   PRIMARY KEY(run_id,segment_id)
 );
+ALTER TABLE run_segment_metadata ADD COLUMN IF NOT EXISTS median_visible_vehicle_count real;
+ALTER TABLE run_segment_metadata ADD COLUMN IF NOT EXISTS detection_persistence_ratio real;
 CREATE TABLE IF NOT EXISTS run_segment_telemetry (
   run_id uuid NOT NULL, segment_id text NOT NULL, timestamp_start timestamptz,
   timestamp_end timestamptz, latitude double precision, longitude double precision,
@@ -706,6 +713,25 @@ def write_run_metadata_chunk(
         )
         conn.commit()
     return len(segments)
+
+
+def write_run_detector_enrichment(
+    run_id: str, dataset_id: str, rows: list[tuple[str, float | None, float | None]],
+) -> int:
+    """Additive UPDATE of the two Phase 7 canonical columns on rows already written by
+    write_run_metadata_chunk() -- see the ClickHouse equivalent's docstring for the
+    same-run-before-activation constraint this relies on."""
+    if not rows:
+        return 0
+    with connection() as conn, conn.cursor() as cur:
+        for segment_id, median_visible, persistence_ratio in rows:
+            cur.execute(
+                "UPDATE run_segment_metadata SET median_visible_vehicle_count=%s, "
+                "detection_persistence_ratio=%s WHERE run_id=%s AND segment_id=%s",
+                (median_visible, persistence_ratio, run_id, segment_id),
+            )
+        conn.commit()
+    return len(rows)
 
 
 def delete_inactive_metadata_chunk(run_id: str, dataset_id: str, video_id: str, chunk_index: int) -> int:

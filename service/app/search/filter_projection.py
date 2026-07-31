@@ -9,6 +9,8 @@ POSTGRES_RUN_COLUMNS = {
     "gimbal_heading": "t.gimbal_heading", "compass_heading": "t.compass_heading",
     "person_count": "m.person_count", "vehicle_count": "m.vehicle_count",
     "bus_count": "m.bus_count", "is_night": "(coalesce(t.extra->>'is_night','false'))::boolean",
+    "median_visible_vehicle_count": "m.median_visible_vehicle_count",
+    "detection_persistence_ratio": "m.detection_persistence_ratio",
 }
 
 CLICKHOUSE_COLUMNS = {name: name for name in POSTGRES_RUN_COLUMNS}

@@ -108,6 +108,11 @@ def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
                  ) ENGINE=MergeTree ORDER BY (dataset_id,video_id,t_start)""",
             settings={"allow_experimental_vector_similarity_index": 1},
         )
+        # Phase 7 detector enrichment (plan Sec.8.1): the only two new canonical,
+        # filterable columns. NULL means "detector did not run / best_effort failure";
+        # 0 means "detector ran and found none" -- never conflated (enrichment/contracts.py).
+        root.command(f"ALTER TABLE seg_ch_{dimension} ADD COLUMN IF NOT EXISTS median_visible_vehicle_count Nullable(Float32)")
+        root.command(f"ALTER TABLE seg_ch_{dimension} ADD COLUMN IF NOT EXISTS detection_persistence_ratio Nullable(Float32)")
         root.command(
             f"""CREATE TABLE IF NOT EXISTS seg_ch_{dimension}_runs (
                    run_id UUID, chunk_index UInt32, segment_id String,
@@ -129,6 +134,38 @@ def init_schema(dimensions: tuple[int, ...] = DIMENSIONS) -> None:
                  ) ENGINE=MergeTree ORDER BY (dataset_id,run_id,video_id,t_start)""",
             settings={"allow_experimental_vector_similarity_index": 1},
         )
+        root.command(f"ALTER TABLE seg_ch_{dimension}_runs ADD COLUMN IF NOT EXISTS median_visible_vehicle_count Nullable(Float32)")
+        root.command(f"ALTER TABLE seg_ch_{dimension}_runs ADD COLUMN IF NOT EXISTS detection_persistence_ratio Nullable(Float32)")
+
+
+@_with_reconnect
+def write_run_detector_enrichment(
+    run_id: str, dataset_id: str, dimension: int,
+    rows: list[tuple[str, float | None, float | None]],
+) -> int:
+    """Additive update of the two Phase 7 canonical columns on an already-written
+    seg_ch_{dimension}_runs chunk. Only meant to run within the same ingest run that
+    wrote the base rows (before that run is activated) -- this is not a general-purpose
+    post-hoc patch path, per plan Sec.8.1's "detector enrichment is not a post-hoc hook"
+    constraint. ClickHouse has no UPDATE; ALTER TABLE ... UPDATE is an async mutation,
+    acceptable here because it targets a not-yet-active run's own freshly-written rows,
+    not a live-serving table under concurrent read load."""
+    if not rows:
+        return 0
+    target = client()
+    for segment_id, median_visible, persistence_ratio in rows:
+        target.command(
+            f"ALTER TABLE seg_ch_{dimension}_runs UPDATE "
+            "median_visible_vehicle_count={median:Nullable(Float32)}, "
+            "detection_persistence_ratio={persistence:Nullable(Float32)} "
+            "WHERE run_id={run_id:UUID} AND dataset_id={dataset_id:String} AND segment_id={segment_id:String}",
+            parameters={
+                "median": median_visible, "persistence": persistence_ratio,
+                "run_id": run_id, "dataset_id": dataset_id, "segment_id": segment_id,
+            },
+            settings={"mutations_sync": 2},
+        )
+    return len(rows)
 
 
 @_with_reconnect
