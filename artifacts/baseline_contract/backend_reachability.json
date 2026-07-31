@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T12:15:00Z",
+  "method": "Code inspection of service/app/db/{clickhouse,postgres,qdrant,milvus}.py + service/app/search/strategies.py + service/app/config.py + service/app/db/registry.py, cross-checked against live health() calls against the already-running video-search-faz7-{pg,ch,qdrant} containers (ports 5442/8143/6343) using current-HEAD code via PYTHONPATH=service.",
+  "backends": {
+    "clickhouse": {
+      "implemented": true, "config_enableable": true, "schema_initializable": true,
+      "ingest_write_supported": true, "run_versioning_supported": true,
+      "search_supported": true, "benchmark_supported": true,
+      "production_supported": true,
+      "role": "production default vector backend (current default and, per plan, to remain default unless evidence says otherwise)",
+      "live_health_check": "pass (health()==True against live container this session)",
+      "known_defects_at_baseline": [
+        "candidate_count in search_vectors() diagnostics counts the filtered corpus, not the candidate_ids set, when candidate_ids is provided (clickhouse.py count_sql omits candidate_clause) -- see Phase -1.1",
+        "client() opens a brand-new clickhouse_connect connection on every call, no reuse -- see Phase -1.4",
+        "EXPLAIN indexes=1 and an unconditional count() query run on every search_vectors() call regardless of need -- see Phase -1.3"
+      ]
+    },
+    "qdrant": {
+      "implemented": true, "config_enableable": true, "schema_initializable": true,
+      "ingest_write_supported": true, "run_versioning_supported": true,
+      "search_supported": true, "benchmark_supported": "partial (bench/ package has no qdrant-specific harness yet; product-plane adapter is otherwise at parity with clickhouse for run-versioning operations)",
+      "production_supported": false,
+      "role": "enableable alternative vector backend (matches plan's expected role)",
+      "live_health_check": "pass (health()==True against live container this session)",
+      "known_defects_at_baseline": [
+        "search_vectors() candidate_count diagnostic is computed via a separate target.count() call that explicitly passes candidate_ids=None to _filter(), so it counts the filtered collection, not the candidate set -- same class of bug as clickhouse.py, see Phase -1.1"
+      ]
+    },
+    "pgvector": {
+      "implemented": true, "config_enableable": true, "schema_initializable": true,
+      "ingest_write_supported": true, "run_versioning_supported": true,
+      "search_supported": true, "benchmark_supported": "partial (no pgvector-specific bench harness yet)",
+      "production_supported": false,
+      "role": "enableable alternative vector backend (matches plan's expected role)",
+      "live_health_check": "pass (health()==True against live container this session)",
+      "known_defects_at_baseline": [
+        "search_vectors() computes candidate_count via a count(*) query executed BEFORE the candidate_clause is appended to params/sql (postgres.py:473-481) -- same class of bug, see Phase -1.1"
+      ]
+    },
+    "milvus": {
+      "implemented": "partial -- search_vectors() only; no init_schema/replace_vectors/write_run_chunk/count_run/delete_run/table_count",
+      "config_enableable": false,
+      "config_enableable_detail": "VECTOR_BACKENDS in config.py is ('clickhouse','qdrant','pgvector'); milvus is absent, so ENABLED_VECTOR_BACKENDS=milvus fails Settings.validate() at process startup. registry.py's BACKEND_REGISTRY (used by /health, /stats, initialize_enabled_backends) also omits milvus entirely.",
+      "schema_initializable": false,
+      "ingest_write_supported": false,
+      "run_versioning_supported": false,
+      "search_supported": "partial and latently broken -- milvus.search_vectors(dataset_id, dimension, query_vector, top_k, strategy, candidate_ids) has no run_id/metadata_filters/telemetry_filters parameters at all, while service/app/search/engine.py's BACKENDS dispatch calls every backend with those as keyword arguments whenever an active run exists or filter_execution_mode=pushdown is active. A direct call would raise TypeError. In practice this is NOT reachable through the public HTTP contract today: main.py's POST /search handler rejects request.backend not in settings.enabled_vector_backends before engine.search() is ever called, and milvus can never be in enabled_vector_backends (see config_enableable_detail). Only reachable via direct internal Python calls (e.g. a bench/ script calling engine.BACKENDS['milvus'] or engine.search() directly), not via the API.",
+      "benchmark_supported": false,
+      "production_supported": false,
+      "role": "incomplete/experimental search-only adapter, exactly matching the plan's own expected characterization -- worse than 'incomplete', it is unreachable via the current enabled-backend governance path and would crash if called with the kwargs the engine's dispatch contract requires for the run-scoped/pushdown paths.",
+      "compose_profile": "a real, opt-in Milvus stack (milvus 2.4.15 + etcd + minio) is defined in docker-compose.faz7.yml behind `profiles: [\"milvus\"]`, but is absent from every other docker-compose*.yml. This compose profile exists but was not brought up or exercised this session (out of scope: milvus is not production_supported and the plan explicitly says not to promote it to production status just because a file exists).",
+      "live_health_check": "not_run",
+      "reason": "no milvus service was brought up this session; config_enableable=false means it cannot be exercised through the normal settings-driven lifecycle even if it were up.",
+      "pymilvus_installed_version_caveat": "This session installed pymilvus 3.0.1 (latest) to unblock exploration; service/requirements.txt pins pymilvus==2.4.9 (a different major version). service/app/db/milvus.py's MilvusClient usage was not verified against either version's actual live behavior this session."
+    },
+    "numpy_exact": {
+      "implemented": true, "config_enableable": false,
+      "config_enableable_detail": "Same as milvus -- absent from VECTOR_BACKENDS/BACKEND_REGISTRY, unreachable via ENABLED_VECTOR_BACKENDS or the public /search contract.",
+      "schema_initializable": "not_applicable (in-memory reference implementation, no persistent schema)",
+      "ingest_write_supported": false, "run_versioning_supported": false,
+      "search_supported": "only via direct internal call, same reachability caveat as milvus",
+      "benchmark_supported": true,
+      "production_supported": false,
+      "role": "benchmark correctness reference only, exactly matching the plan's expected characterization -- must never be presented as a production backend or as production-equivalent latency.",
+      "live_health_check": "not_applicable"
+    }
+  },
+  "cross_cutting_findings": {
+    "two_separate_backend_maps_exist": "service/app/db/registry.py::BACKEND_REGISTRY (clickhouse/qdrant/pgvector only, drives /health, /stats, schema init lifecycle) is a different, smaller mapping than service/app/search/engine.py::BACKENDS (adds milvus and numpy_exact, drives actual per-request search dispatch). This is why milvus/numpy_exact can exist in code without being enableable -- they are wired into the dispatch table but never into the governance table.",
+    "research_plane_isolation_confirmed": "Verified zero import edges from service/app/** into the repo-root search/, bench/, eval/, or models/ packages (grep swept and manually verified every hit as a false positive -- either service/app's own app.search/app.bench sub-packages, unrelated .search()/re.search() method calls, or the vendored external Qwen3-VL-Embedding repo path). The plan's Section 0 claim that research and product planes are already separated is already_implemented and should be preserved as-is, not re-engineered."
+  }
+}

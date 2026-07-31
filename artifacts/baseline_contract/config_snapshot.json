@@ -1,0 +1,69 @@
+{
+  "embedding_mode": "synthetic",
+  "enabled_vector_backends": [
+    "clickhouse"
+  ],
+  "enabled_dimensions": [
+    512
+  ],
+  "filter_execution_mode": "pushdown",
+  "legacy_candidate_limit": 100000,
+  "decode_chunk_s": 300.0,
+  "decode_prefetch_windows": 8,
+  "embed_batch_size": 2,
+  "db_write_batch_size": 512,
+  "media_max_clip_s": 60.0,
+  "media_cache_max_gb": 10.0,
+  "media_cache_retention_hours": 168.0,
+  "media_h264_crf": 23,
+  "media_url_ttl_s": 300,
+  "require_secure_credentials": false,
+  "pg_host": "localhost",
+  "pg_port": 5442,
+  "pg_db": "uav_search",
+  "pg_user": "uav",
+  "ch_host": "localhost",
+  "ch_port": 8143,
+  "ch_user": "mvi",
+  "ch_db": "uav_search",
+  "qdrant_url": "http://localhost:6343",
+  "milvus_uri": "http://localhost:19530",
+  "artifacts_root": "artifacts",
+  "data_root": "data",
+  "default_top_k": 10,
+  "bind_host": "127.0.0.1",
+  "qwen_repo_path": "\\opt\\Qwen3-VL-Embedding",
+  "qwen_model_path": "\\models\\Qwen3-VL-Embedding-2B",
+  "qwen_model_id": "Qwen/Qwen3-VL-Embedding-2B",
+  "qwen_model_revision": "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda",
+  "qwen_source_commit": "393e2978d27852b0d0230d6994f37f9c15bed73c",
+  "model_bundle_root": "\\opt\\mvi-model-bundle",
+  "attn_impl": "sdpa",
+  "qwen_text_warm_limit_s": 10.0,
+  "qwen_text_warm_runs": 3,
+  "DIMENSIONS_all_possible": [
+    2048,
+    1024,
+    512,
+    256
+  ],
+  "VECTOR_BACKENDS_configurable": [
+    "clickhouse",
+    "qdrant",
+    "pgvector"
+  ],
+  "EMBEDDING_MODES_allowed": [
+    "cached",
+    "hybrid_text",
+    "real",
+    "synthetic"
+  ],
+  "FILTER_EXECUTION_MODES_allowed": [
+    "legacy_candidate_ids",
+    "pushdown"
+  ],
+  "ATTENTION_IMPLEMENTATIONS_allowed": [
+    "flash_attention_2",
+    "sdpa"
+  ]
+}

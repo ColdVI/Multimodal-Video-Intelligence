@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T12:05:00Z",
+  "head_sha": "c77a27f365b03a5382b169415a4d33cc8b8c5574",
+  "runs": [
+    {
+      "id": "root_pure_logic",
+      "command": "pytest tests/ -q -p no:cacheprovider",
+      "exit_code": 1,
+      "passed": 371,
+      "failed": 4,
+      "skipped": 0,
+      "duration_s": 41.84,
+      "pre_existing_failures_unrelated_to_advanced_retrieval": [
+        {
+          "test": "tests/test_faz11_docs_and_notebook.py::test_runbook_documented_commands_reference_real_scripts_and_flags",
+          "error": "FileNotFoundError: docs/USER_GUIDE.md",
+          "root_cause": "docs reorganization commit af6617b ('docs: reorganize repository documentation hierarchy') moved docs/USER_GUIDE.md to docs/archive/superseded/USER_GUIDE.md but this doc-consistency test's path reference was not updated in the same commit.",
+          "status": "confirmed_defect_out_of_scope",
+          "action_taken": "none -- recorded honestly as pre-existing baseline state; unrelated to docs/planning/ADVANCED_RETRIEVAL_FINAL_PLAN_v2.1.md and not touched by this work to avoid unrequested scope creep. Left for a separate docs-path fix."
+        },
+        {
+          "test": "tests/test_faz11_docs_and_notebook.py::test_documented_scripts_and_referenced_paths_exist",
+          "error": "FileNotFoundError: docs/USER_GUIDE.md",
+          "status": "confirmed_defect_out_of_scope",
+          "action_taken": "none, same root cause as above"
+        },
+        {
+          "test": "tests/test_faz11_docs_and_notebook.py::test_gc_runs_documented_flags_match_real_parser",
+          "error": "FileNotFoundError: docs/USER_GUIDE.md",
+          "status": "confirmed_defect_out_of_scope",
+          "action_taken": "none, same root cause as above"
+        },
+        {
+          "test": "tests/test_faz11_docs_and_notebook.py::test_preflight_documented_exit_codes_match_real_mapping",
+          "error": "FileNotFoundError: docs/USER_GUIDE.md",
+          "status": "confirmed_defect_out_of_scope",
+          "action_taken": "none, same root cause as above"
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "command": "PYTHONPATH=service pytest service/tests/ -q -p no:cacheprovider",
+      "exit_code": 0,
+      "passed": 150,
+      "failed": 0,
+      "skipped": 16,
+      "duration_s": 23.56
+    },
+    {
+      "id": "py_compile_all",
+      "command": "python -m py_compile <all .py files>",
+      "status": "not_yet_run_in_this_session",
+      "note": "Prior faz11 acceptance artifact (artifacts/faz11/final_acceptance.json) recorded exit_code 0 at commit d3fef0e; not independently re-run for this baseline to conserve time budget. Re-run before final release-candidate acceptance."
+    }
+  ],
+  "summary": {
+    "total_collected": 541,
+    "total_passed": 521,
+    "total_failed": 4,
+    "total_skipped": 16,
+    "failures_are_pre_existing_and_unrelated": true
+  }
+}

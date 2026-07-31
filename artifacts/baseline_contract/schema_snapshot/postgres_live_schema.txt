@@ -1,0 +1,75 @@
+-- datasets
+  dataset_id text NOT NULL
+  dataset_version text NULL
+  source_hash text NULL
+  license text NULL
+  has_telemetry boolean NOT NULL
+  has_captions boolean NOT NULL
+  vector_provenance text NOT NULL
+-- emb_pg_1024
+  segment_id text NOT NULL
+  dataset_id text NULL
+  v USER-DEFINED NULL
+-- emb_pg_1024h
+  segment_id text NOT NULL
+  dataset_id text NULL
+  v USER-DEFINED NULL
+-- emb_pg_2048
+  segment_id text NOT NULL
+  dataset_id text NULL
+  v USER-DEFINED NULL
+-- emb_pg_256
+  segment_id text NOT NULL
+  dataset_id text NULL
+  v USER-DEFINED NULL
+-- emb_pg_512
+  segment_id text NOT NULL
+  dataset_id text NULL
+  v USER-DEFINED NULL
+-- retrieval_groundtruth
+  dataset_id text NOT NULL
+  query_id text NOT NULL
+  query_text text NOT NULL
+  relevant_segment_id text NOT NULL
+  relevant_video_id text NOT NULL
+  relevance_rank integer NOT NULL
+  caption_index integer NULL
+  caption_source text NOT NULL
+-- segment_metadata
+  segment_id text NOT NULL
+  person_count integer NULL
+  vehicle_count integer NULL
+  bus_count integer NULL
+  object_classes ARRAY NULL
+  brightness real NULL
+  camera_motion real NULL
+-- segment_telemetry
+  segment_id text NOT NULL
+  timestamp_start timestamp with time zone NULL
+  timestamp_end timestamp with time zone NULL
+  latitude double precision NULL
+  longitude double precision NULL
+  altitude_m real NULL
+  velocity_mps real NULL
+  roll real NULL
+  pitch real NULL
+  yaw real NULL
+  yaw_rate real NULL
+  gimbal_pitch real NULL
+  gimbal_heading real NULL
+  compass_heading real NULL
+  imu_summary jsonb NULL
+-- segments
+  segment_id text NOT NULL
+  dataset_id text NOT NULL
+  video_id text NOT NULL
+  t_start double precision NOT NULL
+  t_end double precision NOT NULL
+  caption text NULL
+-- videos
+  dataset_id text NOT NULL
+  video_id text NOT NULL
+  source_uri text NULL
+  split text NULL
+  duration_s double precision NULL
+  event_category text NULL

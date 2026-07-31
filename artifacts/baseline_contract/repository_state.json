@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T12:00:00Z",
+  "purpose": "Phase 0 baseline freeze for docs/planning/ADVANCED_RETRIEVAL_FINAL_PLAN_v2.1.md before any advanced-retrieval code changes.",
+  "repo": "ColdVI/Multimodal-Video-Intelligence",
+  "remote": "https://github.com/ColdVI/Multimodal-Video-Intelligence.git",
+  "local_working_directory_name": "video-search-poc",
+  "branch_at_start": "main",
+  "head_sha_at_start": "c77a27f365b03a5382b169415a4d33cc8b8c5574",
+  "plan_document_reference_sha": "c77a27f365b03a5382b169415a4d33cc8b8c5574",
+  "plan_reference_matches_head_at_start": true,
+  "working_tree_at_start": {
+    "clean": false,
+    "note": "6 modified PNG files under artifacts/ui_redesign/ (regenerated screenshots), unrelated to advanced retrieval; left untouched by this work.",
+    "modified_files": [
+      "artifacts/ui_redesign/advanced_settings.png",
+      "artifacts/ui_redesign/comparison.png",
+      "artifacts/ui_redesign/home_empty.png",
+      "artifacts/ui_redesign/result_expanded.png",
+      "artifacts/ui_redesign/search_results.png",
+      "artifacts/ui_redesign/synthetic_warning.png"
+    ]
+  },
+  "new_branch": "feat/advanced-retrieval-evidence-gated",
+  "environment": {
+    "platform": "Windows 11 Pro 10.0.26200",
+    "python": "3.14.6",
+    "pytest": "9.1.1",
+    "docker_cli": true,
+    "docker_daemon": "started this session (was down at session start; Docker Desktop launched and came up mid-session)",
+    "docker_server_version": "29.6.1",
+    "nvidia_smi": true,
+    "gpu_name": "NVIDIA GeForce GT 1030 (4096 MiB) - present but not representative institution hardware",
+    "torch_cuda_available": false,
+    "torch_version": "2.13.0+cpu",
+    "institution_data": false,
+    "pre_existing_live_stack": "video-search-faz7-{pg,ch,qdrant,api,ui} containers were already running (created ~21-28h prior, restarted by Docker Desktop's own startup ~5 min before this session touched them). Contains real non-synthetic data: dataset_id=auair (1866 segments, synthetic vector_provenance) and dataset_id=capera (1391 segments, real vector_provenance, 6955 groundtruth rows). NOT modified or deleted by this work; used read-only for connectivity checks. Any live testing for this plan uses a separate, dedicated test dataset_id.",
+    "live_stack_image_provenance_caveat": "video-search-faz7-api:latest / -ui:latest images may predate current HEAD source (Postgres schema on the live pg container was missing run-versioning tables until this session ran the current-HEAD additive app.db.postgres.init_schema()/app.db.clickhouse.init_schema() against it -- see schema_snapshot/). Do not treat the running faz7 containers' behavior as reflecting current HEAD; this session's own direct-from-venv Python calls (PYTHONPATH=service) against the exposed ports are what reflects current HEAD.",
+    "dependency_drift_note": "This dev venv's installed versions are newer/looser than service/requirements.txt pins in several places (fastapi/pydantic/uvicorn/numpy/torch/transformers all tracked as '>= / latest-compatible' rather than exact pins prior to this session; this session additionally installed psycopg2-binary, qdrant-client, pymilvus, pgvector unpinned to unblock live backend testing, which are themselves newer than service/requirements.txt's exact pins). The containerized api/ui images install from the pinned service/requirements.txt and are unaffected."
+  },
+  "installed_key_dependency_versions": {
+    "fastapi": "0.139.2",
+    "uvicorn": "0.51.0",
+    "pydantic": "2.13.4",
+    "psycopg2-binary": "2.9.12",
+    "clickhouse-connect": "1.6.0",
+    "qdrant-client": "1.18.0",
+    "pgvector": "0.5.0",
+    "pymilvus": "3.0.1",
+    "numpy": "2.5.1",
+    "pytest": "9.1.1",
+    "torch": "2.13.0+cpu",
+    "transformers": "5.14.1",
+    "sentence-transformers": "5.6.1",
+    "ultralytics": "8.4.104"
+  },
+  "service_requirements_pins_for_comparison": {
+    "fastapi": "0.139.2", "uvicorn[standard]": "0.30.6", "pydantic": "2.9.2",
+    "psycopg2-binary": "2.9.9", "clickhouse-connect": "0.8.3", "qdrant-client": "1.12.1",
+    "pgvector": "0.3.5", "pymilvus": "2.4.9", "numpy": "1.26.4", "pytest": "8.3.3"
+  },
+  "docker_images_present": [
+    "clickhouse/clickhouse-server:25.8", "clickhouse/clickhouse-server:latest",
+    "pgvector/pgvector:pg16", "postgres:16", "postgres:16-alpine",
+    "qdrant/qdrant:v1.12.4", "minio/minio:latest",
+    "video-search-faz7-api:latest", "video-search-faz7-ui:latest"
+  ]
+}

@@ -15,6 +15,7 @@ __pycache__/
 .runtime/
 .gradio/
 .env.faz7
+.env
 artifacts/embeddings/*.npy
 artifacts/embeddings/*_ids.parquet
 artifacts/embeddings/query_embeddings.json

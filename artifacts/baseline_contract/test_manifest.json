@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T12:05:00Z",
+  "note": "Manifest is the source of truth per plan Sec.1 item 7 / Sec.6 -- counts are recorded evidence, not hardcoded targets for future work.",
+  "suites": [
+    {
+      "id": "root_pure_logic",
+      "command": "pytest tests/ -q -p no:cacheprovider",
+      "collected": 375
+    },
+    {
+      "id": "service",
+      "command": "PYTHONPATH=service pytest service/tests/ -q -p no:cacheprovider",
+      "collected": 166
+    }
+  ],
+  "total_collected": 541
+}
