@@ -67,8 +67,13 @@ class TelemetryField:
             interpolation = "circular"
             aggregation = "circular_mean"
         elif data_type == "categorical":
-            interpolation = str(interpolation or "locf")
-            aggregation = str(aggregation or "mode")
+            if interpolation not in (None, "locf") or aggregation not in (None, "mode"):
+                raise ValueError(
+                    f"categorical field {name!r} requires locf interpolation and mode aggregation "
+                    "(numeric interpolation/aggregation does not apply to categorical values)"
+                )
+            interpolation = "locf"
+            aggregation = "mode"
         else:
             interpolation = str(interpolation or "linear")
             aggregation = str(aggregation or "median")

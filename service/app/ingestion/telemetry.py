@@ -5,7 +5,7 @@ import bisect
 import math
 import statistics
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Protocol
 
@@ -30,7 +30,7 @@ class TelemetryAdapter(Protocol):
         ...
 
 
-def _unix_seconds(timestamp: float | str, clock: str) -> float:
+def _unix_seconds(timestamp: float | str, clock: str, timezone_name: str = "UTC") -> float:
     if clock == "unix_ms":
         return float(timestamp) / 1000.0
     if clock == "unix_s":
@@ -39,7 +39,14 @@ def _unix_seconds(timestamp: float | str, clock: str) -> float:
         text = str(timestamp).replace("Z", "+00:00")
         parsed = datetime.fromisoformat(text)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            # A naive iso8601 telemetry timestamp is never silently assumed to
+            # be UTC: it is localized with the manifest's declared
+            # time_alignment.timezone (default "UTC", but explicit and
+            # operator-controlled), matching how preflight.py and
+            # generic_loader.py already localize the video-start anchor.
+            from zoneinfo import ZoneInfo
+
+            parsed = parsed.replace(tzinfo=ZoneInfo(timezone_name))
         return parsed.timestamp()
     raise ValueError(f"clock {clock!r} is not absolute")
 
@@ -50,6 +57,7 @@ def align_timestamp(
     telemetry_clock: str,
     offset_s: float,
     video_start_unix_s: float | None,
+    timezone_name: str = "UTC",
 ) -> float:
     """Align telemetry to video PTS.
 
@@ -62,7 +70,7 @@ def align_timestamp(
     if telemetry_clock in ABSOLUTE_CLOCKS:
         if video_start_unix_s is None:
             raise ValueError("absolute telemetry clock requires video_start_unix_s")
-        return _unix_seconds(timestamp, telemetry_clock) - video_start_unix_s - offset_s
+        return _unix_seconds(timestamp, telemetry_clock, timezone_name) - video_start_unix_s - offset_s
     raise ValueError(f"unsupported telemetry clock: {telemetry_clock!r}")
 
 
@@ -157,6 +165,7 @@ class TelemetrySeries:
                     telemetry_clock=manifest.telemetry_clock,
                     offset_s=manifest.time_offset_s if offset_s is None else offset_s,
                     video_start_unix_s=video_start_unix_s,
+                    timezone_name=manifest.timezone,
                 ),
                 canonical=canonical_values(record, manifest),
                 extra=extra_values(record, manifest),

@@ -197,6 +197,7 @@ def run_data_preflight(
                     telemetry_clock=manifest.telemetry_clock,
                     offset_s=pairs[0].offset_s if pairs[0].offset_s is not None else manifest.time_offset_s,
                     video_start_unix_s=start_anchor,
+                    timezone_name=manifest.timezone,
                 )
                 monotonic = monotonic and (previous is None or previous <= value)
                 previous = value

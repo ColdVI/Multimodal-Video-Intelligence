@@ -40,6 +40,15 @@ aramaz. Absolute clock için container creation time, filename veya pairing CSV
 anchor'ı gerçek veriden çözülemezse preflight FAIL olur; sistem sahte anchor
 üretmez.
 
+`telemetry_clock: iso8601` içinde timezone-naive bir zaman damgası (örn.
+`2026-01-01T12:00:00`, ofset yok) asla sessizce UTC sayılmaz: manifestin
+`time_alignment.timezone` alanı (varsayılan `UTC`, ama açık ve kurum
+tarafından değiştirilebilir) ile `ZoneInfo` üzerinden yerelleştirilir — bu,
+`video_start_time_from: filename` anchor'ının zaten kullandığı yerelleştirme
+ile aynı mekanizmadır. Zaman damgasının kendisi açık bir UTC ofseti
+taşıyorsa (`+00:00`, `Z` gibi) bu her zaman `timezone` ayarının önüne geçer.
+DST dahil timezone kuralları `ZoneInfo`'nun sistem tz veritabanından gelir.
+
 ## Canonical telemetri
 
 P0 filtre alanları şunlardır:
@@ -52,9 +61,14 @@ compass_heading, person_count, vehicle_count, bus_count, is_night
 
 - `altitude_m`, `reference: AGL|MSL|WGS84` belirtmeden kabul edilmez.
 - `velocity_mps`, `kind: ground_speed|air_speed` belirtmeden kabul edilmez.
-- `compass_heading`, `yaw` ve `gimbal_heading` farklı semantiklerdir.
+- `compass_heading`, `yaw` ve `gimbal_heading` farklı semantiklerdir; manifest
+  şemasında hiçbir otomatik eşleme yoktur — bir alan yalnız operatör YAML'da
+  o tam canonical ada açıkça bir `source` kolonu bağladığında doldurulur.
 - Circular derece alanları `circular` interpolation ve `circular_mean`
   aggregation kullanır; 359° ile 1° ortalaması 180° değildir.
+- Categorical alanlar aynı şekilde yalnız `locf` interpolation ve `mode`
+  aggregation kabul eder; sayısal bir interpolation/aggregation seçilirse
+  manifest validation'da reddedilir.
 - Açık birim dönüşümü `scale` ve `offset` ile yapılır; gizli tahmin yoktur.
 - Canonical olmayan alanlar `telemetry.extra` altında saklanır ve P0 filtre
   kontrolü/index/ClickHouse kolonu üretmez.

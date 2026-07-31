@@ -119,6 +119,116 @@ def test_absolute_clock_requires_and_uses_anchor():
     assert align_timestamp(11_000, telemetry_clock="unix_ms", offset_s=1.0, video_start_unix_s=5.0) == 5.0
 
 
+def test_categorical_field_is_not_linearly_interpolated(tmp_path):
+    payload = _payload()
+    payload["telemetry"]["extra"]["sensor_mode"] = {"source": "mode", "type": "categorical", "interpolation": "linear"}
+    path = tmp_path / "bad.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="categorical field .* requires locf interpolation and mode aggregation"):
+        load_manifest(path)
+
+
+def test_categorical_field_defaults_to_locf_and_mode(tmp_path):
+    payload = _payload()
+    payload["telemetry"]["extra"]["sensor_mode"] = {"source": "mode", "type": "categorical"}
+    path = tmp_path / "ok.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    manifest = load_manifest(path)
+    field = manifest.telemetry_extra["sensor_mode"]
+    assert field.interpolation == "locf" and field.aggregation == "mode"
+
+
+def test_timezone_naive_absolute_timestamp_uses_manifest_timezone_not_hardcoded_utc():
+    """Regression test: telemetry.py::_unix_seconds used to hardcode UTC for a
+    naive iso8601 timestamp regardless of the manifest's declared timezone,
+    unlike preflight.py/generic_loader.py which both already localized the
+    video-start anchor via ZoneInfo(manifest.timezone). A naive timestamp must
+    be interpreted according to the manifest's explicit setting, not silently
+    forced to UTC when the operator declared something else."""
+    naive = "2026-01-01T12:00:00"
+    utc_result = align_timestamp(
+        naive, telemetry_clock="iso8601", offset_s=0.0, video_start_unix_s=0.0, timezone_name="UTC",
+    )
+    istanbul_result = align_timestamp(
+        naive, telemetry_clock="iso8601", offset_s=0.0, video_start_unix_s=0.0, timezone_name="Europe/Istanbul",
+    )
+    # Istanbul (UTC+3, no DST in January) is 3 hours ahead of UTC, so the same
+    # naive wall-clock reading corresponds to an earlier absolute instant.
+    assert istanbul_result == pytest.approx(utc_result - 3 * 3600.0, abs=1.0)
+    # An explicit UTC offset in the timestamp itself must win regardless of
+    # the manifest's configured timezone (it is no longer naive).
+    explicit_utc = align_timestamp(
+        "2026-01-01T12:00:00+00:00", telemetry_clock="iso8601", offset_s=0.0,
+        video_start_unix_s=0.0, timezone_name="Europe/Istanbul",
+    )
+    assert explicit_utc == pytest.approx(utc_result, abs=1e-6)
+
+
+def test_offset_sign_matches_documentation():
+    """align_timestamp's docstring states a positive offset moves telemetry
+    earlier on the video timeline, for both relative and absolute clocks."""
+    baseline_relative = align_timestamp(10.0, telemetry_clock="relative_s", offset_s=0.0, video_start_unix_s=None)
+    offset_relative = align_timestamp(10.0, telemetry_clock="relative_s", offset_s=2.0, video_start_unix_s=None)
+    assert offset_relative < baseline_relative
+    assert offset_relative == pytest.approx(baseline_relative - 2.0)
+
+    baseline_absolute = align_timestamp(1000.0, telemetry_clock="unix_s", offset_s=0.0, video_start_unix_s=0.0)
+    offset_absolute = align_timestamp(1000.0, telemetry_clock="unix_s", offset_s=5.0, video_start_unix_s=0.0)
+    assert offset_absolute < baseline_absolute
+    assert offset_absolute == pytest.approx(baseline_absolute - 5.0)
+
+
+def test_heading_fields_are_never_implicitly_cross_mapped(tmp_path):
+    """The manifest schema has no auto-mapping logic: yaw, compass_heading, and
+    gimbal_heading are only ever populated when the operator explicitly maps a
+    source column to that exact canonical name. Declaring only compass_heading
+    must never cause yaw to be silently populated from the same source."""
+    payload = _payload()
+    assert "yaw" not in payload["telemetry"]["fields"]
+    assert "compass_heading" in payload["telemetry"]["fields"]
+    path = tmp_path / "manifest.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    manifest = load_manifest(path)
+    assert "compass_heading" in manifest.telemetry_fields
+    assert "yaw" not in manifest.telemetry_fields
+
+
+def test_altitude_datum_must_be_one_of_the_explicit_reference_values(tmp_path):
+    payload = _payload()
+    payload["telemetry"]["fields"]["altitude_m"]["reference"] = "ellipsoid_typo"
+    path = tmp_path / "bad.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="altitude_m requires reference"):
+        load_manifest(path)
+
+
+def test_velocity_semantics_are_preserved_on_the_parsed_field(tmp_path):
+    manifest = _manifest(tmp_path)
+    assert manifest.telemetry_fields["velocity_mps"].kind == "ground_speed"
+    payload = _payload()
+    payload["telemetry"]["fields"]["velocity_mps"]["kind"] = "air_speed"
+    path = tmp_path / "air.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    assert load_manifest(path).telemetry_fields["velocity_mps"].kind == "air_speed"
+
+
+def test_extra_telemetry_is_not_dropped_alongside_canonical_fields(tmp_path):
+    manifest = _manifest(tmp_path)
+    assert "battery_v" in manifest.telemetry_extra
+    assert "battery_v" not in manifest.telemetry_fields
+    from app.ingestion.telemetry import AlignedTelemetryRecord, TelemetrySeries
+
+    series = TelemetrySeries([
+        AlignedTelemetryRecord(0.0, {"altitude_m": 10.0, "compass_heading": 10.0}, {"battery_v": 12.0}),
+        AlignedTelemetryRecord(4.0, {"altitude_m": 12.0, "compass_heading": 20.0}, {"battery_v": 11.5}),
+    ], manifest)
+    canonical, extra = series.aggregate_window(0.0, 4.0)
+    assert canonical["altitude_m"] is not None
+    assert extra["battery_v"] is not None
+    assert "battery_v" not in canonical
+    assert "altitude_m" not in extra
+
+
 def test_identifier_regex_requires_named_video_id():
     assert derive_identifier(Path("flight_part2.mp4"), r"regex:^(?P<video_id>.+?)_part\d+$") == "flight"
     with pytest.raises(ValueError, match="named video_id"):
