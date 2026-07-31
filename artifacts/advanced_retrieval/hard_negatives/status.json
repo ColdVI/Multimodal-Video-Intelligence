@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T15:45:00Z",
+  "plan_reference": "Sec.9/17",
+  "statistical_power_threshold": 150,
+  "tiers": {
+    "tier_a_auto_derivable": {
+      "status": "generated_real_small_sample",
+      "count": 3,
+      "source": "artifacts/advanced_retrieval/hard_negatives/tier_a_auair.json",
+      "method": "Read-only query against the live auair dataset's real segment_metadata.vehicle_count (1866 segments, no writes); bucketed into {0, 1-50, 51-150, 151+} rather than one query per distinct raw count value (which would have produced 375 near-duplicate single-value queries). All 3 queries are annotation_method=auto_derived, evaluation=binding, attribute_reachable=true per attribute_reachability_precheck().",
+      "honest_caveat": "3 binding queries is far short of both the plan's own ~100-query Tier A target and the 150-query statistical power threshold (Sec.9.1/14 review item -- same threshold this repo's own adaptive MRL pilot is held to, docs/operations/STATUS.md 'Unified Search Harness'). This is a real, small demonstration that the generator (service/app/evaluation/hard_negatives.py, fully unit-tested with fake data in test_evaluation_hard_negatives.py) works end-to-end against real data, not a claim that Tier A is complete. Scaling to ~100 needs either finer-grained real attributes (class_proximity requires a second populated count field -- auair's person_count is always 0 in this dataset, so that generator produced zero queries here) or additional datasets/fields."
+    },
+    "tier_b_metadata_derivable": {
+      "status": "not_generated",
+      "reason": "Needs camera_motion/brightness/day-night metadata actually populated on segment_metadata for a real dataset. auair's segment_metadata has these columns (per schema) but this session did not verify real (non-null) values are present, and did not build the corresponding generator function -- scoped out given remaining session time budget, not attempted and abandoned.",
+      "required_followup": "Verify camera_motion/brightness population on a real dataset, then add a build_tier_b_metadata_pairs() function mirroring build_tier_a_count_difference_pairs()'s pattern."
+    },
+    "tier_c_human_verified": {
+      "status": "not_run",
+      "reason": "Cannot be fabricated by this agent -- Sec.9.2/17 requires an actual human to view sampled frames and judge whether an attribute (color, direction, approaching/receding) is reachable at the model's input resolution before any such query enters the binding set. attribute_reachability_precheck() in hard_negatives.py implements only the structural half of this gate (enough sampled frames to judge anything at all); it deliberately returns False for color/direction by default specifically so it cannot be mistaken for the human judgment step.",
+      "required_command": "A human reviewer samples frames_per_window frames from ~20 candidate UAV segments per plan Sec.9.3 Tier C, judges attribute_reachable per query, and records annotation_method=human_verified with the actual judgment -- this is a labeling task, not a script."
+    }
+  },
+  "binding_vs_exploratory_summary": {"binding": 3, "exploratory": 0},
+  "production_decision_impact": "None -- 3 queries cannot support any binding production decision (adaptive MRL dimension choice, parser default, relaxation threshold). No such decision was made on this evidence."
+}
