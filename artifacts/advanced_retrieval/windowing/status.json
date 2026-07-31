@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T14:20:00Z",
+  "plan_reference": "Sec.5/9.1",
+  "harness_status": "built_and_unit_tested",
+  "harness_location": "bench/windowing_ablation.py",
+  "full_screening_sweep_status": "not_run",
+  "reason": "Changing window_size_s/stride_s/n_sample changes segment boundaries, so every grid point requires re-running frames->windows->embed for a representative sequence subset -- there is no way to compute this from embeddings already on disk (those are all for the current, single window config). This repo's own prior measurements put a single real ingest pass (19 sequences, current window config) at multiple minutes of CPU decode+detect+embed time even with the cheap X-CLIP path (docs/operations/STATUS.md Faz 1: 'frames 23.4 sn, YOLO 59.9 sn, X-CLIP 158.2 sn'); a multi-point grid (this module's default is 4 points) multiplies that. Given this session's remaining scope (Phase 2-11 of the implementation task are still pending), running even a minimal real sweep was not attempted -- doing so honestly requires a dedicated, budgeted session, not a fit-it-in pass.",
+  "required_command": "Override config.yaml's window/merge/models.n_sample block per WindowConfig from bench.windowing_ablation.build_sweep(), then run `make frames && make windows && make detect && make embed MODEL=xclip_hf_zeroshot && make load MODEL=xclip_hf_zeroshot && make groundtruth && make eval` per config against the existing 19-sequence bench subset (config.yaml: bench.subset), feeding eval output into bench.windowing_ablation.run_screening(). Confirmation: repeat only the top 2-3 configs with MODEL=qwen3vl_emb_2048 (GPU strongly recommended given the 17.7-hour CPU cost this repo already measured for a single full Qwen ingest pass at the current window config -- docs/operations/STATUS.md Faz 4).",
+  "expected_environment": "CPU is sufficient for X-CLIP/SigLIP2 screening (this environment could technically run it); Qwen confirmation needs a real GPU to stay inside a reasonable time budget.",
+  "what_was_actually_delivered_this_session": [
+    "bench/windowing_ablation.py: WindowConfig, build_sweep(), run_screening(), select_confirmation_candidates(), judge_priority_gate() -- all pure, unit-tested (tests/test_research_windowing_ablation.py, 8 tests), ready to run against a real evaluation callback the moment a budgeted session is available.",
+    "artifacts/advanced_retrieval/language_parity/: a real, executed TR/EN cross-lingual embedding-alignment measurement (see summary.json) using the actual pinned Qwen weights already present locally -- this was tractable within this session's budget because it only needs text embeddings (seconds each), not new video ingest."
+  ],
+  "priority_gate_status": "not_evaluated -- judge_priority_gate() requires real screening results, which do not exist yet. Sec.14's priority order (parser/relaxation before detector/tracking/VLM) stands unchanged from the plan; this session did not surface evidence to revise it, but also did not surface evidence to confirm it stays correct at the windowing axis specifically. Re-run this gate before treating Sec.14 as final."
+}

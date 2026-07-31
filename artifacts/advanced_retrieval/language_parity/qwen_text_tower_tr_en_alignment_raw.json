@@ -1,0 +1,248 @@
+{
+  "per_pair": [
+    {
+      "query_id": "S01",
+      "query_type": "general_scene",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.7048,
+      "tr_nearest_en_query_id": "S01",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S01",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S02",
+      "query_type": "person",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.8549,
+      "tr_nearest_en_query_id": "S02",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S02",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S03",
+      "query_type": "single_object",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.7168,
+      "tr_nearest_en_query_id": "S03",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S03",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S04",
+      "query_type": "state",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.8302,
+      "tr_nearest_en_query_id": "S04",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S04",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S05",
+      "query_type": "negative_content",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.8424,
+      "tr_nearest_en_query_id": "S05",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S05",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S06",
+      "query_type": "object_relation",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.7629,
+      "tr_nearest_en_query_id": "S06",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S06",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S07",
+      "query_type": "place",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.6357,
+      "tr_nearest_en_query_id": "S07",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S07",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S08",
+      "query_type": "lighting",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.7211,
+      "tr_nearest_en_query_id": "S08",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S08",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S09",
+      "query_type": "event",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.5027,
+      "tr_nearest_en_query_id": "S15",
+      "tr_to_en_top1_correct": false,
+      "en_nearest_tr_query_id": "S07",
+      "en_to_tr_top1_correct": false
+    },
+    {
+      "query_id": "S10",
+      "query_type": "event",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.8321,
+      "tr_nearest_en_query_id": "S10",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S10",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S11",
+      "query_type": "texture",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.7723,
+      "tr_nearest_en_query_id": "S11",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S11",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S12",
+      "query_type": "texture",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.4273,
+      "tr_nearest_en_query_id": "S13",
+      "tr_to_en_top1_correct": false,
+      "en_nearest_tr_query_id": "S07",
+      "en_to_tr_top1_correct": false
+    },
+    {
+      "query_id": "S13",
+      "query_type": "count_singular",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.5301,
+      "tr_nearest_en_query_id": "S13",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S02",
+      "en_to_tr_top1_correct": false
+    },
+    {
+      "query_id": "S14",
+      "query_type": "count_plural",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.6394,
+      "tr_nearest_en_query_id": "S14",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S14",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S15",
+      "query_type": "camera_motion",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.6802,
+      "tr_nearest_en_query_id": "S16",
+      "tr_to_en_top1_correct": false,
+      "en_nearest_tr_query_id": "S15",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S16",
+      "query_type": "camera_motion",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.8572,
+      "tr_nearest_en_query_id": "S16",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S16",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S17",
+      "query_type": "negation",
+      "evaluation": "exploratory",
+      "same_pair_cosine": 0.5507,
+      "tr_nearest_en_query_id": "S17",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S18",
+      "en_to_tr_top1_correct": false
+    },
+    {
+      "query_id": "S18",
+      "query_type": "negation",
+      "evaluation": "exploratory",
+      "same_pair_cosine": 0.7621,
+      "tr_nearest_en_query_id": "S18",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S18",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S19",
+      "query_type": "noise_control",
+      "evaluation": "exploratory",
+      "same_pair_cosine": 0.8466,
+      "tr_nearest_en_query_id": "S19",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S19",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S21",
+      "query_type": "unicode_emoji",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.8399,
+      "tr_nearest_en_query_id": "S21",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S21",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S22",
+      "query_type": "injection",
+      "evaluation": "binding",
+      "same_pair_cosine": 1.0,
+      "tr_nearest_en_query_id": "S22",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S22",
+      "en_to_tr_top1_correct": true
+    },
+    {
+      "query_id": "S24",
+      "query_type": "hybrid_trigger",
+      "evaluation": "binding",
+      "same_pair_cosine": 0.7084,
+      "tr_nearest_en_query_id": "S24",
+      "tr_to_en_top1_correct": true,
+      "en_nearest_tr_query_id": "S24",
+      "en_to_tr_top1_correct": true
+    }
+  ],
+  "binding": {
+    "n": 19,
+    "mean_same_pair_cosine": 0.7294,
+    "tr_to_en_top1_accuracy": 0.8421,
+    "en_to_tr_top1_accuracy": 0.8421
+  },
+  "exploratory": {
+    "n": 3,
+    "mean_same_pair_cosine": 0.7198,
+    "tr_to_en_top1_accuracy": 1.0,
+    "en_to_tr_top1_accuracy": 0.6667
+  },
+  "overall": {
+    "n": 22,
+    "mean_same_pair_cosine": 0.7281,
+    "tr_to_en_top1_accuracy": 0.8636,
+    "en_to_tr_top1_accuracy": 0.8182
+  },
+  "_meta": {
+    "model_load_s": 22.94,
+    "embedding_wall_time_s": 29.88,
+    "n_pairs": 22,
+    "embedding_mode": "real_cpu_text_tower"
+  }
+}

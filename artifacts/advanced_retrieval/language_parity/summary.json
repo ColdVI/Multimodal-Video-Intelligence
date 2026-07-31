@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-31T14:10:00Z",
+  "plan_reference": "Sec.6.5/9.2",
+  "method": "Cross-lingual text-embedding alignment over the 22 usable pairs (of 24) in tests/fixtures/queries_semantic.json (S20 empty-string edge case and S23 generator-only entry excluded -- no tr/en text to embed), using real Qwen3-VL-Embedding-2B CPU text-tower forward passes (bench/language_parity.py::measure_alignment), not a proxy model. Metric: same-pair cosine similarity, plus top-1 cross-lingual nearest-neighbor retrieval accuracy in both directions (does a Turkish query's embedding land closest to its own English translation among all 22 English embeddings, and vice versa).",
+  "why_this_metric_not_full_retrieval": "A full TR-query-vs-EN-query retrieval comparison needs a matching video corpus and groundtruth embedded at GPU scale, which this environment cannot produce (no representative GPU -- see artifacts/baseline_contract/known_limitations.md). Cross-lingual embedding alignment is the standard, much cheaper proxy for 'does the text tower treat Turkish and English queries of the same meaning as equivalent', is real (not estimated), and was actually computed this session using the real pinned model weights already present locally (weights/hf/Qwen__Qwen3-VL-Embedding-2B/9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda).",
+  "raw_result": "artifacts/advanced_retrieval/language_parity/qwen_text_tower_tr_en_alignment_raw.json",
+  "measured": {
+    "binding_n19": {"mean_same_pair_cosine": 0.7294, "tr_to_en_top1_accuracy": 0.8421, "en_to_tr_top1_accuracy": 0.8421},
+    "exploratory_n3": {"mean_same_pair_cosine": 0.7198, "tr_to_en_top1_accuracy": 1.0, "en_to_tr_top1_accuracy": 0.6667},
+    "overall_n22": {"mean_same_pair_cosine": 0.7281, "tr_to_en_top1_accuracy": 0.8636, "en_to_tr_top1_accuracy": 0.8182},
+    "model_load_s": 22.94,
+    "total_embedding_wall_time_s": 29.88,
+    "environment": "CPU, float32/bfloat16 per this host's AVX512-BF16 support, no GPU"
+  },
+  "notable_weak_pairs": [
+    {"query_id": "S09", "type": "event", "tr": "sel basmış alan", "en": "a flooded area", "cosine": 0.5027, "both_directions_wrong": true},
+    {"query_id": "S12", "type": "texture", "tr": "sahil şeridi", "en": "a coastline", "cosine": 0.4273, "both_directions_wrong": true},
+    {"query_id": "S13", "type": "count_singular", "tr": "tek bir yaya", "en": "a single pedestrian", "cosine": 0.5301, "en_to_tr_wrong": true}
+  ],
+  "interpretation": "Qwen3-VL-Embedding's text tower shows moderate, non-trivial Turkish/English cross-lingual alignment (84% binding top-1 accuracy in both directions across 19 pairs) -- not near-perfect, but functional. The weak spots cluster around scene/texture/event descriptions (flooded area, coastline) rather than object/count queries, which is a different failure pattern than the plan's Sec.6.5 open question anticipated (it did not assume a particular failure axis). This is a real signal against Qwen's Turkish quality being 'roughly as good as English' (plan Ek A item 2's unverified assumption) -- it is closer but imperfect, with identifiable weak categories.",
+  "decision": {
+    "conclusion": "direct_turkish_query_embedding_is_viable_but_not_equivalent_to_english",
+    "recommendation": "Sec.6.6's default (full_query, semantic embedding takes the whole query as-is) is not contraindicated by this result -- accuracy is well above chance (1/22=4.5%) in both directions -- but scene/texture-heavy Turkish queries should be expected to underperform their English equivalents until a larger, GT-backed TR/EN retrieval comparison (requiring GPU-scale video embedding) is run. This finding does NOT by itself justify building a TR->EN translation or multilingual query-rewrite stage (plan Sec.6.2/9.2's other ablation arms) -- 84% is not a clear failure, and translation adds its own error surface. No production default is changed based on this evidence alone.",
+    "confidence": "single small-sample (19-22 pairs) measurement; not a 150+-query statistically powered result -- same evidentiary caveat this repo already applies to its own adaptive MRL pilot (docs/operations/STATUS.md 'Unified Search Harness' section)."
+  },
+  "status": "measured",
+  "not_measured": [
+    "Full TR vs EN retrieval quality (Recall@K, MRR, ranking agreement) against a real video corpus with groundtruth -- requires GPU-scale video embedding, blocked_by_environment.",
+    "TR->EN translation and multilingual-query-rewrite ablation arms (plan Sec.6.2/9.2) -- not attempted; this measurement only establishes whether the direct-embedding baseline has an obvious problem worth ablating against, and it does not."
+  ]
+}
