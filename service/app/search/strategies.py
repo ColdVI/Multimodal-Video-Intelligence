@@ -9,6 +9,19 @@ SUPPORTED_STRATEGIES = {
     "numpy_exact": ("exact",),
 }
 
+DEFAULT_STRATEGIES = {
+    "clickhouse": "prefilter",
+    "qdrant": "ann",
+    "pgvector": "iterative_scan",
+}
+
+
+def default_strategy(backend: str) -> str:
+    try:
+        return DEFAULT_STRATEGIES[backend]
+    except KeyError as exc:
+        raise ValueError(f"no default strategy for backend: {backend}") from exc
+
 
 def validate_strategy(backend: str, strategy: str) -> None:
     if backend not in SUPPORTED_STRATEGIES:
@@ -57,4 +70,3 @@ def pgvector_session_settings(strategy: str) -> tuple[str, ...]:
     if strategy == "iterative_scan":
         return ("SET LOCAL hnsw.ef_search=100", "SET LOCAL hnsw.iterative_scan='relaxed_order'")
     return ("SET LOCAL hnsw.ef_search=200", "SET LOCAL hnsw.iterative_scan='strict_order'")
-

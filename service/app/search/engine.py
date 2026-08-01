@@ -46,7 +46,7 @@ def _merge_results(hits: list[dict[str, Any]], hydrated: list[dict[str, Any]]) -
 def _one_run(
     request: Any, active_snapshot: dict[str, Any] | None, execution_mode: str,
     *, metadata_filters: dict[str, Any], telemetry_filters: dict[str, Any],
-) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any], int, set[str]]:
+) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any], int | None, set[str]]:
     started = time.perf_counter()
     filter_started = time.perf_counter()
     run_id = None if active_snapshot is None else str(active_snapshot["run_id"])
@@ -185,7 +185,12 @@ def _one_run(
         "total": total_ms,
     }
     raw_candidate_count = diagnostics.get("candidate_count")
-    candidate_count = raw_candidate_count if raw_candidate_count is not None else len(candidate_ids or [])
+    candidate_count = (
+        raw_candidate_count
+        if raw_candidate_count is not None
+        else len(candidate_ids) if candidate_ids is not None
+        else None
+    )
     return timings, results, diagnostics, candidate_count, candidate_set
 
 
@@ -198,13 +203,20 @@ def _plan_query_for_request(request: Any, parser_mode: str) -> QueryExecutionPla
 
     available_fields = available_field_names(request.dataset_id)
     relaxation_mode = getattr(request, "filter_relaxation_mode", None) or settings.filter_relaxation_mode
-    min_results = getattr(request, "min_results", None) or request.top_k
+    requested_min_results = getattr(request, "min_results", None)
+    min_results = request.top_k if requested_min_results is None else requested_min_results
     return plan_query(
         request.query, available_fields, parser_mode=parser_mode,
         llm_provider=settings.query_parser_llm_provider,
         llm_model_id=settings.query_parser_llm_model_id,
         llm_base_url=settings.query_parser_llm_base_url,
-        relaxation_policy=RelaxationPolicy(mode=relaxation_mode, min_results=min_results),
+        relaxation_policy=RelaxationPolicy(
+            mode=relaxation_mode,
+            min_results=min_results,
+            max_relaxation_passes=getattr(request, "max_relaxation_passes", 5),
+            relaxation_timeout_ms=getattr(request, "relaxation_timeout_ms", 2000.0),
+            allow_semantic_only_fallback=getattr(request, "allow_semantic_only_fallback", False),
+        ),
     )
 
 
@@ -266,7 +278,7 @@ def search(request: Any) -> dict[str, Any]:
     timing_rows: list[dict[str, float]] = []
     results: list[dict[str, Any]] = []
     diagnostics: dict[str, Any] = {}
-    candidate_count = 0
+    candidate_count: int | None = None
     candidate_set: set[str] = set()
     for _ in range(request.repeats):
         timings, results, diagnostics, candidate_count, candidate_set = _one_run(
@@ -304,14 +316,15 @@ def search(request: Any) -> dict[str, Any]:
     else:
         filter_correctness = all(segment_id in candidate_set for segment_id in returned_ids)
     underfilled = len(results) < request.top_k
-    candidate_shortage = underfilled and candidate_count < request.top_k
-    ann_filter_loss = underfilled and candidate_count >= request.top_k
+    candidate_shortage = None if candidate_count is None else underfilled and candidate_count < request.top_k
+    ann_filter_loss = None if candidate_count is None else underfilled and candidate_count >= request.top_k
     diagnostics = {
         "candidate_count": candidate_count,
         "returned_count": len(results),
         "underfilled": underfilled,
         "underfilled_reason": (
-            "candidate_shortage" if candidate_shortage
+            "not_measured" if underfilled and candidate_count is None
+            else "candidate_shortage" if candidate_shortage
             else "ann_filter_loss" if ann_filter_loss
             else None
         ),

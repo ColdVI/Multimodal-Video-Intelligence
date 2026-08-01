@@ -15,7 +15,7 @@ from app.db.telemetry_registry import fields_for_run
 from app.db.registry import enabled_adapters, enabled_health, initialize_enabled_backends
 from app.embedding.router import mode_details
 from app.search.filter_schema import CANONICAL_FILTER_FIELDS, serialize_fields
-from app.search.strategies import SUPPORTED_STRATEGIES
+from app.search.strategies import SUPPORTED_STRATEGIES, default_strategy
 
 
 @asynccontextmanager
@@ -49,8 +49,8 @@ class AdaptiveMRL(BaseModel):
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
     dataset_id: str
-    backend: str = "clickhouse"
-    strategy: str = "prefilter"
+    backend: str | None = None
+    strategy: str | None = None
     dimension: Literal[2048, 1024, 512, 256] = 512
     adaptive_mrl: AdaptiveMRL = Field(default_factory=AdaptiveMRL)
     metadata_filters: dict[str, Any] = Field(default_factory=dict)
@@ -64,6 +64,9 @@ class SearchRequest(BaseModel):
     parser_mode: Literal["none", "rules", "llm"] | None = None
     filter_relaxation_mode: Literal["off", "diagnose_only", "auto_soft"] | None = None
     min_results: int | None = Field(default=None, ge=0)
+    max_relaxation_passes: int = Field(default=5, ge=1, le=5)
+    relaxation_timeout_ms: float = Field(default=2000.0, gt=0)
+    allow_semantic_only_fallback: bool = False
 
 
 @app.get("/health")
@@ -76,6 +79,7 @@ def health(dataset_id: str | None = None) -> dict[str, Any]:
         "vector_backends": vector_health,
         "disabled_backends": list(settings.disabled_vector_backends),
         "enabled_dimensions": list(settings.enabled_dimensions),
+        "default_vector_backend": settings.default_vector_backend,
         "filter_execution_mode": settings.filter_execution_mode,
         "pg": metadata_ok,
         "embedding_mode": settings.embedding_mode,
@@ -222,6 +226,8 @@ def strategies() -> dict[str, Any]:
 @app.post("/search")
 def search(request: SearchRequest) -> dict[str, Any]:
     try:
+        request.backend = request.backend or settings.default_vector_backend
+        request.strategy = request.strategy or default_strategy(request.backend)
         if request.backend not in settings.enabled_vector_backends:
             raise ValueError(
                 f"backend {request.backend!r} is disabled; enabled backends: {settings.enabled_vector_backends}"
@@ -248,6 +254,14 @@ def search(request: SearchRequest) -> dict[str, Any]:
             if request.adaptive_mrl.top_n < request.top_k:
                 raise ValueError(
                     f"adaptive_mrl.top_n {request.adaptive_mrl.top_n} must be >= top_k {request.top_k}"
+                )
+            if (
+                request.backend != "clickhouse"
+                and (request.adaptive_mrl.exact_rerank or settings.adaptive_mrl_exact_rerank)
+            ):
+                raise ValueError(
+                    f"adaptive_mrl.exact_rerank is unsupported for backend {request.backend!r}; "
+                    "use clickhouse or disable exact_rerank"
                 )
         from app.search.engine import search as run_search
 

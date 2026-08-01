@@ -41,11 +41,7 @@ def rerank_candidates_exact(
         raise ValueError("rerank_candidates_exact requires a non-empty candidate_ids (stage-1 result)")
     if backend == "clickhouse":
         return _rerank_clickhouse(dataset_id, dimension, query_vector, candidate_ids, top_k, run_id)
-    return [], {
-        "plan_used_vector_index": None, "indexed_vectors_count": None,
-        "notes": [f"exact_rerank_unsupported:{backend}"],
-        "rows_read": None, "bytes_read": None, "candidate_count": len(candidate_ids),
-    }
+    raise ValueError(f"exact rerank is unsupported for backend {backend!r}")
 
 
 def _rerank_clickhouse(

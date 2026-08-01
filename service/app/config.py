@@ -78,6 +78,7 @@ def _dimensions(env: Mapping[str, str]) -> tuple[int, ...]:
 class Settings:
     embedding_mode: str
     enabled_vector_backends: tuple[str, ...]
+    default_vector_backend: str
     enabled_dimensions: tuple[int, ...]
     filter_execution_mode: str
     legacy_candidate_limit: int
@@ -132,6 +133,7 @@ class Settings:
         instance = cls(
             embedding_mode=values.get("EMBEDDING_MODE", "synthetic").lower(),
             enabled_vector_backends=_csv(values, "ENABLED_VECTOR_BACKENDS", "clickhouse"),
+            default_vector_backend=values.get("DEFAULT_VECTOR_BACKEND", "clickhouse").strip().lower(),
             enabled_dimensions=_dimensions(values),
             filter_execution_mode=values.get("FILTER_EXECUTION_MODE", "pushdown").lower(),
             legacy_candidate_limit=_int(values, "LEGACY_CANDIDATE_LIMIT", 100000),
@@ -202,6 +204,11 @@ class Settings:
         unknown_backends = sorted(set(self.enabled_vector_backends) - known_backends)
         if unknown_backends:
             raise ValueError(f"unknown ENABLED_VECTOR_BACKENDS: {unknown_backends}")
+        if self.default_vector_backend not in self.enabled_vector_backends:
+            raise ValueError(
+                "DEFAULT_VECTOR_BACKEND must be present in ENABLED_VECTOR_BACKENDS: "
+                f"{self.default_vector_backend!r} not in {self.enabled_vector_backends}"
+            )
         unknown_dimensions = sorted(set(self.enabled_dimensions) - set(DIMENSIONS))
         if unknown_dimensions:
             raise ValueError(f"unsupported ENABLED_DIMENSIONS: {unknown_dimensions}; maximum Qwen dimension is 2048")
@@ -225,7 +232,7 @@ class Settings:
             missing = []
             if not self.pg_password:
                 missing.append("POSTGRES_PASSWORD")
-            if not self.ch_password:
+            if "clickhouse" in self.enabled_vector_backends and not self.ch_password:
                 missing.append("CLICKHOUSE_PASSWORD")
             if missing:
                 raise ValueError(f"required credentials are empty: {', '.join(missing)}")
