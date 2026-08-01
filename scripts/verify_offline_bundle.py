@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -10,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-import yaml
 
 
 EXPECTED_SERVICES = {"pg", "ch", "api", "ui"}
@@ -114,28 +114,41 @@ def verify_model_bundle(bundle_root: Path) -> dict[str, Any]:
 
 
 def validate_compose_contract(compose_path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
-    payload = yaml.safe_load(compose_path.read_text(encoding="utf-8")) or {}
-    services = payload.get("services") or {}
-    if set(services) != EXPECTED_SERVICES:
+    text = compose_path.read_text(encoding="utf-8")
+    section = re.search(r"(?ms)^services:\s*$\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:\s*$|\Z)", text)
+    if section is None:
+        raise ValueError("offline compose has no services section")
+    body = section.group(1)
+    headings = list(re.finditer(r"(?m)^  ([A-Za-z0-9_-]+):\s*$", body))
+    blocks: dict[str, str] = {}
+    for index, match in enumerate(headings):
+        stop = headings[index + 1].start() if index + 1 < len(headings) else len(body)
+        blocks[match.group(1)] = body[match.end():stop]
+    if set(blocks) != EXPECTED_SERVICES:
         raise ValueError(f"offline compose services must be exactly {sorted(EXPECTED_SERVICES)}")
-    for name, service in services.items():
-        if "build" in service:
+    images: dict[str, str] = {}
+    for name, block in blocks.items():
+        if re.search(r"(?m)^    build:\s*", block):
             raise ValueError(f"offline service {name} contains a forbidden build section")
-        if service.get("pull_policy") != "never":
+        if not re.search(r"(?m)^    pull_policy:\s*never\s*$", block):
             raise ValueError(f"offline service {name} must set pull_policy: never")
-        if str(service.get("image", "")).endswith(":latest"):
+        match = re.search(r"(?m)^    image:\s*(.+?)\s*$", block)
+        if match is None:
+            raise ValueError(f"offline service {name} has no explicit image")
+        images[name] = match.group(1)
+        if images[name].endswith(":latest"):
             raise ValueError(f"offline service {name} uses an unpinned latest tag")
-    api_env = services["api"].get("environment") or {}
+    api = blocks["api"]
     required = {
         "ENABLED_VECTOR_BACKENDS": "clickhouse",
         "DEFAULT_VECTOR_BACKEND": "clickhouse",
-        "ENABLED_DIMENSIONS": "512",
+        "ENABLED_DIMENSIONS": '"512"',
         "EMBEDDING_MODE": "real",
     }
     for key, expected in required.items():
-        if str(api_env.get(key)) != expected:
+        if not re.search(rf"(?m)^      {re.escape(key)}:\s*{re.escape(expected)}\s*$", api):
             raise ValueError(f"offline API {key} must be {expected!r}")
-    if services["api"].get("gpus") != "all":
+    if not re.search(r"(?m)^    gpus:\s*all\s*$", api):
         raise ValueError("offline API must request all NVIDIA GPUs")
     manifest_refs = {item["ref"] for item in manifest.get("images", [])}
     for fixed in ("pgvector/pgvector:pg16", "clickhouse/clickhouse-server:25.8"):
@@ -145,9 +158,7 @@ def validate_compose_contract(compose_path: Path, manifest: dict[str, Any]) -> d
     for application in (f"mvi-api-gpu:{git_sha}", f"mvi-ui:{git_sha}"):
         if application not in manifest_refs:
             raise ValueError(f"bundle manifest does not list {application}")
-    return payload
-
-
+    return {"services": {name: {"image": image} for name, image in images.items()}}
 def verify_static_bundle(bundle_root: Path) -> dict[str, Any]:
     bundle_root = bundle_root.expanduser().resolve()
     checksums = verify_checksums(bundle_root)

@@ -114,8 +114,7 @@ def _copy_contract_files(target: Path, git_sha: str) -> None:
     env_path = target / ".env.offline.example"
     env_path.write_text(
         env_path.read_text(encoding="utf-8")
-        .replace("CHANGE_ME_GIT_SHA", git_sha)
-        .replace("MODEL_BUNDLE_ROOT=./offline/model-bundle", "MODEL_BUNDLE_ROOT=./model-bundle"),
+        .replace("CHANGE_ME_GIT_SHA", git_sha),
         encoding="utf-8",
     )
 
