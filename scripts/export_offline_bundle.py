@@ -113,7 +113,9 @@ def _copy_contract_files(target: Path, git_sha: str) -> None:
         shutil.copy2(source, destination)
     env_path = target / ".env.offline.example"
     env_path.write_text(
-        env_path.read_text(encoding="utf-8").replace("CHANGE_ME_GIT_SHA", git_sha),
+        env_path.read_text(encoding="utf-8")
+        .replace("CHANGE_ME_GIT_SHA", git_sha)
+        .replace("MODEL_BUNDLE_ROOT=./offline/model-bundle", "MODEL_BUNDLE_ROOT=./model-bundle"),
         encoding="utf-8",
     )
 
@@ -159,7 +161,7 @@ def export_bundle(
         staging = Path(raw_staging) / output_dir.name
         staging.mkdir()
         _copy_contract_files(staging, sha)
-        shutil.copytree(model_bundle, staging / "offline" / "model-bundle", symlinks=False)
+        shutil.copytree(model_bundle, staging / "model-bundle", symlinks=False)
         image_dir = staging / "images"
         image_dir.mkdir()
         tar_path = image_dir / "mvi-images-linux-amd64.tar"
@@ -180,7 +182,7 @@ def export_bundle(
                 **archive_detail,
             },
             "model_bundle": {
-                "path": "offline/model-bundle",
+                "path": "model-bundle",
                 "model_id": verified_model.get("model_id"),
                 "model_revision": verified_model.get("model_revision"),
                 "source_commit": verified_model.get("source_commit"),

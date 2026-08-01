@@ -1,6 +1,5 @@
 schema_version: 1
 dataset_id: institution_m2ts_video_only
-display_name: Institution M2TS Video Only
 
 source:
   videos_glob: "**/*.m2ts"
