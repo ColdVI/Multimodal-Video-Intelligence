@@ -152,6 +152,11 @@ def write_run_detector_enrichment(
     not a live-serving table under concurrent read load."""
     if not rows:
         return 0
+    from app.db import postgres
+
+    snapshot = postgres.get_active_run_snapshot(dataset_id)
+    if snapshot is not None and str(snapshot["run_id"]) == run_id:
+        raise ValueError("detector enrichment cannot mutate an active run")
     target = client()
     for segment_id, median_visible, persistence_ratio in rows:
         target.command(

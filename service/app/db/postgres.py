@@ -723,6 +723,9 @@ def write_run_detector_enrichment(
     same-run-before-activation constraint this relies on."""
     if not rows:
         return 0
+    snapshot = get_active_run_snapshot(dataset_id)
+    if snapshot is not None and str(snapshot["run_id"]) == run_id:
+        raise ValueError("detector enrichment cannot mutate an active run")
     with connection() as conn, conn.cursor() as cur:
         for segment_id, median_visible, persistence_ratio in rows:
             cur.execute(
