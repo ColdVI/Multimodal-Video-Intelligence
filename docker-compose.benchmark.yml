@@ -13,8 +13,9 @@ services:
 
   api:
     environment:
-      ENABLED_VECTOR_BACKENDS: clickhouse,qdrant,pgvector
-      ENABLED_DIMENSIONS: 2048,1024,512,256
+      ENABLED_VECTOR_BACKENDS: ${BENCHMARK_VECTOR_BACKENDS:-clickhouse,qdrant,pgvector}
+      DEFAULT_VECTOR_BACKEND: ${BENCHMARK_DEFAULT_VECTOR_BACKEND:-clickhouse}
+      ENABLED_DIMENSIONS: ${BENCHMARK_DIMENSIONS:-2048,1024,512,256}
       QDRANT_URL: http://qdrant:6333
     depends_on:
       qdrant:

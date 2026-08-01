@@ -1,4 +1,4 @@
-name: multimodal-video-intelligence
+name: multimodal-video-intelligence-qdrant
 
 services:
   pg:
@@ -17,20 +17,14 @@ services:
       timeout: 5s
       retries: 20
 
-  ch:
-    image: clickhouse/clickhouse-server:25.8
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
     restart: unless-stopped
-    environment:
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-uav_search}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
-    command: ["--max_server_memory_usage=${CLICKHOUSE_MAX_MEMORY_BYTES:-0}"]
-    expose: ["8123", "9000"]
+    expose: ["6333", "6334"]
     volumes:
-      - ch_data:/var/lib/clickhouse
+      - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --user '${CLICKHOUSE_USER:-mvi}' --password '${CLICKHOUSE_PASSWORD}' --query 'SELECT 1'"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333'"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,7 +34,6 @@ services:
       context: .
       dockerfile: service/Dockerfile
     restart: unless-stopped
-    mem_limit: ${API_MEMORY_LIMIT:-0}
     env_file:
       - path: .env
         required: false
@@ -50,13 +43,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-uav_search}
       POSTGRES_USER: ${POSTGRES_USER:-mvi}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
-      CLICKHOUSE_HOST: ch
-      CLICKHOUSE_PORT: 8123
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-uav_search}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set}
-      ENABLED_VECTOR_BACKENDS: ${ENABLED_VECTOR_BACKENDS:-clickhouse}
-      DEFAULT_VECTOR_BACKEND: ${DEFAULT_VECTOR_BACKEND:-clickhouse}
+      QDRANT_URL: http://qdrant:6333
+      ENABLED_VECTOR_BACKENDS: qdrant
+      DEFAULT_VECTOR_BACKEND: qdrant
       ENABLED_DIMENSIONS: ${ENABLED_DIMENSIONS:-512}
       FILTER_EXECUTION_MODE: ${FILTER_EXECUTION_MODE:-pushdown}
       REQUIRE_SECURE_CREDENTIALS: "true"
@@ -72,7 +61,7 @@ services:
     depends_on:
       pg:
         condition: service_healthy
-      ch:
+      qdrant:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
@@ -85,10 +74,6 @@ services:
       context: .
       dockerfile: service/Dockerfile.ui
     restart: unless-stopped
-    mem_limit: ${UI_MEMORY_LIMIT:-0}
-    env_file:
-      - path: .env
-        required: false
     environment:
       API_URL: http://api:8000
       API_TOKEN: ${API_TOKEN:-}
@@ -97,12 +82,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860', timeout=3)"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
 
 volumes:
   pg_data:
-  ch_data:
+  qdrant_data:
