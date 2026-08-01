@@ -38,7 +38,21 @@ python scripts/prepare_model_bundle.py \
   --bundle-root /staging/mvi-model-bundle
 ```
 
-Mevcut bundle kullanılıyorsa exporter ağırlıkları tekrar indirmez; manifest ve dosya hash zincirini doğrular. Linux/amd64 image bundle'ını üretin:
+Mevcut bundle kullanılıyorsa exporter ağırlıkları tekrar indirmez; manifest ve dosya hash zincirini doğrular. Linux/amd64 image bundle'ını üretmeden önce tahmini planı yazdırın; bu komut Docker build/pull/save veya model indirme çalıştırmaz:
+
+```bash
+python scripts/export_offline_bundle.py \
+  --model-bundle /staging/mvi-model-bundle \
+  --output-dir /staging/offline_bundle \
+  --target-platform linux/amd64 \
+  --estimate-only
+```
+
+Beklenen image seti yalnız `mvi-app-gpu:<sha>`, `pgvector/pgvector:pg16` ve `clickhouse/clickhouse-server:25.8` olmalıdır. Muhafazakâr başlangıç bütçesi download için 7–11 GB, build cache için 15–25 GB, model için 4.5–6.5 GB, transfer için 13–20 GB ve boş disk için en az 60 GB'dır. Bunlar tahmindir; gerçek TAR boyutu yalnız `docker save` sonrasında ölçülür.
+
+Exporter başlamadan `docker version`, `docker compose version`, `docker info`, `git rev-parse HEAD` ve `git status --short` kontrollerini çalıştırır. Dirty checkout varsayılan olarak reddedilir; SHA ile kaynak içeriğinin ayrışmaması esastır. Staging GPU zorunlu değildir; `--gpu-smoke` verilmezse manifestte `gpu_runtime_smoke=NOT_RUN` kalır.
+
+Linux/amd64 image bundle'ını üretin:
 
 ```bash
 python scripts/export_offline_bundle.py \
@@ -47,7 +61,7 @@ python scripts/export_offline_bundle.py \
   --target-platform linux/amd64
 ```
 
-Exporter, mevcut Git SHA ile `mvi-api-gpu:<sha>` ve `mvi-ui:<sha>` image'larını build eder; `pgvector/pgvector:pg16` ile `clickhouse/clickhouse-server:25.8` image'larını staging hostta pull eder; dört image'ı `images/mvi-images-linux-amd64.tar` içine kaydeder. `bundle_manifest.json` image ID, digest, OS/mimari, TAR boyutu/hash'i ve model pinlerini içerir. `SHA256SUMS` tüm taşıma dosyalarını kapsar. Docker save manifestindeki bütün layer dosyaları exporter tarafından kontrol edilir.
+Exporter, mevcut Git SHA ile yalnız `mvi-app-gpu:<sha>` application image'ını `gpu` target'ından build eder; `pgvector/pgvector:pg16` ile `clickhouse/clickhouse-server:25.8` image'larını staging hostta pull eder; toplam üç image'ı `images/mvi-images-linux-amd64.tar` içine kaydeder. API ve UI ayrı container'lar olarak aynı application image ID'sini kullanır. UI `python3 -m ui.app` command'ıyla başlar ve GPU almaz; yalnız API `gpus: all` ister. `bundle_manifest.json` image ID, digest, OS/mimari, gerçek image size, TAR boyutu/hash'i ve model pinlerini içerir. `SHA256SUMS` tüm taşıma dosyalarını kapsar. Docker save manifestindeki bütün layer dosyaları exporter tarafından kontrol edilir.
 
 Bundle'a gerçek parola, token veya kurum videosu eklemeyin. `.env.offline.example` yalnız placeholder içerir.
 
@@ -101,7 +115,7 @@ python scripts/verify_offline_bundle.py /transfer/offline_bundle \
   --json-out /absolute/path/to/multi-model/artifacts/offline_bundle_verification.json
 ```
 
-Varsayılan davranış `docker load --input ...` çalıştırır ve dört tag'in local store'da doğru ID ve linux/amd64 platformuyla bulunduğunu doğrular. `--skip-load` yalnız statik inceleme içindir. Doğrulayıcı Docker Engine, Compose, NVIDIA sürücüsü ve `nvidia` container runtime'ı yoksa durur; internetten image çekmez.
+Varsayılan davranış `docker load --input ...` çalıştırır ve üç tag'in local store'da doğru ID ve linux/amd64 platformuyla bulunduğunu doğrular. `--skip-load` yalnız statik inceleme içindir. Doğrulayıcı Docker Engine, Compose, NVIDIA sürücüsü ve `nvidia` container runtime'ı yoksa durur; internetten image çekmez.
 
 Çalışma dizini kurulmuşsa stack'i doğrudan registry erişimi olmadan başlatın:
 

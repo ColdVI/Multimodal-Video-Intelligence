@@ -22,6 +22,9 @@ if str(SERVICE_ROOT) not in sys.path:
 from app.embedding.bundle import verify_bundle  # noqa: E402
 
 DB_IMAGES = ("pgvector/pgvector:pg16", "clickhouse/clickhouse-server:25.8")
+EXPECTED_MODEL_ID = "Qwen/Qwen3-VL-Embedding-2B"
+EXPECTED_MODEL_REVISION = "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda"
+EXPECTED_SOURCE_COMMIT = "393e2978d27852b0d0230d6994f37f9c15bed73c"
 REQUIRED_FILES = (
     "Dockerfile",
     "requirements.txt",
@@ -48,8 +51,41 @@ def run(command: list[str], *, cwd: Path | None = None) -> str:
 
 
 def required_images(git_sha: str) -> tuple[str, ...]:
-    return (f"mvi-api-gpu:{git_sha}", f"mvi-ui:{git_sha}", *DB_IMAGES)
+    return (f"mvi-app-gpu:{git_sha}", *DB_IMAGES)
 
+
+def planned_size_report(git_sha: str) -> dict[str, Any]:
+    return {
+        "planned_images": list(required_images(git_sha)),
+        "target_platform": "linux/amd64",
+        "estimated_download_gb": {"min": 7, "max": 11},
+        "estimated_build_cache_gb": {"min": 15, "max": 25},
+        "estimated_model_bundle_gb": {"min": 4.5, "max": 6.5},
+        "estimated_final_transfer_bundle_gb": {"min": 13, "max": 20},
+        "recommended_free_disk_gb": 60,
+        "estimate_note": "Pre-build conservative range; actual TAR size is measured after docker save.",
+    }
+
+
+def staging_preflight(*, allow_dirty: bool = False) -> dict[str, Any]:
+    git_head = run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT)
+    git_status = run(["git", "status", "--short"], cwd=REPO_ROOT)
+    if git_status and not allow_dirty:
+        raise RuntimeError("refusing to build a SHA-tagged image from a dirty checkout; commit or use --allow-dirty explicitly")
+    docker_version = json.loads(run(["docker", "version", "--format", "{{json .}}"]))
+    compose_version = run(["docker", "compose", "version", "--short"])
+    docker_info = json.loads(run(["docker", "info", "--format", "{{json .}}"]))
+    return {
+        "git_head": git_head,
+        "git_status_short": git_status.splitlines(),
+        "docker_version": docker_version,
+        "compose_version": compose_version,
+        "docker_engine": {
+            "os": docker_info.get("OSType"),
+            "architecture": docker_info.get("Architecture"),
+            "server_version": docker_info.get("ServerVersion"),
+        },
+    }
 
 def image_inspect(image: str) -> dict[str, Any]:
     payload = json.loads(run(["docker", "image", "inspect", image]))
@@ -125,6 +161,8 @@ def export_bundle(
     *,
     target_platform: str = "linux/amd64",
     git_sha: str | None = None,
+    allow_dirty: bool = False,
+    gpu_smoke: bool = False,
 ) -> dict[str, Any]:
     if target_platform != "linux/amd64":
         raise ValueError("the supported institution offline target is exactly linux/amd64")
@@ -135,13 +173,25 @@ def export_bundle(
     model_bundle = model_bundle.expanduser().resolve()
     if output_dir.exists():
         raise FileExistsError(f"refusing to overwrite existing output: {output_dir}")
-    verified_model = verify_bundle(model_bundle)
+    preflight = staging_preflight(allow_dirty=allow_dirty)
+    if not preflight["git_head"].startswith(sha):
+        raise ValueError(f"Git SHA tag {sha} does not match checked-out HEAD {preflight['git_head']}")
+    verified_model = verify_bundle(
+        model_bundle, expected_model_id=EXPECTED_MODEL_ID,
+        expected_model_revision=EXPECTED_MODEL_REVISION, expected_source_commit=EXPECTED_SOURCE_COMMIT,
+    )
     images = required_images(sha)
 
     run(["docker", "build", "--platform", target_platform, "--target", "gpu", "-t", images[0], "."], cwd=REPO_ROOT)
-    run(["docker", "build", "--platform", target_platform, "--target", "ui", "-t", images[1], "."], cwd=REPO_ROOT)
     for image in DB_IMAGES:
         run(["docker", "pull", "--platform", target_platform, image])
+    gpu_runtime_smoke: dict[str, Any] = {"status": "NOT_RUN", "detail": "--gpu-smoke was not requested"}
+    if gpu_smoke:
+        try:
+            detail = run(["docker", "run", "--rm", "--pull", "never", "--gpus", "all", images[0], "python3", "-c", "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"])
+            gpu_runtime_smoke = {"status": "PASS", "detail": detail}
+        except Exception as exc:
+            gpu_runtime_smoke = {"status": "FAIL", "detail": f"{type(exc).__name__}: {exc}"}
 
     inspected: list[dict[str, Any]] = []
     for image in images:
@@ -153,6 +203,7 @@ def export_bundle(
             "repo_digests": sorted(detail.get("RepoDigests") or []),
             "os": detail.get("Os"),
             "architecture": detail.get("Architecture"),
+            "size_bytes": detail.get("Size"),
         })
 
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -173,6 +224,9 @@ def export_bundle(
             "git_sha": sha,
             "build_host": {"system": platform.system(), "machine": platform.machine()},
             "target_platform": target_platform,
+            "planned_size_report": planned_size_report(sha),
+            "staging_preflight": preflight,
+            "gpu_runtime_smoke": gpu_runtime_smoke,
             "images": inspected,
             "image_archive": {
                 "path": tar_path.relative_to(staging).as_posix(),
@@ -186,6 +240,16 @@ def export_bundle(
                 "model_revision": verified_model.get("model_revision"),
                 "source_commit": verified_model.get("source_commit"),
                 "total_size_bytes": verified_model.get("total_size_bytes"),
+                "bundle_manifest_sha256": sha256_file(model_bundle / "bundle_manifest.json"),
+            },
+            "actual_sizes": {
+                "application_image_size_bytes": inspected[0].get("size_bytes"),
+                "postgres_image_size_bytes": inspected[1].get("size_bytes"),
+                "clickhouse_image_size_bytes": inspected[2].get("size_bytes"),
+                "docker_tar_size_bytes": tar_path.stat().st_size,
+                "model_bundle_size_bytes": verified_model.get("total_size_bytes"),
+                "total_transfer_size_bytes": tar_path.stat().st_size + int(verified_model.get("total_size_bytes") or 0),
+                "docker_system_df_v": run(["docker", "system", "df", "-v"]),
             },
             "requirements": {
                 "path": "requirements.txt",
@@ -206,10 +270,18 @@ def main() -> int:
     parser.add_argument("--model-bundle", type=Path, required=True)
     parser.add_argument("--target-platform", default="linux/amd64")
     parser.add_argument("--git-sha", help="optional application tag; defaults to current short Git SHA")
+    parser.add_argument("--allow-dirty", action="store_true", help="explicitly permit a dirty staging checkout")
+    parser.add_argument("--gpu-smoke", action="store_true", help="run a non-pulling CUDA smoke with the built app image")
+    parser.add_argument("--estimate-only", action="store_true", help="print the pre-build size plan and exit")
     args = parser.parse_args()
+    sha = args.git_sha or run(["git", "rev-parse", "--short=12", "HEAD"], cwd=REPO_ROOT)
+    print(json.dumps(planned_size_report(sha), indent=2, sort_keys=True), flush=True)
+    if args.estimate_only:
+        return 0
     manifest = export_bundle(
         args.output_dir, args.model_bundle,
-        target_platform=args.target_platform, git_sha=args.git_sha,
+        target_platform=args.target_platform, git_sha=sha,
+        allow_dirty=args.allow_dirty, gpu_smoke=args.gpu_smoke,
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0

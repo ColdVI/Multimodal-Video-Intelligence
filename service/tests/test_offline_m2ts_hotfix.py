@@ -49,6 +49,20 @@ def test_offline_compose_contains_only_pg_ch_api_ui():
     assert payload["services"]["api"]["environment"]["EMBEDDING_MODE"] == "real"
 
 
+def test_api_and_ui_use_same_application_image():
+    payload = _compose_payload()
+    assert payload["services"]["api"]["image"] == payload["services"]["ui"]["image"]
+    assert payload["services"]["api"]["image"].startswith("mvi-app-gpu:")
+    assert payload["services"]["ui"]["command"] == ["python3", "-m", "ui.app"]
+    assert payload["services"]["ui"]["healthcheck"]["test"][1] == "python3"
+
+
+def test_only_api_requests_gpu():
+    payload = _compose_payload()
+    assert payload["services"]["api"]["gpus"] == "all"
+    assert "gpus" not in payload["services"]["ui"]
+    assert all("model-bundle" not in str(item) for item in payload["services"]["ui"].get("volumes", []))
+
 def test_sibling_data_root_resolves_to_workspace_data(tmp_path):
     docker = shutil.which("docker")
     if docker is None:

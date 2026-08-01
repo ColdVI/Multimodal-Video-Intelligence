@@ -139,6 +139,15 @@ def validate_compose_contract(compose_path: Path, manifest: dict[str, Any]) -> d
         if images[name].endswith(":latest"):
             raise ValueError(f"offline service {name} uses an unpinned latest tag")
     api = blocks["api"]
+    ui = blocks["ui"]
+    if images["api"] != images["ui"] or not images["api"].startswith("mvi-app-gpu:"):
+        raise ValueError("offline API and UI must use the same SHA-pinned mvi-app-gpu image")
+    if re.search(r"(?m)^    gpus:\s*", ui):
+        raise ValueError("offline UI must not request a GPU")
+    if not re.search(r'(?m)^    command:\s*\["python3", "-m", "ui\.app"\]\s*$', ui):
+        raise ValueError("offline UI must start with python3 -m ui.app")
+    if images["pg"] != "pgvector/pgvector:pg16" or images["ch"] != "clickhouse/clickhouse-server:25.8":
+        raise ValueError("offline database image tags do not match the pinned contract")
     required = {
         "ENABLED_VECTOR_BACKENDS": "clickhouse",
         "DEFAULT_VECTOR_BACKEND": "clickhouse",
@@ -151,14 +160,20 @@ def validate_compose_contract(compose_path: Path, manifest: dict[str, Any]) -> d
     if not re.search(r"(?m)^    gpus:\s*all\s*$", api):
         raise ValueError("offline API must request all NVIDIA GPUs")
     manifest_refs = {item["ref"] for item in manifest.get("images", [])}
-    for fixed in ("pgvector/pgvector:pg16", "clickhouse/clickhouse-server:25.8"):
-        if fixed not in manifest_refs:
-            raise ValueError(f"bundle manifest does not list {fixed}")
     git_sha = manifest.get("git_sha")
-    for application in (f"mvi-api-gpu:{git_sha}", f"mvi-ui:{git_sha}"):
-        if application not in manifest_refs:
-            raise ValueError(f"bundle manifest does not list {application}")
+    expected_refs = {
+        f"mvi-app-gpu:{git_sha}",
+        "pgvector/pgvector:pg16",
+        "clickhouse/clickhouse-server:25.8",
+    }
+    if manifest_refs != expected_refs:
+        raise ValueError(
+            f"bundle manifest image set must contain exactly three pinned images: expected={sorted(expected_refs)}, "
+            f"observed={sorted(manifest_refs)}"
+        )
     return {"services": {name: {"image": image} for name, image in images.items()}}
+
+
 def verify_static_bundle(bundle_root: Path) -> dict[str, Any]:
     bundle_root = bundle_root.expanduser().resolve()
     checksums = verify_checksums(bundle_root)
@@ -209,12 +224,15 @@ def verify_runtime() -> dict[str, Any]:
     }
 
 
-def load_and_verify_images(bundle_root: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
-    archive = bundle_root / str(manifest["image_archive"]["path"])
-    run(["docker", "load", "--input", str(archive)])
+def verify_local_images(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for image in manifest["images"]:
-        payload = json.loads(run(["docker", "image", "inspect", image["ref"]]))[0]
+        try:
+            payload = json.loads(run(["docker", "image", "inspect", image["ref"]]))[0]
+        except Exception as exc:
+            raise RuntimeError(
+                f"required offline image is missing from the local store: {image['ref']}; refusing to pull"
+            ) from exc
         observed = f"{str(payload.get('Os', '')).lower()}/{str(payload.get('Architecture', '')).lower()}"
         if observed != EXPECTED_PLATFORM:
             raise RuntimeError(f"loaded image {image['ref']} has wrong platform: {observed}")
@@ -222,6 +240,12 @@ def load_and_verify_images(bundle_root: Path, manifest: dict[str, Any]) -> list[
             raise RuntimeError(f"loaded image ID mismatch for {image['ref']}")
         result.append({"ref": image["ref"], "image_id": payload.get("Id"), "platform": observed})
     return result
+
+
+def load_and_verify_images(bundle_root: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    archive = bundle_root / str(manifest["image_archive"]["path"])
+    run(["docker", "load", "--input", str(archive)])
+    return verify_local_images(manifest)
 
 
 def compose_command(bundle_root: Path, env_file: Path, *arguments: str) -> list[str]:
