@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import re
 from dataclasses import dataclass, field
@@ -139,16 +140,31 @@ class DatasetManifest:
         return self.telemetry_clock in ABSOLUTE_CLOCKS
 
     def resolve_glob(self, data_root: Path, pattern: str) -> tuple[Path, ...]:
+        """Resolve a DATA_ROOT-relative glob with case-insensitive extension matching.
+
+        Linux filesystems are case-sensitive, while institution MPEG-TS deliveries may
+        mix `.m2ts` and `.M2TS`. Matching the declared pattern case-insensitively keeps
+        the allow-list narrow (for example, `**/*.m2ts` still accepts only M2TS files)
+        and avoids broad "all files are videos" discovery.
+        """
         validate_relative_path(pattern, "manifest glob")
         root = data_root.expanduser().resolve()
+        normalized = pattern.replace("\\", "/").casefold()
+        patterns = {normalized}
+        if normalized.startswith("**/"):
+            patterns.add(normalized[3:])
         matches: list[Path] = []
-        for path in root.glob(pattern):
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root).as_posix().casefold()
+            if not any(fnmatch.fnmatchcase(relative, candidate) for candidate in patterns):
+                continue
             resolved = path.resolve()
             if not resolved.is_relative_to(root):
                 raise ValueError(f"resolved source escapes DATA_ROOT: {path}")
-            if path.is_file():
-                matches.append(path)
-        return tuple(sorted(matches))
+            matches.append(path)
+        return tuple(sorted(matches, key=lambda item: item.as_posix().casefold()))
 
 
 def _parse_manifest(path: Path, raw: Mapping[str, Any]) -> DatasetManifest:

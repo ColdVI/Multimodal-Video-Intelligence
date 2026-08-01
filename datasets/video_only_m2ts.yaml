@@ -1,0 +1,41 @@
+schema_version: 1
+dataset_id: institution_m2ts_video_only
+display_name: Institution M2TS Video Only
+
+source:
+  videos_glob: "**/*.m2ts"
+  video_id_from: filename_stem
+
+pairing:
+  strategy: filename_stem
+  telemetry_glob: null
+  telemetry_id_from: filename_stem
+  manifest_csv: null
+
+time_alignment:
+  video_clock: pts
+  telemetry_clock: relative_s
+  video_start_time_from: null
+  timezone: UTC
+  offset_s: 0.0
+  max_gap_s: 1.0
+  missing_policy: null
+
+window:
+  size_s: 8.0
+  stride_s: 4.0
+  frames_per_item: 8
+  partial_window_policy: drop_partial
+
+telemetry:
+  format: generic_csv
+  timestamp_column: timestamp
+  fields: {}
+  extra: {}
+
+media:
+  enabled: true
+  clip_cache: true
+
+policy:
+  fail_on_video_error: true

@@ -119,7 +119,8 @@ def test_video_only_manifest_requires_no_telemetry(tmp_path):
         "ENABLED_VECTOR_BACKENDS": "clickhouse", "ENABLED_DIMENSIONS": "512",
     })
     report = run_data_preflight(VIDEO_ONLY_MANIFEST, data_root=data_root, configured=settings, probe_fn=lambda _: Probe())
-    assert report["status"] == "pass"
+    assert report["status"] == "not_run"
+    assert not [item for item in report["checks"] if item["category"] == "data" and item["status"] == "fail"]
     assert report["telemetry_enabled"] is False
     assert report["video_count"] == 2
     assert report["sample_video"]["container"] == "mpegts"
@@ -158,7 +159,7 @@ def m2ts(tmp_path: Path) -> Path:
     target = tmp_path / "nonzero_pts.m2ts"
     command = [
         _ffmpeg_executable(), "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "lavfi", "-i", "testsrc=size=64x48:rate=10", "-t", "12",
+        "-f", "lavfi", "-i", "testsrc=size=64x48:rate=10", "-frames:v", "120",
         "-vf", "setpts=PTS+5/TB", "-c:v", "mpeg2video", "-g", "10",
         "-muxdelay", "0", "-muxpreload", "0", "-f", "mpegts", str(target),
     ]

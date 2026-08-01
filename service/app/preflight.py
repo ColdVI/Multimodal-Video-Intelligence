@@ -146,7 +146,12 @@ def run_data_preflight(
 
     ids = [pair.video_id for pair in pairs]
     checks.append(_check("duplicate_video_ids", "data", len(ids) == len(set(ids)), f"unique={len(set(ids))}; total={len(ids)}"))
-    if manifest.telemetry_glob or manifest.pairing_strategy == "manifest_csv":
+    telemetry_enabled = bool(manifest.telemetry_glob) or any(pair.telemetry_path is not None for pair in pairs)
+    checks.append(_check(
+        "telemetry_mode", "data", True,
+        f"telemetry_enabled={str(telemetry_enabled).lower()}; configured_fields={len(manifest.telemetry_fields) + len(manifest.telemetry_extra)}",
+    ))
+    if telemetry_enabled:
         missing = [pair.video_id for pair in pairs if pair.telemetry_path is None or not pair.telemetry_path.is_file()]
         checks.append(_check("telemetry_pairing", "data", not missing, f"missing={missing[:10]}; total_missing={len(missing)}"))
 
@@ -167,7 +172,12 @@ def run_data_preflight(
             ok = sample_probe.duration_s > 0 and sample_probe.fps > 0 and sample_probe.width > 0 and sample_probe.height > 0
             checks.append(_check(
                 "video_probe", "data", ok,
-                f"duration_s={sample_probe.duration_s}; fps={sample_probe.fps}; size={sample_probe.width}x{sample_probe.height}",
+                f"duration_s={sample_probe.duration_s}; fps={sample_probe.fps}; size={sample_probe.width}x{sample_probe.height}; "
+                f"container={getattr(sample_probe, 'container_format', 'unknown')}; codec={getattr(sample_probe, 'codec', 'unknown')}; "
+                f"raw_stream_start_s={getattr(sample_probe, 'raw_stream_start_time_s', None)}; "
+                f"normalized_origin_s={getattr(sample_probe, 'normalized_timestamp_origin_s', 0.0)}; "
+                f"first_frame_s={getattr(sample_probe, 'first_decoded_frame_timestamp_s', None)}; "
+                f"timestamps_monotonic={getattr(sample_probe, 'timestamps_monotonic', True)}",
             ))
             for pair in pairs:
                 probe = sample_probe if pair is pairs[0] else probe_fn(pair.video_path)  # type: ignore[misc]
@@ -228,7 +238,7 @@ def run_data_preflight(
         f"path={configured.artifacts_root}; exists={configured.artifacts_root.exists()}",
     ))
     _append_model_checks(checks, configured)
-    return _report(manifest, configured, checks, pairs, estimated_segments)
+    return _report(manifest, configured, checks, pairs, estimated_segments, sample_probe=sample_probe)
 
 
 def _append_model_checks(checks: list[PreflightCheck], configured: Settings) -> None:
@@ -315,6 +325,8 @@ def _report(
     checks: list[PreflightCheck],
     pairs: tuple[SourcePair, ...] | None,
     estimated_segments: int,
+    *,
+    sample_probe: Any | None = None,
 ) -> dict[str, Any]:
     if any(item.status == "fail" for item in checks):
         status = "fail"
@@ -329,6 +341,19 @@ def _report(
         "dataset_id": None if manifest is None else manifest.dataset_id,
         "manifest_hash": None if manifest is None else manifest.manifest_hash,
         "video_count": 0 if pairs is None else len(pairs),
+        "telemetry_enabled": False if manifest is None else (
+            bool(manifest.telemetry_glob) or bool(pairs and any(pair.telemetry_path is not None for pair in pairs))
+        ),
+        "sample_video": None if sample_probe is None else {
+            "container": getattr(sample_probe, "container_format", "unknown"),
+            "codec": getattr(sample_probe, "codec", "unknown"),
+            "duration_s": getattr(sample_probe, "duration_s", None),
+            "fps": getattr(sample_probe, "fps", None),
+            "raw_stream_start_time_s": getattr(sample_probe, "raw_stream_start_time_s", None),
+            "normalized_timestamp_origin_s": getattr(sample_probe, "normalized_timestamp_origin_s", 0.0),
+            "first_decoded_frame_timestamp_s": getattr(sample_probe, "first_decoded_frame_timestamp_s", None),
+            "timestamps_monotonic": getattr(sample_probe, "timestamps_monotonic", True),
+        },
         "estimated_segments": estimated_segments,
         "enabled_backends": list(configured.enabled_vector_backends),
         "enabled_dimensions": list(configured.enabled_dimensions),
