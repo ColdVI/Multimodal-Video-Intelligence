@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-01",
+  "branch": "feat/advanced-retrieval-evidence-gated",
+  "tested_head_before_report_commit": "2c2bfdc0b4b2994a792862e1c5e36fd5857c5df5",
+  "decision": "NO_GO",
+  "production_default_changed": false,
+  "production_recommendation": {
+    "enabled_vector_backends": ["clickhouse"],
+    "default_vector_backend": "clickhouse",
+    "enabled_dimensions": [512]
+  },
+  "benchmark_recommendation": {
+    "enabled_vector_backends": ["clickhouse", "qdrant", "pgvector"],
+    "enabled_dimensions": [2048, 1024, 512, 256],
+    "embedding_input": "identical cached embeddings"
+  },
+  "clickhouse_100k": {
+    "source": "artifacts/scale_evidence_bench_scale_512.json",
+    "source_sha256": "09d138bf79ca1f38136c4cec29609086ec8fb5fbd2f3aad69495a0b5c3cda938",
+    "raw_explain_pipeline_saved": false,
+    "medium_selectivity_saved": false,
+    "conclusion": "prefilter did not use the vector index in the saved schema plan and had exact-identical physical reads; behavior is consistent with filtered exact scoring, not a universal ClickHouse claim",
+    "complexity_interpretation": "empirically consistent with O(M*d), not proven as an asymptotic curve",
+    "matrix": [
+      {"strategy":"exact","selectivity":"loose","p50_ms":156.314,"p95_ms":238.420,"returned_count":10,"rows_read":149938,"bytes_read":217331576},
+      {"strategy":"prefilter","selectivity":"loose","p50_ms":143.776,"p95_ms":175.076,"returned_count":10,"rows_read":149938,"bytes_read":217331576},
+      {"strategy":"ann","selectivity":"loose","p50_ms":22.540,"p95_ms":40.330,"returned_count":10,"rows_read":94845,"bytes_read":11360274,"recall_at_10":1.0},
+      {"strategy":"postfilter_rescore","selectivity":"loose","p50_ms":109.181,"p95_ms":150.220,"returned_count":10,"rows_read":149938,"bytes_read":217331576},
+      {"strategy":"exact","selectivity":"strict","p50_ms":111.841,"p95_ms":175.622,"returned_count":10,"rows_read":139814,"bytes_read":217602602},
+      {"strategy":"prefilter","selectivity":"strict","p50_ms":104.188,"p95_ms":125.219,"returned_count":10,"rows_read":139814,"bytes_read":217602602},
+      {"strategy":"ann","selectivity":"strict","p50_ms":16.723,"p95_ms":33.708,"returned_count":0,"rows_read":49938,"bytes_read":10993703,"underfilled":true},
+      {"strategy":"postfilter_rescore","selectivity":"strict","p50_ms":113.256,"p95_ms":166.004,"returned_count":0,"rows_read":105031,"bytes_read":216973646,"underfilled":true}
+    ]
+  },
+  "backend_profiles": {
+    "qdrant_only": {"static_contract":"pass","compose_config":"pass","live_smoke":"blocked_docker_daemon_unavailable","clickhouse_service_present":false,"default_backend":"qdrant"},
+    "pgvector_only": {"static_contract":"pass","compose_config":"pass","live_smoke":"blocked_docker_daemon_unavailable","clickhouse_service_present":false,"qdrant_service_present":false,"default_backend":"pgvector"},
+    "clickhouse_production": {"compose_config":"pass","default_backend":"clickhouse","live_smoke":"not_run"},
+    "benchmark": {"compose_config":"pass","backend_override_configurable":true,"live_smoke":"not_run"}
+  },
+  "ingest_fanout": {
+    "writes_are_serial": true,
+    "all_enabled_backends_activation_blocking": true,
+    "failure_preserves_previous_active_run": true,
+    "standalone_5000_row_write_seconds": {"clickhouse":0.9,"qdrant":2.2,"pgvector":12.9},
+    "serial_sum_estimate_seconds_not_measured_wall_clock": {"clickhouse_qdrant":3.1,"clickhouse_qdrant_pgvector":16.0},
+    "measured_generic_multi_backend_slowdown": null,
+    "real_qwen_end_to_end": "not_run"
+  },
+  "fixes": [
+    "validated DEFAULT_VECTOR_BACKEND",
+    "backend-aware default strategy",
+    "reject unsupported adaptive exact rerank",
+    "preserve unmeasured candidate_count as null/not_requested",
+    "preserve min_results=0 and expose relaxation request controls",
+    "guard detector enrichment against active-run mutation",
+    "standalone Qdrant-only and pgvector-only Compose profiles",
+    "configurable benchmark backend override"
+  ],
+  "verification": {
+    "targeted_tests": {"passed":39,"skipped":2,"failed":0},
+    "root_tests": {"passed":384,"failed":4,"classification":"four pre-existing missing-doc relocation failures"},
+    "service_full_suite": {"status":"timed_out","attempts":2,"reason":"unavailable live-backend probes on closed ports"},
+    "compose_config_profiles": ["clickhouse","qdrant_only","pgvector_only","benchmark"]
+  },
+  "feature_status": {
+    "accepted": ["validated_backend_default","backend_aware_strategy_default","candidate_diagnostics","relaxation_request_contract","explicit_filter_preservation","active_run_enrichment_guard"],
+    "experimental": ["qdrant_only_profile_pending_live_acceptance","pgvector_only_profile_pending_live_acceptance","adaptive_exact_rerank","detector_enrichment_contract"],
+    "deferred": ["asynchronous_optional_mirrors"],
+    "blocked": ["fresh_100k_medium_and_pipeline_matrix","live_profile_smoke_matrix","cached_multi_backend_generic_ingest_benchmark","real_qwen_fanout_benchmark"]
+  },
+  "blockers": [
+    "Docker daemon unavailable",
+    "saved 100K matrix has no medium selectivity or raw EXPLAIN PIPELINE",
+    "no measured generic multi-backend wall-clock breakdown"
+  ]
+}
