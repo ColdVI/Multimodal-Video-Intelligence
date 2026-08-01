@@ -176,6 +176,28 @@ def test_active_pushdown_never_materializes_candidate_ids(fake_corpus, monkeypat
     assert response["diagnostics"]["filter_correctness"] is True
 
 
+def test_pushdown_candidate_count_stays_unmeasured_not_zero(fake_corpus, monkeypatch):
+    run_id = "00000000-0000-0000-0000-000000000013"
+    monkeypatch.setattr(engine.postgres, "get_active_run_snapshot", lambda dataset_id: {
+        "run_id": run_id, "vector_provenance": "real", "model_id": "m",
+        "model_revision": "r", "source_commit": "s",
+    })
+    monkeypatch.setitem(engine.BACKENDS, "clickhouse", lambda *args, **kwargs: (
+        [{"segment_id": f"s{i:03d}", "score": 1.0} for i in range(10)],
+        {"candidate_count": None, "candidate_count_status": "not_requested",
+         "plan_used_vector_index": True, "indexed_vectors_count": 200, "notes": []},
+    ))
+    monkeypatch.setattr(engine.postgres, "hydrate", lambda ids, *, run_id: [
+        {"segment_id": value} for value in ids
+    ])
+    request = _request(top_k=10)
+    request.filter_execution_mode = "pushdown"
+    response = engine.search(request)
+    assert response["diagnostics"]["candidate_count"] is None
+    assert response["diagnostics"]["candidate_count_status"] == "not_requested"
+    assert response["diagnostics"]["underfilled_reason"] is None
+
+
 def test_legacy_candidate_mode_fails_before_embedding_when_limit_exceeded(fake_corpus, monkeypatch):
     monkeypatch.setattr(engine, "settings", replace(engine.settings, legacy_candidate_limit=10))
     request = _request()

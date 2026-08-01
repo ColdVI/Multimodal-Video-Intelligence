@@ -43,13 +43,11 @@ def test_gate_custom_tolerance_factor_is_respected():
     assert verdict.status == "passed"  # 20/candidate, under the relaxed 50x tolerance
 
 
-def test_unsupported_backend_falls_back_with_explicit_note_not_silently():
-    rows, diagnostics = rerank_candidates_exact(
-        DATASET_ID, DIMENSION, [0.0] * DIMENSION, ["seg1"], top_k=5, backend="milvus",
-    )
-    assert rows == []
-    assert diagnostics["notes"] == ["exact_rerank_unsupported:milvus"]
-    assert diagnostics["rows_read"] is None
+def test_unsupported_backend_is_rejected_not_returned_as_empty_success():
+    with pytest.raises(ValueError, match="exact rerank is unsupported"):
+        rerank_candidates_exact(
+            DATASET_ID, DIMENSION, [0.0] * DIMENSION, ["seg1"], top_k=5, backend="qdrant",
+        )
 
 
 def test_empty_candidate_ids_raises_rather_than_running_an_unbounded_query():
