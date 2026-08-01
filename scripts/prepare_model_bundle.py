@@ -83,7 +83,7 @@ def _critical_versions() -> dict[str, str]:
 
 def _requirements_contract() -> dict[str, str]:
     result: dict[str, str] = {}
-    for relative in ("service/requirements.txt", "service/requirements-real.txt"):
+    for relative in ("requirements.txt",):
         path = REPO_ROOT / relative
         result[relative] = sha256_file(path)
     return result
