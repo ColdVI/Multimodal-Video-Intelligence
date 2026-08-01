@@ -13,7 +13,7 @@ Video embedding'leri ingest sırasında bir kez üretilir. Arama sırasında vid
 
 > **Durum:** `implementation_complete_hardware_acceptance_pending`
 >
-> Donanımdan bağımsız implementasyon ve testler tamamlandı. Güncel kabul matrisi **28 PASS, 0 FAIL, 12 NOT RUN**. Gerçek NVIDIA hedef host, kurum verisi, canlı backend'ler ve UI playback kabulü tamamlanınca durum `fully_accepted_on_target_environment` olabilir. Ayrıntı: [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md).
+> Son bağlayıcı kabul matrisi `d3fef0e` kodu için **28 PASS, 0 FAIL, 12 NOT RUN** sonucunu kaydetmiştir. Daha sonraki kanonik Docker/requirements düzeni henüz gerçek NVIDIA hedef host ve kurum verisiyle yeniden kabul edilmemiştir. Hedef GPU kabulü tamamlanmadan `fully_accepted_on_target_environment` durumu kullanılmamalıdır. Ayrıntılar: [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md) ve [Kurumsal GPU Kurulum ve İşletim Kılavuzu](docs/operations/GPU_DEPLOYMENT_GUIDE_TR.md).
 
 ## En kolay başlangıç
 
@@ -58,6 +58,9 @@ docker run --rm --gpus all nvidia/cuda:12.1.1-runtime-ubuntu22.04 nvidia-smi
 git clone https://github.com/ColdVI/Multimodal-Video-Intelligence.git
 cd Multimodal-Video-Intelligence
 
+# Container build'lerinde kök Dockerfile, Python bağımlılıklarında kök
+# requirements.txt kanonik kaynaktır. Compose profilleri aynı Dockerfile'ın
+# api, ui, hybrid ve gpu target'larını kullanır.
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -75,9 +78,13 @@ DATA_ROOT=/absolute/path/to/institution-dataset
 MODEL_BUNDLE_ROOT=/absolute/path/to/mvi-model-bundle
 
 ENABLED_VECTOR_BACKENDS=clickhouse
+DEFAULT_VECTOR_BACKEND=clickhouse
 ENABLED_DIMENSIONS=512
 FILTER_EXECUTION_MODE=pushdown
 EMBEDDING_MODE=real
+CUDA_IMAGE_TAG=12.1.1-runtime-ubuntu22.04
+BIND_HOST=127.0.0.1
+API_TOKEN=
 ```
 
 Canonical kurum profili ClickHouse + 512d + native pushdown'dır. Qdrant, pgvector ve diğer boyutlar benchmark profiline aittir.
@@ -92,7 +99,8 @@ DATA_ROOT/
 ├── telemetry/
 │   ├── flight_001.csv
 │   └── flight_002.csv
-└── pairing.csv
+└── pairing/
+    └── institution.csv
 ```
 
 Docker, `DATA_ROOT` klasörünü container içinde `/workspace/data` olarak salt okunur mount eder.
@@ -162,7 +170,7 @@ docker compose \
   -f docker-compose.gpu.yml \
   up -d --build
 
-docker compose --env-file .env ps
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml ps
 curl -fsS http://127.0.0.1:8000/health
 ```
 
@@ -170,18 +178,45 @@ curl -fsS http://127.0.0.1:8000/health
 - API/OpenAPI: <http://127.0.0.1:8000/docs>
 - Health: <http://127.0.0.1:8000/health>
 
-### 6. İlk ingest
+### 6. Gerçek GPU smoke
+
+20 GB kurum verisinin tamamı işlenmeden önce 1-2 gerçek MP4 veya 10 pencere ile GPU smoke çalıştırın:
 
 ```bash
-docker compose --env-file .env exec api \
-  python -m app.ingestion.ingest \
+docker compose \
+  --env-file .env \
+  -f docker-compose.yml \
+  -f docker-compose.gpu.yml \
+  exec -T api python scripts/gpu_smoke.py \
+  --dataset /workspace/datasets/kurum.yaml \
+  --data-root /workspace/data \
+  --output /workspace/artifacts/faz11/gpu_smoke.json \
+  --windows 10
+```
+
+Smoke çıktısında sentetik fallback bulunmamalı; GPU, model revision, embedding shape ve sonlu değer kontrolleri başarılı olmalıdır.
+
+### 7. İlk ingest
+
+```bash
+docker compose \
+  --env-file .env \
+  -f docker-compose.yml \
+  -f docker-compose.gpu.yml \
+  exec -T api python -m app.ingestion.ingest \
   --dataset /workspace/datasets/kurum.yaml \
   --resume
 ```
 
-`--resume` tamamlanmış chunk'ları tekrar decode etmez. Başarısız yeni run tamamen doğrulanmadan eski active run değişmez.
+`--resume` tamamlanmış chunk'ları tekrar decode veya embed etmez. Başarısız yeni run tamamen doğrulanmadan eski active run değişmez.
 
-### 7. Hedef ortam kabulü
+Generic ingest sırasında video ve segment metadata'sı PostgreSQL'deki run kapsamlı tablolara, 512 boyutlu vektörler ClickHouse'a yazılır. PostgreSQL segment sayıları ile ClickHouse vektör sayıları doğrulanmadan yeni run aktif edilmez. Arama sonuçlarındaki `video_id`, `segment_id`, `t_start`, `t_end`, dosya yolu ve telemetry alanları PostgreSQL'den hydrate edilir.
+
+`EMBEDDING_MODE=real` altında video embedding'leri yalnız ingest sırasında üretilir. Daha önce tanımlanmamış her sorgu metni istek anında GPU'da embed edilir; production query cache'i okunmaz veya yazılmaz.
+
+Kurum profili ClickHouse üzerinde `prefilter` stratejisini kullanır. Desteklenen diğer stratejiler ve backend seçenekleri için [Kurumsal GPU Kurulum ve İşletim Kılavuzu](docs/operations/GPU_DEPLOYMENT_GUIDE_TR.md) esas alınmalıdır.
+
+### 8. Hedef ortam kabulü
 
 ```bash
 python scripts/run_faz11_acceptance.py \
@@ -229,10 +264,10 @@ Bu profil normal deployment'ın zorunlu parçası değildir.
 - Normal kapatmada `down -v` kullanmayın.
 
 ```bash
-docker compose --env-file .env ps
-docker compose --env-file .env logs -f api
-docker compose --env-file .env logs -f ui
-docker compose --env-file .env down
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml ps
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml logs -f api
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml logs -f ui
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.gpu.yml down
 ```
 
 ---
