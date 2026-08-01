@@ -33,7 +33,7 @@ services:
     volumes:
       - faz7_ch_data:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --user '$${CLICKHOUSE_USER:-mvi}' --password '$${CLICKHOUSE_PASSWORD}' --query 'SELECT 1'"]
+      test: ["CMD-SHELL", "clickhouse-client --user \"$${CLICKHOUSE_USER:-mvi}\" --password \"$${CLICKHOUSE_PASSWORD:-}\" --query 'SELECT 1'"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -53,7 +53,8 @@ services:
   api:
     build:
       context: .
-      dockerfile: service/Dockerfile
+      dockerfile: Dockerfile
+      target: api
     restart: unless-stopped
     env_file:
       - path: .env.faz7
@@ -94,7 +95,8 @@ services:
   ui:
     build:
       context: .
-      dockerfile: service/Dockerfile.ui
+      dockerfile: Dockerfile
+      target: ui
     restart: unless-stopped
     env_file:
       - path: .env.faz7

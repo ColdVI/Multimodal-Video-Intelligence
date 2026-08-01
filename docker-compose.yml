@@ -38,7 +38,8 @@ services:
   api:
     build:
       context: .
-      dockerfile: service/Dockerfile
+      dockerfile: Dockerfile
+      target: api
     restart: unless-stopped
     mem_limit: ${API_MEMORY_LIMIT:-0}
     env_file:
@@ -83,7 +84,8 @@ services:
   ui:
     build:
       context: .
-      dockerfile: service/Dockerfile.ui
+      dockerfile: Dockerfile
+      target: ui
     restart: unless-stopped
     mem_limit: ${UI_MEMORY_LIMIT:-0}
     env_file:

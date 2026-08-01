@@ -32,7 +32,8 @@ services:
   api:
     build:
       context: .
-      dockerfile: service/Dockerfile
+      dockerfile: Dockerfile
+      target: api
     restart: unless-stopped
     env_file:
       - path: .env
@@ -72,7 +73,8 @@ services:
   ui:
     build:
       context: .
-      dockerfile: service/Dockerfile.ui
+      dockerfile: Dockerfile
+      target: ui
     restart: unless-stopped
     environment:
       API_URL: http://api:8000
