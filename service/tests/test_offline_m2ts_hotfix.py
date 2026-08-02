@@ -61,7 +61,11 @@ def test_only_api_requests_gpu():
     payload = _compose_payload()
     assert payload["services"]["api"]["gpus"] == "all"
     assert "gpus" not in payload["services"]["ui"]
-    assert all("model-bundle" not in str(item) for item in payload["services"]["ui"].get("volumes", []))
+    api = payload["services"]["api"]
+    assert all("mvi-model-bundle" not in str(item) for item in api.get("volumes", []))
+    assert api["environment"]["MODEL_BUNDLE_ROOT"] == "/opt/mvi-model-bundle"
+    assert api["environment"]["QWEN_REPO_PATH"] == "/opt/mvi-model-bundle/source"
+    assert api["environment"]["QWEN_MODEL_PATH"] == "/opt/mvi-model-bundle/model"
 
 def test_sibling_data_root_resolves_to_workspace_data(tmp_path):
     docker = shutil.which("docker")
@@ -70,11 +74,9 @@ def test_sibling_data_root_resolves_to_workspace_data(tmp_path):
     repository = tmp_path / "folder" / "multi-model"
     videos = tmp_path / "folder" / "videos"
     artifacts = repository / "artifacts"
-    model = repository / "offline" / "model-bundle"
     repository.mkdir(parents=True)
     videos.mkdir()
     artifacts.mkdir()
-    model.mkdir(parents=True)
     compose = repository / OFFLINE_COMPOSE.name
     compose.write_text(OFFLINE_COMPOSE.read_text(encoding="utf-8"), encoding="utf-8")
     env_file = repository / ".env.offline"
@@ -82,7 +84,7 @@ def test_sibling_data_root_resolves_to_workspace_data(tmp_path):
         "\n".join([
             "MVI_IMAGE_TAG=deadbeef", "POSTGRES_PASSWORD=test-postgres",
             "CLICKHOUSE_PASSWORD=test-clickhouse", "DATA_ROOT=../videos",
-            "MODEL_BUNDLE_ROOT=./offline/model-bundle", "ARTIFACTS_ROOT=./artifacts",
+            "ARTIFACTS_ROOT=./artifacts",
             "BIND_HOST=127.0.0.1", "API_TOKEN=",
         ]) + "\n",
         encoding="utf-8",

@@ -75,7 +75,6 @@ services:
       - ${DATA_ROOT:-../videos}:/workspace/data:ro
       - ${ARTIFACTS_ROOT:-./artifacts}:/workspace/artifacts
       - ./datasets:/workspace/datasets:ro
-      - ${MODEL_BUNDLE_ROOT:-./offline/model-bundle}:/opt/mvi-model-bundle:ro
     depends_on:
       pg:
         condition: service_healthy

@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
 ARG PYTHON_IMAGE=python:3.11-slim
+ARG CUDA_IMAGE_TAG=12.1.1-runtime-ubuntu22.04
 FROM ${PYTHON_IMAGE} AS cpu-base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
@@ -23,7 +24,6 @@ CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "
 FROM cpu-base AS ui
 EXPOSE 7860
 CMD ["python", "-m", "ui.app"]
-ARG CUDA_IMAGE_TAG=12.1.1-runtime-ubuntu22.04
 FROM nvidia/cuda:${CUDA_IMAGE_TAG} AS gpu
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg build-essential && rm -rf /var/lib/apt/lists/*
@@ -41,4 +41,16 @@ COPY common.py config.yaml ./
 COPY tests/fixtures ./tests/fixtures
 EXPOSE 8000
 CMD ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# This target is built only through scripts/export_offline_bundle.py. The
+# external named context is hash-verified before BuildKit is invoked, so model
+# weights never need to be copied into the repository or its default context.
+FROM gpu AS gpu-bundled
+ENV MODEL_BUNDLE_ROOT=/opt/mvi-model-bundle \
+    QWEN_REPO_PATH=/opt/mvi-model-bundle/source \
+    QWEN_MODEL_PATH=/opt/mvi-model-bundle/model \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+COPY --from=mvi_model_bundle / /opt/mvi-model-bundle/
+
 FROM api AS default

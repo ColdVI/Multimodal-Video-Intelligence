@@ -17,125 +17,118 @@ M2TS -> 8 saniyelik temporal window -> Qwen3-VL GPU video embedding
 
 PostgreSQL; `ingest_runs`, `ingest_chunks`, `dataset_active_runs`, `run_videos`, `run_segments`, `run_segment_metadata`, sonuç hydration, resume ve active-run doğrulaması için zorunludur. Telemetry bulunmaması PostgreSQL gereksinimini ortadan kaldırmaz. ClickHouse 512 boyutlu embedding saklama, arama ve run satır sayısı doğrulaması için zorunludur.
 
-## 2. Ön koşullar
+## 2. Neden tek TAR ve hangi bağımlılıklar hostta kalır?
 
-İnternetsiz hedefte aşağıdakiler önceden kurulu ve çalışır olmalıdır:
+Kurum aktarım prosedürü yalnız hazırlanmış Docker image TAR'ının yüklenmesini garanti eder. Bu nedenle Qwen source, model ağırlıkları ve üç model manifesti `mvi-app-gpu:<git-sha>` image'ının `/opt/mvi-model-bundle` yoluna gömülür. Ayrı model klasörü kopyalama veya model bind mount'u yoktur. Kurum videoları ise büyük ve kuruma özgü olduğu için image'a girmez; `DATA_ROOT` salt okunur biçimde `/workspace/data` yoluna mount edilir.
+
+Image içine konamayan ve hedef hostta önceden hazır olması gerekenler:
 
 - Linux/amd64 Docker Engine ve Docker Compose v2;
-- uyumlu NVIDIA sürücüsü;
-- NVIDIA Container Toolkit;
-- doğrulama betiği için yalnızca Python 3 standart kütüphanesi;
+- uyumlu NVIDIA sürücüsü ve `nvidia-smi`;
+- NVIDIA Container Toolkit ve Docker `nvidia` runtime'ı;
+- doğrulama scripti için Python 3 standart kütüphanesi ve health bekleme için `curl`;
 - yeterli disk alanı ve GPU belleği.
 
-Image bundle Docker, sürücü veya NVIDIA Container Toolkit kurmaz. Hedef bilgisayarda `pip install`, `apt-get`, `docker build` veya `docker pull` çalıştırılmaz. Eksik bir image varsa işlem açık hata ile durmalıdır.
+Bundle Docker Engine, NVIDIA sürücüsü veya Container Toolkit kurmaz. Hedef bilgisayarda `pip install`, `apt-get`, `docker build` veya `docker pull` çalıştırılmaz.
 
-## 3. İnternetli staging bilgisayarında bundle üretimi
+## 3. MacBook M4 üzerinde tek komutla üretim
 
-Önce pinlenmiş model/source bundle'ını bir defa hazırlayın veya mevcut doğrulanmış bundle'ı kullanın:
-
-```bash
-python scripts/prepare_model_bundle.py \
-  --bundle-root /staging/mvi-model-bundle
-```
-
-Mevcut bundle kullanılıyorsa exporter ağırlıkları tekrar indirmez; manifest ve dosya hash zincirini doğrular. Linux/amd64 image bundle'ını üretmeden önce tahmini planı yazdırın; bu komut Docker build/pull/save veya model indirme çalıştırmaz:
-
-```bash
-python scripts/export_offline_bundle.py \
-  --model-bundle /staging/mvi-model-bundle \
-  --output-dir /staging/offline_bundle \
-  --target-platform linux/amd64 \
-  --estimate-only
-```
-
-Beklenen image seti yalnız `mvi-app-gpu:<sha>`, `pgvector/pgvector:pg16` ve `clickhouse/clickhouse-server:25.8` olmalıdır. Muhafazakâr başlangıç bütçesi download için 7–11 GB, build cache için 15–25 GB, model için 4.5–6.5 GB, transfer için 13–20 GB ve boş disk için en az 60 GB'dır. Bunlar tahmindir; gerçek TAR boyutu yalnız `docker save` sonrasında ölçülür.
-
-Exporter başlamadan `docker version`, `docker compose version`, `docker info`, `git rev-parse HEAD` ve `git status --short` kontrollerini çalıştırır. Dirty checkout varsayılan olarak reddedilir; SHA ile kaynak içeriğinin ayrışmaması esastır. Staging GPU zorunlu değildir; `--gpu-smoke` verilmezse manifestte `gpu_runtime_smoke=NOT_RUN` kalır.
-
-Linux/amd64 image bundle'ını üretin:
-
-```bash
-python scripts/export_offline_bundle.py \
-  --model-bundle /staging/mvi-model-bundle \
-  --output-dir /staging/offline_bundle \
-  --target-platform linux/amd64
-```
-
-Exporter, mevcut Git SHA ile yalnız `mvi-app-gpu:<sha>` application image'ını `gpu` target'ından build eder; `pgvector/pgvector:pg16` ile `clickhouse/clickhouse-server:25.8` image'larını staging hostta pull eder; toplam üç image'ı `images/mvi-images-linux-amd64.tar` içine kaydeder. API ve UI ayrı container'lar olarak aynı application image ID'sini kullanır. UI `python3 -m ui.app` command'ıyla başlar ve GPU almaz; yalnız API `gpus: all` ister. `bundle_manifest.json` image ID, digest, OS/mimari, gerçek image size, TAR boyutu/hash'i ve model pinlerini içerir. `SHA256SUMS` tüm taşıma dosyalarını kapsar. Docker save manifestindeki bütün layer dosyaları exporter tarafından kontrol edilir.
-
-Bundle'a gerçek parola, token veya kurum videosu eklemeyin. `.env.offline.example` yalnız placeholder içerir.
-
-## 4. Hedef dizin yerleşimi
-
-Beklenen çalışma düzeni:
+Bu akış `agent/offline-single-load-bundle` çalışma branch'inde, `feat/advanced-retrieval-evidence-gated` branch'inin `ec3963fef230...` commit'i üzerinden geliştirilmiştir. Release checkout'u bu ileri branch'ten gelmeli ve temiz olmalıdır. Builder branch/commit'i yazdırır, merge-base kontrolü yapar ve üretilen her gerçek bundle'ın kesin commit'ini `bundle_manifest.json` içindeki `git_sha` ile kaydeder. Apple Silicon host `darwin/arm64` olsa da kurum hedefi değişmez:
 
 ```text
-folder/
-├── videos/
-│   ├── *.m2ts
-│   └── alt_klasorler/**/*.M2TS
-└── multi-model/
-    ├── docker-compose.offline-gpu.yml
-    ├── .env.offline
-    ├── datasets/video_only_m2ts.yaml
-    ├── artifacts/
-    └── offline/
-        ├── images/mvi-images-linux-amd64.tar
-        └── model-bundle/
+linux/amd64
 ```
 
-Transfer bundle'ındaki `model-bundle/` dizinini `multi-model/offline/model-bundle/`, TAR dosyasını `multi-model/offline/images/` altına kopyalayın. Compose, dataset manifesti ve doğrulama betiğini bundle'dan repository köküne kopyalayabilirsiniz. Kaynak dosyaları koruyun.
+Buildx emülasyon/çapraz-build mekanizması nedeniyle her build ve pull bu platformla açıkça çalışır. ARM64 olarak inspect edilen tek bir image bile export'u durdurur.
 
-`.env.offline.example` dosyasını `.env.offline` olarak kopyalayın; bütün `CHANGE_ME` değerlerini değiştirin:
+Docker Desktop çalışırken repository kökünde yalnız şu komutu çalıştırın:
+
+```bash
+./scripts/build_offline_bundle_macos.sh
+```
+
+Script en az 60 GB boş alanı denetler, `.runtime/` altında küçük bir venv kurar, pinned modeli/source'u `scripts/prepare_model_bundle.py` ile hazırlar veya mevcut bundle'ın bütün hash zincirini yeniden doğrular. Ardından BuildKit named context ile `gpu-bundled` target'ını build eder. Model dosyaları Git'e veya normal repository build context'ine kopyalanmaz.
+
+Sabit pinler:
+
+- model: `Qwen/Qwen3-VL-Embedding-2B`;
+- revision: `9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda`;
+- source commit: `393e2978d27852b0d0230d6994f37f9c15bed73c`.
+
+Tek TAR tam olarak şu image'ları içerir:
+
+```text
+mvi-app-gpu:<git-sha>
+pgvector/pgvector:pg16
+clickhouse/clickhouse-server:25.8
+```
+
+API ve UI aynı application image ID'sini kullanır; yalnız API `gpus: all` ister. Exporter container'ı `--network none --pull never` ile açıp gömülü model/source dizinlerini, pinleri, hash manifestlerini, symlink yokluğunu ve Python importlarını doğrular. Mac'te NVIDIA runtime yoksa GPU smoke `SKIPPED: host has no NVIDIA runtime` olarak kaydedilir; build bundan dolayı başarısız olmaz.
+
+Varsayılan `.runtime/offline-bundles/` altında her koşu timestamp ve SHA içeren yeni bir dizin üretir; mevcut output üzerine yazılmaz. `OUTPUT_ROOT`, `MODEL_CACHE_ROOT` ve `TARGET_PLATFORM` environment değişkenleri opsiyoneldir, fakat `TARGET_PLATFORM` yalnız `linux/amd64` olabilir.
+
+## 4. Nihai transfer dizini
+
+```text
+mvi-offline-bundle-<sha>-<timestamp>/
+├── images/mvi-images-linux-amd64.tar
+├── docker-compose.offline-gpu.yml
+├── .env.offline.example
+├── datasets/video_only_m2ts.yaml
+├── scripts/verify_offline_bundle.py
+├── install-and-start-offline.sh
+├── bundle_manifest.json
+└── SHA256SUMS
+```
+
+`model-bundle/` yoktur; model yalnız application image'ının `/opt/mvi-model-bundle/{source,model}` yollarındadır. `bundle_manifest.json` build hostunu, hedef platformu, image ID'lerini, TAR'ın gerçek boyut/hash'ini ve `embedded_model_bundle` pinlerini içerir. `SHA256SUMS`, TAR dahil bütün taşıma dosyalarını kapsar. Model boyutu transfer toplamına ikinci kez eklenmez. Gerçek TAR/dizin boyutu builder sonunda `du` ve SHA-256 ile yazdırılır; build yapılmadan verilen 9–16 GB aralığı yalnız planlama tahminidir.
+
+Video dizini bundle'ın yanında veya başka bir absolute Linux yolunda kalabilir:
+
+```text
+/transfer/mvi-offline-bundle-.../
+/kurum/videos/**/*.m2ts
+```
+
+`.env.offline.example` dosyasını kopyalayın ve bütün `CHANGE_ME` değerleriyle `DATA_ROOT` yolunu değiştirin:
+
+```bash
+cd /transfer/mvi-offline-bundle-...
+cp .env.offline.example .env.offline
+```
 
 ```env
-DATA_ROOT=../videos
-MODEL_BUNDLE_ROOT=./offline/model-bundle
+DATA_ROOT=/kurum/videos
 ARTIFACTS_ROOT=./artifacts
 ```
 
-Relative bind yolları Compose dosyasının proje dizinine göre çözülür. Production için özellikle farklı mount/drive düzenlerinde absolute Linux yolları önerilir. Windows üzerinde Docker Desktop kullanılıyorsa drive sharing açık olmalıdır. WSL içinde Windows yolu (`C:\...`) yerine `/mnt/c/...` biçimi kullanılmalıdır. Dataset manifestindeki `**/*.m2ts` glob'u container içindeki `/workspace/data` köküne göredir; host absolute yolu değildir.
+Model için host path ayarı yoktur. Compose'ta `build:` bulunmaz, her serviste `pull_policy: never` bulunur ve video mount'u read-only'dir.
 
-Yolu başlamadan doğrulayın:
+## 5. Offline yükleme ve başlatma
+
+Yalnız hash, `docker load`, image ID/platform ve gömülü model doğrulaması gerekiyorsa:
 
 ```bash
-docker compose --env-file .env.offline \
-  -f docker-compose.offline-gpu.yml config --format json
+bash install-and-start-offline.sh --load-only
 ```
 
-API volume kaynağının gerçek `folder/videos` dizini, hedefinin `/workspace/data` ve `read_only` değerinin `true` olduğunu kontrol edin. Model mount'u da read-only olmalıdır. PostgreSQL ve ClickHouse portları hosta publish edilmez.
-
-## 5. Bundle doğrulama, image yükleme ve offline başlatma
-
-Bundle henüz transfer dizinindeyken checksum/model/image sözleşmesini doğrulayıp image'ları yükleyin:
+Stack'i de başlatmak için:
 
 ```bash
-python scripts/verify_offline_bundle.py /transfer/offline_bundle \
-  --env-file /absolute/path/to/multi-model/.env.offline \
-  --json-out /absolute/path/to/multi-model/artifacts/offline_bundle_verification.json
+bash install-and-start-offline.sh
 ```
 
-Varsayılan davranış `docker load --input ...` çalıştırır ve üç tag'in local store'da doğru ID ve linux/amd64 platformuyla bulunduğunu doğrular. `--skip-load` yalnız statik inceleme içindir. Doğrulayıcı Docker Engine, Compose, NVIDIA sürücüsü ve `nvidia` container runtime'ı yoksa durur; internetten image çekmez.
-
-Çalışma dizini kurulmuşsa stack'i doğrudan registry erişimi olmadan başlatın:
+Starter sırasıyla SHA256 inventory'yi, Docker/Compose'u, linux/amd64 engine'i, `nvidia-smi` ve NVIDIA runtime'ı denetler; placeholder credential varsa durur; TAR'ı `docker load --input` ile yükler; local image ID'lerini manifestle karşılaştırır; application container'ını ağsız açarak gömülü bundle'ı yeniden doğrular; Compose config'i doğrular. Start modunda kullanılan son komut sözleşmesi şudur:
 
 ```bash
-python scripts/verify_offline_bundle.py /transfer/offline_bundle \
-  --env-file /absolute/path/to/multi-model/.env.offline
-
 docker compose --env-file .env.offline \
   -f docker-compose.offline-gpu.yml \
   up -d --no-build --pull never
 ```
 
-`--pull never` ve her servisteki `pull_policy: never`, eksik image durumunda pull yerine fail edilmesini sağlar. Sağlığı kontrol edin:
+API ve UI health endpointleri hazır olana kadar beklenir. Hiçbir registry pull girişimi yapılmaz.
 
-```bash
-docker compose --env-file .env.offline -f docker-compose.offline-gpu.yml ps
-docker compose --env-file .env.offline -f docker-compose.offline-gpu.yml exec -T api \
-  python3 -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
-curl -fsS -H "Authorization: Bearer ${API_TOKEN}" http://127.0.0.1:8000/health
-```
+Sorun halinde, sırayla `sha256sum -c SHA256SUMS`, `docker info`, `nvidia-smi`, `docker info --format '{{json .Runtimes}}'`, `docker image inspect <tag>` ve `docker compose --env-file .env.offline -f docker-compose.offline-gpu.yml config` çıktılarını inceleyin. Schema v1/eski bundle, ARM64 image, eksik layer/tag, yanlış image ID, bozuk hash, model mount'u veya `CHANGE_ME` credential açık hata ile reddedilir.
 
 ## 6. M2TS preflight ve küçük GPU smoke
 
