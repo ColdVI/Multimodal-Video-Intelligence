@@ -365,10 +365,33 @@ def test_builder_and_starter_shell_contracts():
     assert "--target\", \"gpu-bundled" in Path(exporter.__file__).read_text(encoding="utf-8")
     assert "FROM gpu AS gpu-bundled" in dockerfile
     assert "COPY --from=mvi_model_bundle / /opt/mvi-model-bundle/" in dockerfile
-    assert dockerfile.index("ARG CUDA_IMAGE_TAG=") < dockerfile.index("FROM ${PYTHON_IMAGE}")
     assert "--pull\", \"never" in Path(verifier.__file__).read_text(encoding="utf-8")
     assert "--load-only" in starter
     assert "CHANGE_ME" in starter
+
+
+def test_gpu_dockerfile_pins_python311_scipy_and_torch_cuda126():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    gpu = dockerfile.split("FROM ${PYTHON_IMAGE} AS gpu", 1)[1].split("FROM gpu AS gpu-bundled", 1)[0]
+
+    assert "ARG PYTHON_IMAGE=python:3.11-slim-bookworm" in dockerfile
+    assert "FROM ${PYTHON_IMAGE} AS gpu" in dockerfile
+    assert "FROM nvidia/cuda" not in dockerfile
+    assert "CUDA_IMAGE_TAG" not in dockerfile
+    assert "https://download.pytorch.org/whl/cu126" in gpu
+    assert "torch==2.8.0" in gpu
+    assert "torchvision==0.23.0" in gpu
+    assert "scipy==1.16.3" in requirements
+    assert "sys.version_info[:2] == (3, 11)" in gpu
+    assert "scipy.__version__ == '1.16.3'" in gpu
+    assert "torch.version.cuda == '12.6'" in gpu
+    assert "NVIDIA_DRIVER_CAPABILITIES=compute,utility" in gpu
+    assert 'CMD ["python", "-m", "uvicorn"' in gpu
+    assert "python3-pip" not in gpu
+    assert "apt-get install -y --no-install-recommends python3" not in gpu
+    assert "python3 -m pip install torch==2.8.0 torchvision==0.23.0" not in gpu
+    assert "https://download.pytorch.org/whl/cpu" in dockerfile.split("FROM ${PYTHON_IMAGE} AS gpu", 1)[0]
 
 
 def test_buildx_command_uses_verified_named_context_and_amd64(monkeypatch, tmp_path):
