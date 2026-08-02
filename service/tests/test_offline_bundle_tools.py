@@ -196,6 +196,25 @@ def test_saved_tar_contains_three_expected_tags_and_amd64_configs(tmp_path):
     assert {item["platform"] for item in result["images"].values()} == {"linux/amd64"}
 
 
+def test_archived_config_ids_are_canonical_across_containerd_source_ids():
+    inspected = [
+        {"ref": "mvi-app-gpu:abc123", "source_image_id": "sha256:oci-index"},
+        {"ref": "pgvector/pgvector:pg16", "source_image_id": "sha256:oci-manifest"},
+    ]
+    archive_detail = {
+        "images": {
+            "mvi-app-gpu:abc123": {"image_id": "sha256:app-config", "platform": "linux/amd64"},
+            "pgvector/pgvector:pg16": {"image_id": "sha256:pg-config", "platform": "linux/amd64"},
+        }
+    }
+
+    exporter.apply_archived_image_ids(inspected, archive_detail)
+
+    assert inspected[0]["source_image_id"] == "sha256:oci-index"
+    assert inspected[0]["image_id"] == "sha256:app-config"
+    assert inspected[1]["image_id"] == "sha256:pg-config"
+
+
 def test_saved_tar_rejects_missing_tag_and_layer(tmp_path):
     expected = exporter.required_images("abc123")
     missing_tag = tmp_path / "missing-tag.tar"

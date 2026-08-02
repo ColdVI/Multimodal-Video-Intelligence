@@ -170,6 +170,15 @@ def verify_saved_tar(
     return {"repo_tags": sorted(tags), "record_count": len(records), "images": image_metadata}
 
 
+def apply_archived_image_ids(inspected: list[dict[str, Any]], archive_detail: dict[str, Any]) -> None:
+    archived_images = archive_detail["images"]
+    for image in inspected:
+        archived = archived_images.get(image["ref"])
+        if not archived:
+            raise ValueError(f"saved archive is missing inspected image {image['ref']}")
+        image["image_id"] = archived["image_id"]
+
+
 def write_checksums(bundle_root: Path) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for path in sorted(bundle_root.rglob("*")):
@@ -311,7 +320,7 @@ def export_bundle(
         verify_image_platform(image, detail, target_platform)
         inspected.append({
             "ref": image,
-            "image_id": detail.get("Id"),
+            "source_image_id": detail.get("Id"),
             "repo_digests": sorted(detail.get("RepoDigests") or []),
             "os": detail.get("Os"),
             "architecture": detail.get("Architecture"),
@@ -329,10 +338,7 @@ def export_bundle(
         tar_path = image_dir / "mvi-images-linux-amd64.tar"
         run(["docker", "save", "-o", str(tar_path), *images])
         archive_detail = verify_saved_tar(tar_path, images, expected_platform=target_platform)
-        for image in inspected:
-            archived = archive_detail["images"].get(image["ref"])
-            if not archived or archived["image_id"] != image["image_id"]:
-                raise ValueError(f"saved archive image ID mismatch for {image['ref']}")
+        apply_archived_image_ids(inspected, archive_detail)
         deployment_size = sum(path.stat().st_size for path in staging.rglob("*") if path.is_file())
         manifest = {
             "schema_version": 2,
