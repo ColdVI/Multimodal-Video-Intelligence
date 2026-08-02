@@ -33,7 +33,11 @@ Bundle Docker Engine, NVIDIA sürücüsü veya Container Toolkit kurmaz. Hedef b
 
 ## 3. MacBook M4 üzerinde tek komutla üretim
 
-Bu akış `agent/offline-single-load-bundle` çalışma branch'inde, `feat/advanced-retrieval-evidence-gated` branch'inin `ec3963fef230...` commit'i üzerinden geliştirilmiştir. Release checkout'u bu ileri branch'ten gelmeli ve temiz olmalıdır. Builder branch/commit'i yazdırır, merge-base kontrolü yapar ve üretilen her gerçek bundle'ın kesin commit'ini `bundle_manifest.json` içindeki `git_sha` ile kaydeder. Apple Silicon host `darwin/arm64` olsa da kurum hedefi değişmez:
+Bu akış `feat/advanced-retrieval-evidence-gated` release tabanının ileri bir
+commit'inden çalıştırılmalıdır; checkout temiz olmalıdır. Builder branch/commit'i
+yazdırır, merge-base kontrolü yapar ve üretilen her gerçek bundle'ın kesin
+commit'ini `bundle_manifest.json` içindeki `git_sha` ile kaydeder. Apple Silicon
+host `darwin/arm64` olsa da kurum hedefi değişmez:
 
 ```text
 linux/amd64
@@ -83,6 +87,45 @@ mvi-offline-bundle-<sha>-<timestamp>/
 
 `model-bundle/` yoktur; model yalnız application image'ının `/opt/mvi-model-bundle/{source,model}` yollarındadır. `bundle_manifest.json` build hostunu, hedef platformu, image ID'lerini, TAR'ın gerçek boyut/hash'ini ve `embedded_model_bundle` pinlerini içerir. `SHA256SUMS`, TAR dahil bütün taşıma dosyalarını kapsar. Model boyutu transfer toplamına ikinci kez eklenmez. Gerçek TAR/dizin boyutu builder sonunda `du` ve SHA-256 ile yazdırılır; build yapılmadan verilen 9–16 GB aralığı yalnız planlama tahminidir.
 
+### Tek dosya transfer arşivi ve Drive/SSD aktarımı
+
+Builder'ın ürettiği gerçek bundle dizininin adını ilk satırdaki `BUNDLE_DIR`
+değerine yazın. Dizin, kurulum scriptleri ve iç Docker image TAR'ı birlikte
+taşınabilsin diye tek bir dış TAR'a alınır:
+
+```bash
+cd .runtime/offline-bundles
+BUNDLE_DIR=mvi-offline-bundle-REPLACE_WITH_ACTUAL_NAME
+tar -cf "${BUNDLE_DIR}.tar" "$BUNDLE_DIR"
+shasum -a 256 "${BUNDLE_DIR}.tar" > "${BUNDLE_DIR}.tar.sha256"
+```
+
+Drive veya harici SSD'ye yalnız şu iki dosyayı kopyalamak yeterlidir:
+
+```text
+mvi-offline-bundle-....tar
+mvi-offline-bundle-....tar.sha256
+```
+
+Drive kullanılıyorsa tamamen air-gapped hedefe doğrudan erişim beklenmez:
+dosyalar internetli bir aktarım bilgisayarına indirilir, ardından kurumun
+onayladığı harici SSD ile hedefe geçirilir. Kurum politikası bulut depolamayı
+yasaklıyorsa yalnız onaylı şifreli SSD kullanılır.
+
+Hedef Linux bilgisayarda dış TAR'ı doğrulayın ve açın:
+
+```bash
+BUNDLE_ARCHIVE=mvi-offline-bundle-REPLACE_WITH_ACTUAL_NAME.tar
+sha256sum -c "${BUNDLE_ARCHIVE}.sha256"
+tar -xf "$BUNDLE_ARCHIVE"
+cd "${BUNDLE_ARCHIVE%.tar}"
+```
+
+`sha256sum` sonucu `OK` olmadan arşivi kullanmayın. macOS üzerinde aynı
+kontrol `shasum -a 256 -c <dosya>.tar.sha256` komutuyla yapılır. Dış TAR
+yalnız taşıma kabıdır; içerideki `SHA256SUMS` ayrıca image TAR'ı ve bütün
+kurulum dosyalarını doğrular.
+
 Video dizini bundle'ın yanında veya başka bir absolute Linux yolunda kalabilir:
 
 ```text
@@ -96,6 +139,17 @@ Video dizini bundle'ın yanında veya başka bir absolute Linux yolunda kalabili
 cd /transfer/mvi-offline-bundle-...
 cp .env.offline.example .env.offline
 ```
+
+Örneğin `nano .env.offline` ile en az şu alanları gerçek değerlerle değiştirin:
+
+```env
+POSTGRES_PASSWORD=<guclu-parola>
+CLICKHOUSE_PASSWORD=<guclu-parola>
+API_TOKEN=<guclu-token>
+DATA_ROOT=/kurum/videos
+```
+
+Dosyada hiçbir `CHANGE_ME` değeri kalmamalıdır.
 
 ```env
 DATA_ROOT=/kurum/videos

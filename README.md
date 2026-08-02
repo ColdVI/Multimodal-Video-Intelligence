@@ -33,6 +33,9 @@ bash install-and-start-offline.sh              # doğrula, load et ve local imag
 ```
 
 Ayrıntılı image, hash, platform ve hata giderme sözleşmesi: [Air-Gapped M2TS Video-Only Dağıtım Yönergesi](docs/operations/OFFLINE_M2TS_VIDEO_ONLY_DEPLOYMENT.md).
+Yönergenin [tek dosya transfer arşivi](docs/operations/OFFLINE_M2TS_VIDEO_ONLY_DEPLOYMENT.md#tek-dosya-transfer-arşivi-ve-drivessd-aktarımı)
+bölümü, bundle'ı TAR + SHA-256 olarak Drive veya harici SSD üzerinden taşıma
+ve hedef Linux hostta açma komutlarını içerir.
 
 ## En kolay başlangıç
 
