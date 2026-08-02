@@ -57,6 +57,11 @@ def verify_bundle(
     expected_model_revision: str | None = None,
     expected_source_commit: str | None = None,
 ) -> dict[str, Any]:
+    if not bundle_root.is_dir():
+        raise FileNotFoundError(f"model bundle root does not exist: {bundle_root}")
+    for path in bundle_root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"bundle must not contain symlinks: {path.relative_to(bundle_root)}")
     manifest = load_bundle_manifest(bundle_root)
     expected = {
         "model_id": expected_model_id,

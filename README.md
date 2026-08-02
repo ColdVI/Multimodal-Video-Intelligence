@@ -15,6 +15,28 @@ Video embedding'leri ingest sırasında bir kez üretilir. Arama sırasında vid
 >
 > Son bağlayıcı kabul matrisi `d3fef0e` kodu için **28 PASS, 0 FAIL, 12 NOT RUN** sonucunu kaydetmiştir. Daha sonraki kanonik Docker/requirements düzeni henüz gerçek NVIDIA hedef host ve kurum verisiyle yeniden kabul edilmemiştir. Hedef GPU kabulü tamamlanmadan `fully_accepted_on_target_environment` durumu kullanılmamalıdır. Ayrıntılar: [FAZ11 final raporu](docs/reports/faz11/FINAL_REPORT.md) ve [Kurumsal GPU Kurulum ve İşletim Kılavuzu](docs/operations/GPU_DEPLOYMENT_GUIDE_TR.md).
 
+## Offline GPU Bundle
+
+Air-gapped NVIDIA linux/amd64 hedefi için API, UI, CUDA/Python bağımlılıkları ve pinlenmiş Qwen model/source bundle'ı aynı `mvi-app-gpu:<git-sha>` image'ında taşınır. PostgreSQL ve ClickHouse ile birlikte tam üç image tek Docker TAR'ına kaydedilir; model için host mount'u veya registry erişimi gerekmez. Kurum videoları `DATA_ROOT` üzerinden read-only mount edilmeye devam eder.
+
+İnternetli MacBook hazırlama hostunda:
+
+```bash
+./scripts/build_offline_bundle_macos.sh
+```
+
+Offline hostta `.env.offline` hazırlandıktan sonra:
+
+```bash
+bash install-and-start-offline.sh --load-only  # yalnız doğrula ve docker load
+bash install-and-start-offline.sh              # doğrula, load et ve local image'larla başlat
+```
+
+Ayrıntılı image, hash, platform ve hata giderme sözleşmesi: [Air-Gapped M2TS Video-Only Dağıtım Yönergesi](docs/operations/OFFLINE_M2TS_VIDEO_ONLY_DEPLOYMENT.md).
+Yönergenin [tek dosya transfer arşivi](docs/operations/OFFLINE_M2TS_VIDEO_ONLY_DEPLOYMENT.md#tek-dosya-transfer-arşivi-ve-drivessd-aktarımı)
+bölümü, bundle'ı TAR + SHA-256 olarak Drive veya harici SSD üzerinden taşıma
+ve hedef Linux hostta açma komutlarını içerir.
+
 ## En kolay başlangıç
 
 Kendi video/CSV datasetinizi hazırlamak, kolonları eşlemek, manifest üretmek ve uygun ortamda ingest başlatmak için:

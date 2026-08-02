@@ -1,0 +1,110 @@
+name: mvi-offline-gpu
+
+services:
+  pg:
+    image: pgvector/pgvector:pg16
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-uav_search}
+      POSTGRES_USER: ${POSTGRES_USER:-mvi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    expose: ["5432"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ch:
+    image: clickhouse/clickhouse-server:25.8
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-uav_search}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    command: ["--max_server_memory_usage=${CLICKHOUSE_MAX_MEMORY_BYTES:-0}"]
+    expose: ["8123", "9000"]
+    volumes:
+      - ch_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user \"$${CLICKHOUSE_USER}\" --password \"$${CLICKHOUSE_PASSWORD}\" --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: mvi-app-gpu:${MVI_IMAGE_TAG:?MVI_IMAGE_TAG must be set}
+    pull_policy: never
+    restart: unless-stopped
+    gpus: all
+    environment:
+      POSTGRES_HOST: pg
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-uav_search}
+      POSTGRES_USER: ${POSTGRES_USER:-mvi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      CLICKHOUSE_HOST: ch
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-uav_search}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mvi}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set}
+      ENABLED_VECTOR_BACKENDS: clickhouse
+      DEFAULT_VECTOR_BACKEND: clickhouse
+      ENABLED_DIMENSIONS: "512"
+      EMBEDDING_MODE: real
+      FILTER_EXECUTION_MODE: pushdown
+      REQUIRE_SECURE_CREDENTIALS: "true"
+      DATA_ROOT: /workspace/data
+      ARTIFACTS_ROOT: /workspace/artifacts
+      MODEL_BUNDLE_ROOT: /opt/mvi-model-bundle
+      QWEN_REPO_PATH: /opt/mvi-model-bundle/source
+      QWEN_MODEL_PATH: /opt/mvi-model-bundle/model
+      QWEN_MODEL_ID: Qwen/Qwen3-VL-Embedding-2B
+      QWEN_MODEL_REVISION: 9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda
+      QWEN_SOURCE_COMMIT: 393e2978d27852b0d0230d6994f37f9c15bed73c
+      ATTN_IMPL: ${ATTN_IMPL:-sdpa}
+      API_TOKEN: ${API_TOKEN:-}
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:8000:8000"
+    volumes:
+      - ${DATA_ROOT:-../videos}:/workspace/data:ro
+      - ${ARTIFACTS_ROOT:-./artifacts}:/workspace/artifacts
+      - ./datasets:/workspace/datasets:ro
+    depends_on:
+      pg:
+        condition: service_healthy
+      ch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  ui:
+    image: mvi-app-gpu:${MVI_IMAGE_TAG:?MVI_IMAGE_TAG must be set}
+    pull_policy: never
+    command: ["python3", "-m", "ui.app"]
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:8000
+      API_TOKEN: ${API_TOKEN:-}
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:7860:7860"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  pg_data:
+  ch_data:

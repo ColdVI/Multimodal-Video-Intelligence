@@ -14,6 +14,7 @@ __pycache__/
 .testdeps/
 .runtime/
 .gradio/
+.DS_Store
 .env.faz7
 .env
 artifacts/embeddings/*.npy

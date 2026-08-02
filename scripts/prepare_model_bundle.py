@@ -14,10 +14,11 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVICE_ROOT = REPO_ROOT / "service"
-if str(SERVICE_ROOT) not in sys.path:
-    sys.path.insert(0, str(SERVICE_ROOT))
+EMBEDDING_ROOT = SERVICE_ROOT / "app" / "embedding"
+if str(EMBEDDING_ROOT) not in sys.path:
+    sys.path.insert(0, str(EMBEDDING_ROOT))
 
-from app.embedding.bundle import inventory, sha256_file, verify_bundle  # noqa: E402
+from bundle import inventory, sha256_file, verify_bundle  # noqa: E402
 
 
 DEFAULT_MODEL_ID = "Qwen/Qwen3-VL-Embedding-2B"
@@ -83,7 +84,7 @@ def _critical_versions() -> dict[str, str]:
 
 def _requirements_contract() -> dict[str, str]:
     result: dict[str, str] = {}
-    for relative in ("service/requirements.txt", "service/requirements-real.txt"):
+    for relative in ("requirements.txt",):
         path = REPO_ROOT / relative
         result[relative] = sha256_file(path)
     return result
@@ -156,7 +157,17 @@ def main() -> int:
     parser.add_argument("--bundle-root", type=Path, required=True)
     parser.add_argument("--source-path", type=Path, help="pre-provisioned Git checkout for offline preparation")
     parser.add_argument("--model-path", type=Path, help="pre-provisioned model snapshot for offline preparation")
+    parser.add_argument("--verify-only", action="store_true", help="verify an existing pinned bundle without downloads")
     args = parser.parse_args()
+    if args.verify_only:
+        manifest = verify_bundle(
+            args.bundle_root.expanduser().resolve(),
+            expected_model_id=args.model_id,
+            expected_model_revision=args.model_revision,
+            expected_source_commit=args.source_commit,
+        )
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+        return 0
     manifest = create_bundle(
         args.bundle_root, model_id=args.model_id, model_revision=args.model_revision,
         source_repo=args.source_repo, source_commit=args.source_commit,

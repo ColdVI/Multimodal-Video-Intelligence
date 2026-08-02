@@ -1,0 +1,182 @@
+{
+  "schema_version": 2,
+  "generated_at_utc": "2026-08-01T09:05:00Z",
+  "scope": "air-gapped M2TS video-only deployment hotfix; single shared GPU application image",
+  "decision": "READY_AFTER_DOCKER_BUILD",
+  "decision_reason": "Static implementation and targeted tests pass, but Docker Engine access, application/database images, verified model bundle, TAR export, clean offline start, real GPU ingest, and live query evidence are unavailable.",
+  "code_sha_before_report_commit": "d4425500f1e8da7f9a47c3c3c23665dc1d9204d3",
+  "branch": "feat/advanced-retrieval-evidence-gated",
+  "initial_repository_state": {
+    "branch": "feat/advanced-retrieval-evidence-gated",
+    "head": "df0a69d",
+    "recent_commits": ["df0a69d", "0d55793", "7ff2850", "69459dc", "2c2bfdc", "a0ebb33", "0c20737", "ba40767", "f6836f7", "5105634", "08a5908", "ea5db3c"],
+    "diff_stat": "10 files changed, 7 insertions(+), 6 deletions(-); six user-owned UI PNG files and four legacy service Docker/requirements files",
+    "preservation": "Existing user and backend-profile changes were neither reset nor staged into hotfix commits."
+  },
+  "planned_bundle": {
+    "target_platform": "linux/amd64",
+    "images": [
+      "mvi-app-gpu:<final-clean-git-sha>",
+      "pgvector/pgvector:pg16",
+      "clickhouse/clickhouse-server:25.8"
+    ],
+    "application_containers": {
+      "api": {"image": "mvi-app-gpu:<sha>", "gpu_requested": true, "command": "image default Uvicorn command"},
+      "ui": {"image": "mvi-app-gpu:<sha>", "gpu_requested": false, "command": ["python3", "-m", "ui.app"]}
+    },
+    "estimated_download_gb": {"min": 7, "max": 11},
+    "estimated_build_cache_gb": {"min": 15, "max": 25},
+    "estimated_model_bundle_gb": {"min": 4.5, "max": 6.5},
+    "estimated_final_transfer_bundle_gb": {"min": 13, "max": 20},
+    "recommended_free_disk_gb": 60,
+    "estimate_status": "PRE_BUILD_ESTIMATE",
+    "estimate_note": "CUDA/PyTorch layers are the main uncertainty. docker image ls values must not be summed as exact disk use; final TAR bytes are measured after docker save."
+  },
+  "actual_sizes": {
+    "application_image_size_bytes": null,
+    "postgres_image_size_bytes": null,
+    "clickhouse_image_size_bytes": null,
+    "docker_tar_size_bytes": null,
+    "docker_tar_size_gb": null,
+    "model_bundle_size_bytes": null,
+    "model_bundle_size_gb": null,
+    "model_bundle_manifest_sha256": null,
+    "total_transfer_size_bytes": null,
+    "total_transfer_size_gb": null,
+    "status": "NOT_RUN",
+    "reason": "Docker Engine was inaccessible; no verified model bundle or TAR exists in the checkout."
+  },
+  "docker_environment": {
+    "docker_cli": true,
+    "docker_client_version": "29.6.1",
+    "docker_client_platform": "windows/amd64",
+    "docker_context": "desktop-linux",
+    "docker_engine_accessible": false,
+    "docker_version_exit_code": 1,
+    "error": "permission denied while trying to connect to the Docker API at npipe:////./pipe/dockerDesktopLinuxEngine",
+    "compose_config": "PASS",
+    "nvidia_smi_host": "NVIDIA GeForce GT 1030, driver 560.94, 4096 MiB",
+    "nvidia_container_toolkit": "NOT_RUN",
+    "gpu_runtime_smoke": "NOT_RUN"
+  },
+  "build_and_transfer_acceptance": {
+    "application_image_built": "NOT_RUN",
+    "database_images_pulled": "NOT_RUN",
+    "docker_save_completed": "NOT_RUN",
+    "tar_produced": "NOT_RUN",
+    "tar_contains_exactly_three_tags": "PASS_BY_UNIT_TEST_ONLY",
+    "parent_layers_present": "PASS_BY_UNIT_TEST_ONLY",
+    "clean_docker_load": "NOT_RUN",
+    "api_and_ui_same_runtime_image_id": "NOT_RUN",
+    "api_and_ui_same_image_static_contract": "PASS",
+    "ui_container_has_no_gpu_runtime_allocation": "NOT_RUN",
+    "ui_has_no_gpu_static_contract": "PASS",
+    "offline_start_registry_free": "NOT_RUN",
+    "pip_apt_build_during_offline_start": "NOT_RUN",
+    "compose_contains_no_build_and_pull_never": "PASS",
+    "offline_compose_healthy": "NOT_RUN"
+  },
+  "m2ts_native_evidence": {
+    "fixture": "FFmpeg-generated 12-second MPEG-TS; no institution file copied or committed",
+    "native_decode": "PASS",
+    "container_format": "mpegts",
+    "codec": "mpeg2video",
+    "duration_s": 12.0,
+    "fps": 10.0,
+    "width": 64,
+    "height": 48,
+    "raw_stream_start_time_s": 5.0,
+    "raw_container_start_time_s": 5.0,
+    "first_decoded_frame_timestamp_s": 5.0,
+    "nonzero_pts_found": true,
+    "timestamp_normalization_required": true,
+    "normalized_timestamp_origin_s": 5.0,
+    "timestamps_monotonic": true,
+    "window_starts_s": [0.0, 2.0, 4.0, 6.0, 8.0],
+    "window_ends_s": [4.0, 6.0, 8.0, 10.0, 12.0],
+    "frames_per_window": 4,
+    "institution_m2ts_smoke": "NOT_RUN"
+  },
+  "live_data_acceptance": {
+    "verified_model_bundle_present": false,
+    "telemetry_required": false,
+    "telemetry_free_live_ingest": "NOT_RUN",
+    "postgres_video_count": null,
+    "postgres_segment_count": null,
+    "clickhouse_vector_count": null,
+    "active_run_changed": "NOT_RUN",
+    "uncached_text_query_embedded_live_on_gpu": "NOT_RUN",
+    "query_cache_unchanged": "NOT_RUN",
+    "result_returned_video_id_t_start_t_end": "NOT_RUN",
+    "clickhouse_exact_ann_prefilter_smoke": "NOT_RUN",
+    "global_search_default_changed": false
+  },
+  "tests": [
+    {
+      "command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider service/tests/test_offline_bundle_tools.py service/tests/test_offline_m2ts_hotfix.py",
+      "status": "PASS",
+      "passed": 17,
+      "failed": 0,
+      "duration_s": 1.15
+    },
+    {
+      "command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider service/tests/test_offline_m2ts_hotfix.py service/tests/test_faz11_manifest.py service/tests/test_faz11_streaming.py",
+      "status": "PASS",
+      "passed": 36,
+      "failed": 0,
+      "note": "Run before the later single-image-only compose refactor; M2TS/video/preflight code did not change afterward."
+    },
+    {
+      "command": "docker compose --env-file .env.offline.example -f docker-compose.offline-gpu.yml config --quiet",
+      "status": "PASS"
+    },
+    {
+      "command": "python -m py_compile scripts/export_offline_bundle.py scripts/verify_offline_bundle.py",
+      "status": "PASS"
+    },
+    {
+      "command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider tests",
+      "status": "FAIL_PREEXISTING_DOC_PATH_EXPECTATIONS",
+      "passed": 384,
+      "failed": 4,
+      "duration_s": 44.43,
+      "failures": "Four tests expect moved legacy paths such as docs/USER_GUIDE.md; no hotfix implementation failure."
+    },
+    {
+      "command": "CLICKHOUSE_HOST=127.0.0.1 CLICKHOUSE_PORT=1 POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=1 .venv/Scripts/python.exe -m pytest -q -p no:cacheprovider service/tests",
+      "status": "PASS",
+      "passed": 310,
+      "skipped": 42,
+      "failed": 0,
+      "duration_s": 205.58,
+      "note": "Closed localhost ports made unavailable live backends fail fast; live tests remained explicit skips."
+    }
+  ],
+  "local_commits": [
+    {"sha": "f8f8530", "subject": "test: reproduce m2ts video-only ingestion gaps"},
+    {"sha": "46fa9c6", "subject": "fix: support video-only m2ts ingestion"},
+    {"sha": "cfc0623", "subject": "build: add registry-free offline gpu bundle"},
+    {"sha": "f0a409a", "subject": "fix: align offline bundle layout contract"},
+    {"sha": "503ec57", "subject": "fix: keep target bundle verification dependency-free"},
+    {"sha": "b1b200d", "subject": "docs: add offline m2ts video-only runbook"},
+    {"sha": "d442550", "subject": "refactor: share one gpu image in offline bundle"}
+  ],
+  "large_operations_started": {
+    "docker_build": false,
+    "docker_pull": false,
+    "docker_save": false,
+    "bundle_export": false,
+    "huggingface_download": false,
+    "git_clone": false,
+    "note": "Only av==16.0.1 (32.3 MB wheel), already pinned by canonical requirements.txt, was installed into the local test virtual environment to execute native M2TS tests."
+  },
+  "remaining_blockers": [
+    "Provide an accessible linux/amd64 Docker Engine on the internet-connected staging host.",
+    "Provide or prepare the pinned, hash-verified Qwen model/source bundle.",
+    "Run exporter from a clean checkout and record real image, TAR, model, and transfer sizes.",
+    "Perform clean docker load and registry-free compose up; prove shared API/UI image ID and UI no-GPU allocation.",
+    "Run representative NVIDIA GPU M2TS preflight, at least 10 real Qwen windows, ingest, PostgreSQL/ClickHouse counts, active-run switch, uncached text query, and strategy smoke."
+  ],
+  "push_performed": false,
+  "merge_performed": false
+}
