@@ -153,6 +153,39 @@ def test_offline_bundle_manifest_lists_exactly_three_images():
     assert set(compose["services"]) == {"pg", "ch", "api", "ui"}
 
 
+def test_database_images_pull_exact_amd64_child_manifests(monkeypatch):
+    calls: list[list[str]] = []
+    monkeypatch.setattr(exporter, "run", lambda command, **_: calls.append(command) or "")
+
+    exporter.pull_database_images("linux/amd64")
+
+    assert calls == [
+        [
+            "docker", "pull", "--platform", "linux/amd64",
+            "pgvector/pgvector@sha256:84a355869251af1a3379cfc9fa7b4dbf962c03f642a4bb7b339a203925071c43",
+        ],
+        [
+            "docker", "tag",
+            "pgvector/pgvector@sha256:84a355869251af1a3379cfc9fa7b4dbf962c03f642a4bb7b339a203925071c43",
+            "pgvector/pgvector:pg16",
+        ],
+        [
+            "docker", "pull", "--platform", "linux/amd64",
+            "clickhouse/clickhouse-server@sha256:cb75da0e596b8115d10bea34cef1414eafebfbcb5f5136c03e022c7b525899b3",
+        ],
+        [
+            "docker", "tag",
+            "clickhouse/clickhouse-server@sha256:cb75da0e596b8115d10bea34cef1414eafebfbcb5f5136c03e022c7b525899b3",
+            "clickhouse/clickhouse-server:25.8",
+        ],
+    ]
+
+
+def test_database_image_pins_reject_other_platforms():
+    with pytest.raises(ValueError, match="pinned only for linux/amd64"):
+        exporter.pull_database_images("linux/arm64")
+
+
 def test_saved_tar_contains_three_expected_tags_and_amd64_configs(tmp_path):
     expected = exporter.required_images("abc123")
     archive_path = tmp_path / "images.tar"

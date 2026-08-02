@@ -24,6 +24,10 @@ from bundle import verify_bundle  # noqa: E402
 
 APP_IMAGE_REPOSITORY = "mvi-app-gpu"
 DB_IMAGES = ("pgvector/pgvector:pg16", "clickhouse/clickhouse-server:25.8")
+DB_IMAGE_AMD64_DIGESTS = {
+    "pgvector/pgvector:pg16": "sha256:84a355869251af1a3379cfc9fa7b4dbf962c03f642a4bb7b339a203925071c43",
+    "clickhouse/clickhouse-server:25.8": "sha256:cb75da0e596b8115d10bea34cef1414eafebfbcb5f5136c03e022c7b525899b3",
+}
 EXPECTED_MODEL_ID = "Qwen/Qwen3-VL-Embedding-2B"
 EXPECTED_MODEL_REVISION = "9f2f7e710d6d81056aa5c0a4f04764fec6bb7bda"
 EXPECTED_SOURCE_COMMIT = "393e2978d27852b0d0230d6994f37f9c15bed73c"
@@ -55,6 +59,16 @@ def run(command: list[str], *, cwd: Path | None = None) -> str:
 
 def required_images(git_sha: str) -> tuple[str, ...]:
     return (f"{APP_IMAGE_REPOSITORY}:{git_sha}", *DB_IMAGES)
+
+
+def pull_database_images(target_platform: str) -> None:
+    if target_platform != EXPECTED_PLATFORM:
+        raise ValueError(f"database images are pinned only for {EXPECTED_PLATFORM}")
+    for image in DB_IMAGES:
+        repository = image.rsplit(":", 1)[0]
+        pinned_ref = f"{repository}@{DB_IMAGE_AMD64_DIGESTS[image]}"
+        run(["docker", "pull", "--platform", target_platform, pinned_ref])
+        run(["docker", "tag", pinned_ref, image])
 
 
 def planned_size_report(git_sha: str) -> dict[str, Any]:
@@ -289,8 +303,7 @@ def export_bundle(
     images = required_images(sha)
     build_bundled_application_image(images[0], model_bundle, target_platform)
     embedded_model_smoke = verify_embedded_model_image(images[0], model_bundle_manifest_sha256)
-    for image in DB_IMAGES:
-        run(["docker", "pull", "--platform", target_platform, image])
+    pull_database_images(target_platform)
 
     inspected: list[dict[str, Any]] = []
     for image in images:
